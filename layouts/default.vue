@@ -1,16 +1,19 @@
 <template>
-  <main>
+  <div class="layout">
     <Navbar />
-    <slot />
-  </main>
+    <div class="content">
+      <slot />
+    </div>
+  </div>
 </template>
 
 <style scoped lang="scss">
-main {
+.layout {
   width: 100vw;
   height: 100vh;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   padding: 24px;
 }
 </style>
