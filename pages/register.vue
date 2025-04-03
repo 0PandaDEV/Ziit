@@ -69,5 +69,5 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss">
-@use "/styles/register.scss";
+@use "/styles/login.scss";
 </style>
