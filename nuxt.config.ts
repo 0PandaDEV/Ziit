@@ -4,10 +4,10 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   ssr: true,
   runtimeConfig: {
-    jwtSecret: process.env.JWT_SECRET,
-    githubClientId: process.env.GITHUB_CLIENT_ID,
-    githubClientSecret: process.env.GITHUB_CLIENT_SECRET,
-    githubRedirectUri: process.env.GITHUB_REDIRECT_URI,
+    jwtSecret: process.env.NUXT_JWT_SECRET,
+    githubClientId: process.env.NUXT_GITHUB_CLIENT_ID,
+    githubClientSecret: process.env.NUXT_GITHUB_CLIENT_SECRET,
+    githubRedirectUri: process.env.NUXT_GITHUB_REDIRECT_URI,
   },
   nitro: {
     preset: "bun",

@@ -3,14 +3,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        DATABASE_URL: "postgresql://postgres:root@postgres:5432/ziit" # KEEP AS IS
-        JWT_SECRET: "" # Random string best to generate one using openssl rand --hex 64
-        GITHUB_CLIENT_ID: "" # Github client id
-        GITHUB_CLIENT_SECRET: "" # Github client secret
-        GITHUB_REDIRECT_URI: "" # Your redirect url for the github auth e.g. https://ziit.example.com/api/auth/github/callback
     ports:
       - "3000:3000"
+    environment:
+      NUXT_DATABASE_URL: "postgresql://postgres:root@postgres:5432/ziit" # KEEP AS IS
+      NUXT_JWT_SECRET: "" # Random string best to generate one using openssl rand --hex 64
+      NUXT_GITHUB_CLIENT_ID: "" # Github client id
+      NUXT_GITHUB_CLIENT_SECRET: "" # Github client secret
+      NUXT_GITHUB_REDIRECT_URI: "" # Your redirect url for the github auth e.g. https://ziit.example.com/api/auth/github/callback
     restart: unless-stopped
     volumes:
       - ./files:/anders/files

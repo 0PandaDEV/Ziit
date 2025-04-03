@@ -27,19 +27,15 @@ Ziit or also pronounecd "tseet" is an open source and self-hostable alternative 
 The easiest way to run Ziit is using Docker Compose.
 
 1. **Configure Docker Compose:**
-    Edit the `args` section in the `docker-compose.yml` file to set your configuration values:
+    Edit the environment variables in the `docker-compose.yml` file to set your configuration values:
 
-    ```yaml:docker-compose.yml
-    services:
-      app:
-        build:
-          context: .
-          args:
-            - DATABASE_URL=${DATABASE_URL}
-            - NUXT_AUTH_SECRET=${NUXT_AUTH_SECRET}
-            - NUXT_GITHUB_CLIENT_ID=${NUXT_GITHUB_CLIENT_ID}
-            - NUXT_GITHUB_CLIENT_SECRET=${NUXT_GITHUB_CLIENT_SECRET}
-    ```
+    | Environment Variable | Description | Example |
+    |---------------------|-------------|---------|
+    | NUXT_DATABASE_URL | Database connection string | postgresql://postgres:root@postgres:5432/ziit |
+    | NUXT_JWT_SECRET | Random string for JWT authentication | (Generate with `openssl rand --hex 64`) |
+    | NUXT_GITHUB_CLIENT_ID | GitHub OAuth client ID | your_github_client_id |
+    | NUXT_GITHUB_CLIENT_SECRET | GitHub OAuth client secret | your_github_client_secret |
+    | NUXT_GITHUB_REDIRECT_URI | GitHub OAuth redirect URL | <https://your-domain.com/api/auth/github/callback> |
 
 2. **Build and Start Containers:**
 
