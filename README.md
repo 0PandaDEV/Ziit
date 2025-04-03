@@ -24,7 +24,7 @@ Ziit or also pronounecd "tseet" is an open source and self-hostable alternative 
 
 ## Docker Deployment
 
-The easiest way to run Ziit is using Docker Compose.
+The easiest way to run Ziit is using [Docker Compose](https://github.com/0PandaDEV/Ziit/blob/main/docker-compose.yml).
 
 1. **Configure Docker Compose:**
     Edit the `args` section in the `docker-compose.yml` file to set your configuration values:
