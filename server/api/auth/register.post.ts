@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
       sameSite: "strict",
     });
 
-    return sendRedirect(event, "/dashboard");
+    return sendRedirect(event, "/");
   } catch (error) {
     throw createError({
       statusCode: 400,

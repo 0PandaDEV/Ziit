@@ -59,7 +59,7 @@ export default defineEventHandler(async (event) => {
       sameSite: "strict",
     });
 
-    await sendRedirect(event, "/dashboard");
+    await sendRedirect(event, "/");
   } catch (error) {
     throw createError({
       statusCode: 401,

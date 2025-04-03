@@ -211,7 +211,7 @@ export default defineEventHandler(async (event) => {
       path: "/",
     });
 
-    return sendRedirect(event, "/dashboard");
+    return sendRedirect(event, "/");
   } catch (error) {
     console.error("GitHub OAuth error:", error);
     return sendRedirect(event, "/login?error=github_auth_failed");
