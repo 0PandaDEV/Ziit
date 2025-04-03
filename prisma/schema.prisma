@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String      @id @default(cuid())
+  email              String      @unique
+  passwordHash       String?
+  githubId           String?     @unique
+  githubUsername     String?
+  githubAccessToken  String?
+  githubRefreshToken String?
+  apiKey             String      @unique @default(cuid())
+  createdAt          DateTime    @default(now())
+  heartbeats         Heartbeat[]
+}
+
+model Heartbeat {
+  id        String   @id @default(cuid())
+  timestamp DateTime @db.Timestamptz(6)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  project   String?
+  language  String?
+  file      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, timestamp])
+  @@index([timestamp])
+}
+
+model DailyProjectSummary {
+  id           String   @id @default(cuid())
+  userId       String
+  date         DateTime @db.Date
+  project      String
+  totalSeconds Int
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, date, project])
+}
