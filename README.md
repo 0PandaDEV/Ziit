@@ -1,7 +1,7 @@
 # Ziit
 
 > [!IMPORTANT]
-> /tsiːt/<br>
+> /tsiːt/  
 > the point or period when something occurs. swiss german word for "time"
 
 Ziit or also pronounecd "tseet" is an open source and self-hostable alternative to wakatime with the goal of having better UI and UX design as well as privacy of your data as its on your own server instead of the nasty cloud.
