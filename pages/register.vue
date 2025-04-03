@@ -7,7 +7,7 @@
     <form class="form" @submit.prevent="register">
       <Input
         v-model="email"
-        placeholder="name@example.com"
+        placeholder="Email"
         type="text"
         :icon="IconsMail" />
       <Input
