@@ -5,13 +5,21 @@
   </div>
 </template>
 
+<script setup>
+import { keyboard } from "wrdu-keyboard";
+
+onMounted(() => {
+  keyboard.init();
+});
+</script>
+
 <style lang="scss">
 :root {
   --background: #191919;
   --element: #2b2b2b;
   --border: #ffffff1a;
 
-  --accent: #FF6200;
+  --accent: #ff6200;
 
   --text: #e6e6e6;
   --text-secondary: #a6a6a6;
@@ -54,7 +62,7 @@ input {
   font-size: 14px;
 }
 
-a{
+a {
   text-decoration: none;
   color: var(--text);
 }
