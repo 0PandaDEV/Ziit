@@ -1,6 +1,7 @@
 <template>
   <div>
     <NuxtPage />
+    <Toast />
   </div>
 </template>
 
@@ -9,6 +10,8 @@
   --background: #191919;
   --element: #2b2b2b;
   --border: #ffffff1a;
+
+  --accent: #FF6200;
 
   --text: #e6e6e6;
   --text-secondary: #a6a6a6;
