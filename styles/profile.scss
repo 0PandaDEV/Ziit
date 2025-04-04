@@ -1,3 +1,7 @@
+*:not(.input) {
+  width: fit-content;
+}
+
 .container {
   display: flex;
   flex-direction: column;
@@ -42,7 +46,7 @@ section {
   gap: 4px;
 }
 
-.steps{
+.steps {
   color: var(--text-secondary);
 }
 
