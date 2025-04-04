@@ -1,6 +1,6 @@
 <template>
   <div class="navbar">
-    <p class="title">ZIIT</p>
+    <NuxtLink to="/" class="title">ZIIT</NuxtLink>
     <div class="actions">
       <NuxtLink to="/profile">Profile</NuxtLink>
     </div>
