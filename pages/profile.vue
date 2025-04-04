@@ -16,13 +16,10 @@
           </div>
         </div>
         <div class="buttons">
-          <Button
-            v-if="user?.hasGithubAccount"
-            text="Unlink Github"
-            keyName="U" />
-          <Button v-else text="Link Github" keyName="L" />
+          <Button v-if="!user?.hasGithubAccount" text="Link Github" keyName="L" @click="linkGithub" />
           <Button text="Change Email" keyName="E" />
           <Button text="Change Password" keyName="P" />
+          <Button text="Logout" keyName="Alt+L" @click="logout" />
         </div>
       </section>
 
@@ -76,6 +73,7 @@
 <script setup lang="ts">
 import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
+import { Key, keyboard } from "wrdu-keyboard";
 
 interface ExtendedUser extends User {
   hasGithubAccount?: boolean;
@@ -86,9 +84,66 @@ const user = ref<ExtendedUser | null>(null);
 const showApiKey = ref(false);
 const url = useRequestURL();
 const origin = url.origin;
+const toast = useToast();
+const route = useRoute();
 
 onMounted(async () => {
   await fetchUserData();
+  
+  // Check for URL query parameters
+  if (route.query.error) {
+    const errorMessages: Record<string, string> = {
+      'link_failed': 'Failed to link GitHub account'
+    };
+    
+    const message = errorMessages[route.query.error as string] || 'Error';
+    toast.error(message);
+  }
+  
+  if (route.query.success) {
+    const successMessages: Record<string, string> = {
+      'github_linked': 'GitHub account successfully linked',
+      'github_updated': 'GitHub credentials updated',
+      'accounts_merged': 'Accounts successfully merged'
+    };
+    
+    const message = successMessages[route.query.success as string] || 'Success';
+    toast.success(message);
+  }
+  
+  keyboard.prevent.down([Key.L], async () => {
+    if (!user.value?.hasGithubAccount) {
+      await linkGithub();
+    }
+  });
+  
+  keyboard.prevent.down([Key.E], async () => {
+    // Change Email functionality
+  });
+  
+  keyboard.prevent.down([Key.P], async () => {
+    // Change Password functionality
+  });
+  
+  keyboard.prevent.down([Key.AltLeft, Key.L], async () => {
+    await logout();
+  });
+  
+  keyboard.prevent.down([Key.S], async () => {
+    toggleApiKey();
+  });
+  
+  keyboard.prevent.down([Key.C], async () => {
+    await copyApiKey();
+  });
+  
+  keyboard.prevent.down([Key.R], async () => {
+    await regenerateApiKey();
+  });
+});
+
+onUnmounted(() => {
+  keyboard.clear();
 });
 
 async function fetchUserData() {
@@ -103,6 +158,7 @@ async function fetchUserData() {
     user.value = userData;
   } catch (error) {
     console.error("Error fetching user data:", error);
+    toast.error("Failed to load user data");
   }
 }
 
@@ -115,9 +171,10 @@ async function copyApiKey() {
 
   try {
     await navigator.clipboard.writeText(user.value.apiKey);
-    alert("API Key copied to clipboard");
+    toast.success("API Key copied to clipboard");
   } catch (error) {
     console.error("Failed to copy API key:", error);
+    toast.error("Failed to copy API key");
   }
 }
 
@@ -138,17 +195,29 @@ async function regenerateApiKey() {
     if (user.value) {
       user.value.apiKey = data.apiKey;
       showApiKey.value = true;
-      alert(
-        "Your API key has been regenerated. Update it in your VS Code extension settings."
-      );
+      toast.success("API key regenerated successfully");
     }
   } catch (error) {
     console.error("Error regenerating API key:", error);
-    alert("Failed to regenerate API key. Please try again.");
+    toast.error("Failed to regenerate API key");
   }
+}
+
+async function logout() {
+  try {
+    await $fetch("/api/auth/logout", { method: "POST" });
+    toast.success("Logged out successfully");
+    navigateTo("/login");
+  } catch (e: any) {
+    toast.error(e.data?.message || "Logout failed");
+  }
+}
+
+async function linkGithub() {
+  window.location.href = "/api/auth/github/link";
 }
 </script>
 
-<style lang="scss">
+<style scoped lang="scss">
 @use "/styles/profile.scss";
 </style>
