@@ -5,7 +5,8 @@
       :type="type" 
       :placeholder="placeholder" 
       :value="modelValue"
-      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)" 
+      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      :readonly="locked"
     />
   </div>
 </template>
@@ -25,6 +26,10 @@ const props = defineProps({
   modelValue: {
     type: String,
     default: "",
+  },
+  locked: {
+    type: Boolean,
+    default: false,
   },
 });
 
