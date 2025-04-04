@@ -15,12 +15,12 @@
 }
 
 @font-face {
-  font-family: DepartureMono;
-  src: url("/fonts/DepartureMono.woff2") format("woff2");
+  font-family: ChivoMono;
+  src: url("/fonts/ChivoMono.woff2") format("woff2");
   font-display: swap;
   font-weight: normal;
   font-style: normal;
-  font-weight: 100 800;
+  font-weight: 400;
 }
 
 @font-face {
@@ -30,15 +30,6 @@
   font-weight: normal;
   font-style: normal;
   font-weight: 100 900;
-}
-
-@font-face {
-  font-family: Overt;
-  src: url("/fonts/Overt.woff2") format("woff2");
-  font-display: swap;
-  font-weight: normal;
-  font-style: normal;
-  font-weight: 400 500;
 }
 
 * {
