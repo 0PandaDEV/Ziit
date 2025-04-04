@@ -36,7 +36,7 @@ export default defineEventHandler(async (event: H3Event) => {
       deleteCookie(event, "session");
       throw createError({
         statusCode: 401,
-        message: "Invalid session",
+        message: "Invalid session" + error,
       });
     }
   }
