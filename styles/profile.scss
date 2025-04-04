@@ -1,0 +1,53 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+}
+
+section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.account-information .items {
+  display: flex;
+  gap: 24px;
+}
+
+.account-information .items .keys {
+  color: var(--text-secondary);
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.buttons,
+.keys,
+.values,
+.steps {
+  display: flex;
+  flex-direction: column;
+}
+
+.buttons {
+  gap: 8px;
+}
+
+.keys,
+.values,
+.steps {
+  gap: 4px;
+}
+
+.steps{
+  color: var(--text-secondary);
+}
+
+kbd {
+  font-family: ChivoMono;
+  background-color: var(--element);
+  padding: 2px 6px;
+}

@@ -1,252 +1,154 @@
 <template>
   <NuxtLayout name="default">
-    <div class="profile-container">
-      <h1>Your Profile</h1>
-      
-      <div v-if="user" class="profile-content">
-        <div class="user-info">
-          <div class="info-group">
-            <h2>Account Information</h2>
-            <div class="info-row">
-              <div class="info-label">Username:</div>
-              <div class="info-value">{{ user.name }}</div>
-            </div>
-            <div class="info-row">
-              <div class="info-label">Email:</div>
-              <div class="info-value">{{ user.email }}</div>
-            </div>
-            <div class="info-row">
-              <div class="info-label">GitHub Connected:</div>
-              <div class="info-value">{{ user.hasGithubAccount ? 'Yes' : 'No' }}</div>
-            </div>
+    <div class="container">
+      <section class="account-information">
+        <h2 class="title">Account Information</h2>
+        <div class="items">
+          <div class="keys">
+            <p>User ID</p>
+            <p>Email</p>
+            <p>Github Linked</p>
           </div>
-          
-          <div class="info-group">
-            <h2>API Key</h2>
-            <p class="subtitle">Use this key to authenticate with the VS Code extension</p>
-            <div class="api-key-container">
-              <div class="api-key" v-if="!showApiKey">
-                •••••••••••••••••••••••••••••••
-              </div>
-              <div class="api-key" v-else>
-                {{ user.apiKey }}
-              </div>
-              <button @click="toggleApiKey" class="toggle-key-btn">
-                {{ showApiKey ? 'Hide' : 'Show' }}
-              </button>
-              <button @click="copyApiKey" class="copy-key-btn">
-                Copy
-              </button>
-            </div>
-            <div class="api-key-actions">
-              <button @click="regenerateApiKey" class="regenerate-btn">Regenerate API Key</button>
-            </div>
-          </div>
-          
-          <div class="info-group">
-            <h2>VS Code Extension Setup</h2>
-            <ol class="setup-steps">
-              <li>Install the Ziit extension from the VS Code marketplace</li>
-              <li>Open VS Code and press <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> (or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> on Windows)</li>
-              <li>Type "Ziit: Set API Key" and press Enter</li>
-              <li>Paste your API key and press Enter</li>
-              <li>Begin coding, and your time will be tracked automatically!</li>
-            </ol>
+          <div class="values">
+            <p>{{ user?.id }}</p>
+            <p>{{ user?.email }}</p>
+            <p>{{ user?.hasGithubAccount ? "yes" : "no" }}</p>
           </div>
         </div>
-      </div>
-      
-      <div v-else class="loading">
-        Loading user information...
-      </div>
+        <div class="buttons">
+          <Button
+            v-if="user?.hasGithubAccount"
+            text="Unlink Github"
+            keyName="U" />
+          <Button v-else text="Link Github" keyName="L" />
+          <Button text="Change Email" keyName="E" />
+          <Button text="Change Password" keyName="P" />
+        </div>
+      </section>
+
+      <section class="api-key">
+        <h2 class="title">API Key</h2>
+        <Input
+          :locked="true"
+          :type="showApiKey ? 'text' : 'password'"
+          :modelValue="user?.apiKey" />
+        <div class="buttons">
+          <Button
+            v-if="showApiKey"
+            text="Hide API Key"
+            keyName="S"
+            @click="toggleApiKey" />
+          <Button
+            v-else
+            text="Show API Key"
+            keyName="S"
+            @click="toggleApiKey" />
+          <Button text="Copy API Key" keyName="c" @click="copyApiKey" />
+          <Button
+            text="Regenerate API Key"
+            keyName="r"
+            @click="regenerateApiKey" />
+        </div>
+      </section>
+
+      <section class="vscode-setup">
+        <h2 class="title">VS Code Extension Setup</h2>
+        <div class="steps">
+          <p>1. Install the Ziit extension from the VS Code marketplace</p>
+          <p>
+            2. Open VS Code and press <kbd>Cmd</kbd> + <kbd>Shift</kbd> +
+            <kbd>P</kbd> (or <kbd>Ctrl</kbd> + <kbd>Shift</kbd> +
+            <kbd>P</kbd> on Windows)
+          </p>
+          <p>3. Type "Ziit: Set Instance" and press Enter</p>
+          <p>
+            4. Paste <kbd>{{ origin }}</kbd>
+          </p>
+          <p>5. Type "Ziit: Set API Key" and press Enter</p>
+          <p>6. Paste your API key and press Enter</p>
+          <p>7. Begin coding, and your time will be tracked automatically!</p>
+        </div>
+      </section>
     </div>
   </NuxtLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import type { User } from "@prisma/client";
+import { ref, onMounted, computed } from "vue";
 
-const user = ref(null)
-const showApiKey = ref(false)
+interface ExtendedUser extends User {
+  hasGithubAccount?: boolean;
+  name?: string;
+}
+
+const user = ref<ExtendedUser | null>(null);
+const showApiKey = ref(false);
+const url = useRequestURL();
+const origin = url.origin;
 
 onMounted(async () => {
-  await fetchUserData()
-})
+  await fetchUserData();
+});
 
 async function fetchUserData() {
   try {
-    const data = await $fetch('/api/auth/user')
-    user.value = data
+    const data = await $fetch("/api/auth/user");
+
+    const userData = {
+      ...data,
+      hasGithubAccount: !!data.githubId,
+      name: data.githubUsername || data.email?.split("@")[0] || "User",
+    };
+    user.value = userData;
   } catch (error) {
-    console.error('Error fetching user data:', error)
+    console.error("Error fetching user data:", error);
   }
 }
 
 function toggleApiKey() {
-  showApiKey.value = !showApiKey.value
+  showApiKey.value = !showApiKey.value;
 }
 
 async function copyApiKey() {
-  if (!user.value?.apiKey) return
-  
+  if (!user.value?.apiKey) return;
+
   try {
-    await navigator.clipboard.writeText(user.value.apiKey)
-    alert('API Key copied to clipboard')
+    await navigator.clipboard.writeText(user.value.apiKey);
+    alert("API Key copied to clipboard");
   } catch (error) {
-    console.error('Failed to copy API key:', error)
+    console.error("Failed to copy API key:", error);
   }
 }
 
 async function regenerateApiKey() {
-  if (!confirm('Are you sure you want to regenerate your API key? Your existing VS Code extension setup will stop working until you update it.')) {
-    return
+  if (
+    !confirm(
+      "Are you sure you want to regenerate your API key? Your existing VS Code extension setup will stop working until you update it."
+    )
+  ) {
+    return;
   }
-  
+
   try {
-    const data = await $fetch('/api/auth/apikey', {
-      method: 'POST'
-    })
-    
-    user.value.apiKey = data.apiKey
-    showApiKey.value = true
-    alert('Your API key has been regenerated. Update it in your VS Code extension settings.')
+    const data = await $fetch("/api/auth/apikey", {
+      method: "POST",
+    });
+
+    if (user.value) {
+      user.value.apiKey = data.apiKey;
+      showApiKey.value = true;
+      alert(
+        "Your API key has been regenerated. Update it in your VS Code extension settings."
+      );
+    }
   } catch (error) {
-    console.error('Error regenerating API key:', error)
-    alert('Failed to regenerate API key. Please try again.')
+    console.error("Error regenerating API key:", error);
+    alert("Failed to regenerate API key. Please try again.");
   }
 }
 </script>
 
 <style lang="scss">
-.profile-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
-  
-  h1 {
-    font-size: 2rem;
-    margin-bottom: 2rem;
-    text-align: center;
-  }
-  
-  .profile-content {
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-  }
-  
-  .user-info {
-    padding: 2rem;
-  }
-  
-  .info-group {
-    margin-bottom: 2rem;
-    padding-bottom: 2rem;
-    border-bottom: 1px solid #eee;
-    
-    &:last-child {
-      margin-bottom: 0;
-      padding-bottom: 0;
-      border-bottom: none;
-    }
-    
-    h2 {
-      margin-top: 0;
-      margin-bottom: 1rem;
-      font-size: 1.5rem;
-      color: #333;
-    }
-    
-    .subtitle {
-      color: #666;
-      margin-bottom: 1rem;
-    }
-  }
-  
-  .info-row {
-    display: flex;
-    margin-bottom: 0.5rem;
-    
-    .info-label {
-      width: 150px;
-      font-weight: bold;
-      color: #666;
-    }
-    
-    .info-value {
-      flex: 1;
-    }
-  }
-  
-  .api-key-container {
-    display: flex;
-    align-items: center;
-    margin-bottom: 1rem;
-    
-    .api-key {
-      flex: 1;
-      padding: 0.75rem;
-      background-color: #f5f5f5;
-      border-radius: 4px;
-      font-family: monospace;
-      word-break: break-all;
-    }
-    
-    button {
-      margin-left: 0.5rem;
-      padding: 0.5rem 1rem;
-      background-color: #f5f5f5;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      cursor: pointer;
-      
-      &:hover {
-        background-color: #e5e5e5;
-      }
-    }
-  }
-  
-  .api-key-actions {
-    .regenerate-btn {
-      padding: 0.5rem 1rem;
-      background-color: #dc3545;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      
-      &:hover {
-        background-color: #c82333;
-      }
-    }
-  }
-  
-  .setup-steps {
-    padding-left: 1.5rem;
-    
-    li {
-      margin-bottom: 0.75rem;
-    }
-    
-    kbd {
-      display: inline-block;
-      padding: 0.2rem 0.4rem;
-      font-size: 0.9rem;
-      font-family: monospace;
-      line-height: 1;
-      color: #444;
-      background-color: #f7f7f7;
-      border: 1px solid #ccc;
-      border-radius: 3px;
-      box-shadow: 0 1px 0 rgba(0,0,0,0.2);
-    }
-  }
-  
-  .loading {
-    text-align: center;
-    padding: 2rem;
-    color: #666;
-  }
-}
+@use "/styles/profile.scss";
 </style>
