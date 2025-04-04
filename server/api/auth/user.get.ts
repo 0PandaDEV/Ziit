@@ -34,6 +34,7 @@ export default defineEventHandler(async (event) => {
         email: true,
         githubId: true,
         githubUsername: true,
+        apiKey: true,
       },
     });
 
