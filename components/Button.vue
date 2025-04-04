@@ -1,6 +1,15 @@
 <template>
   <button @click="$emit('click')">
-    <Key :keyName="keyName" />
+    <div class="key-container">
+      <template v-if="keyName && keyName.includes('+')">
+        <template v-for="(part, index) in keyName.split('+')" :key="index">
+          <Key :keyName="part" />
+        </template>
+      </template>
+      <template v-else>
+        <Key :keyName="keyName" />
+      </template>
+    </div>
     <p class="text">{{ text }}</p>
   </button>
 </template>
@@ -31,5 +40,16 @@ button {
   &:hover {
     color: var(--text);
   }
+}
+
+.key-container {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.key-separator {
+  font-family: ChivoMono;
+  font-size: 13px;
 }
 </style>
