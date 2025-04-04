@@ -205,9 +205,7 @@ async function regenerateApiKey() {
 
 async function logout() {
   try {
-    await $fetch("/api/auth/logout", { method: "POST" });
-    toast.success("Logged out successfully");
-    navigateTo("/login");
+    window.location.href = "/api/auth/logout";
   } catch (e: any) {
     toast.error(e.data?.message || "Logout failed");
   }
