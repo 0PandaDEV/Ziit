@@ -15,5 +15,6 @@
   flex-direction: column;
   box-sizing: border-box;
   padding: 24px;
+  gap: 24px;
 }
 </style>
