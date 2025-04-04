@@ -1,4 +1,4 @@
-*:not(.input) {
+*:not(.input):not(.layout) {
   width: fit-content;
 }
 
