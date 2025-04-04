@@ -113,6 +113,11 @@ export default defineEventHandler(async (event) => {
               `Merging GitHub user ${existingGithubUser.id} into main user ${userId}`
             );
 
+            await prisma.heartbeat.updateMany({
+              where: { userId: existingGithubUser.id },
+              data: { userId: userId },
+            });
+
             await prisma.user.delete({
               where: { id: existingGithubUser.id },
             });
