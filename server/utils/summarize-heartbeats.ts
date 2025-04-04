@@ -95,10 +95,6 @@ export async function summarizeHeartbeats() {
       }
     }
 
-    console.log(
-      `Processed ${heartbeats.length} heartbeats into daily summaries`
-    );
-
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -109,8 +105,6 @@ export async function summarizeHeartbeats() {
         },
       },
     });
-
-    console.log(`Deleted ${deleted.count} heartbeats older than 30 days`);
 
     return true;
   } catch (error) {

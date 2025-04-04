@@ -109,10 +109,6 @@ export default defineEventHandler(async (event) => {
           });
 
           if (existingGithubUser && existingGithubUser.id !== userId) {
-            console.log(
-              `Merging GitHub user ${existingGithubUser.id} into main user ${userId}`
-            );
-
             await prisma.heartbeat.updateMany({
               where: { userId: existingGithubUser.id },
               data: { userId: userId },
