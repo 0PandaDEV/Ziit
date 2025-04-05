@@ -14,6 +14,7 @@
     "@types/bcrypt": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.9",
     "bcrypt": "^5.1.1",
+    "chart.js": "^4.4.8",
     "jsonwebtoken": "^9.0.2",
     "nuxt": "^3.16.2",
     "pg": "^8.14.1",

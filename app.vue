@@ -54,6 +54,23 @@ body {
   color: var(--text);
   font-size: 14px;
   font-family: Outfit;
+  overflow-x: hidden;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scrollbar-color: var(--text-secondary) transparent;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--text-secondary);
+  }
 }
 
 button,

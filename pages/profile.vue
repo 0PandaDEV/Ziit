@@ -90,7 +90,6 @@ const route = useRoute();
 onMounted(async () => {
   await fetchUserData();
   
-  // Check for URL query parameters
   if (route.query.error) {
     const errorMessages: Record<string, string> = {
       'link_failed': 'Failed to link GitHub account'
@@ -118,11 +117,11 @@ onMounted(async () => {
   });
   
   keyboard.prevent.down([Key.E], async () => {
-    // Change Email functionality
+    // change email
   });
   
   keyboard.prevent.down([Key.P], async () => {
-    // Change Password functionality
+    // change password
   });
   
   keyboard.prevent.down([Key.AltLeft, Key.L], async () => {

@@ -98,7 +98,7 @@ export async function summarizeHeartbeats() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const deleted = await prisma.heartbeat.deleteMany({
+    await prisma.heartbeat.deleteMany({
       where: {
         timestamp: {
           lt: thirtyDaysAgo,
