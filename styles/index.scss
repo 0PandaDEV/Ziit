@@ -1,1 +1,173 @@
-
+.stats-dashboard {
+  width: 100%;
+  
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid var(--border);
+    
+    h1 {
+      font-size: 1.5rem;
+      margin: 0;
+      font-weight: 600;
+      color: var(--text);
+    }
+    
+    .time-filters {
+      display: flex;
+      gap: 0.25rem;
+      
+      .filter-btn {
+        padding: 0.4rem 0.75rem;
+        border: 1px solid var(--border);
+        background-color: transparent;
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        cursor: pointer;
+        font-weight: 500;
+        
+        &:hover {
+          background-color: var(--element);
+        }
+        
+        &.active {
+          background-color: #6174cc;
+          color: white;
+          border-color: #6174cc;
+        }
+      }
+    }
+  }
+  
+  .chart-container {
+    padding: 1rem;
+    background-color: #1d2330;
+    border: 1px solid var(--border);
+    margin-bottom: 2rem;
+    
+    .chart {
+      height: 350px;
+      width: 100%;
+    }
+  }
+  
+  .stats-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 2rem;
+    
+    @media (max-width: 768px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    @media (max-width: 480px) {
+      grid-template-columns: 1fr;
+    }
+    
+    .stats-card {
+      padding: 0;
+      background-color: transparent;
+      border: none;
+      
+      .stats-label {
+        margin: 0;
+        font-size: 0.75rem;
+        color: #a1a8b9;
+        font-weight: 500;
+        margin-bottom: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      
+      .stats-time {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+    }
+  }
+  
+  .metrics-tables {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .projects-section, .languages-section {
+    padding: 0;
+    background-color: transparent;
+    border: none;
+    
+    h2 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+      color: #a1a8b9;
+      font-weight: 600;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+  
+  .projects-list, .language-list {
+    .project-item, .language-item {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      .project-name, .language-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      
+      .project-time, .language-time {
+        text-align: right;
+        color: #a1a8b9;
+        font-size: 0.875rem;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      
+      .project-percentage, .language-percentage {
+        text-align: right;
+        color: var(--text);
+        font-size: 0.875rem;
+        font-weight: 600;
+        white-space: nowrap;
+        min-width: 3rem;
+      }
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .dashboard-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+  }
+}
