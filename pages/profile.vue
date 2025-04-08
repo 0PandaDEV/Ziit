@@ -80,7 +80,8 @@ interface ExtendedUser extends User {
   name?: string;
 }
 
-const user = ref<ExtendedUser | null>(null);
+const userState = useState<ExtendedUser | null>('user', () => null);
+const user = computed(() => userState.value);
 const showApiKey = ref(false);
 const url = useRequestURL();
 const origin = url.origin;
@@ -146,6 +147,8 @@ onUnmounted(() => {
 });
 
 async function fetchUserData() {
+  if (userState.value) return;
+  
   try {
     const data = await $fetch("/api/auth/user");
 
@@ -154,7 +157,7 @@ async function fetchUserData() {
       hasGithubAccount: !!data.githubId,
       name: data.githubUsername || data.email?.split("@")[0] || "User",
     };
-    user.value = userData;
+    userState.value = userData;
   } catch (error) {
     console.error("Error fetching user data:", error);
     toast.error("Failed to load user data");
@@ -191,8 +194,11 @@ async function regenerateApiKey() {
       method: "POST",
     });
 
-    if (user.value) {
-      user.value.apiKey = data.apiKey;
+    if (userState.value) {
+      userState.value = {
+        ...userState.value,
+        apiKey: data.apiKey
+      };
       showApiKey.value = true;
       toast.success("API key regenerated successfully");
     }
