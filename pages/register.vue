@@ -24,7 +24,7 @@
         <NuxtLink to="/login"><u>Sign In</u></NuxtLink>
       </p>
     </div>
-    <form class="form" @submit.prevent="register">
+    <form class="form" @submit.prevent="register" autocomplete="on" data-form-type="register">
       <Input
         v-model="email"
         placeholder="Email"
