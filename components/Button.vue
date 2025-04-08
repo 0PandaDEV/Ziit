@@ -24,7 +24,7 @@ defineProps({
   },
 });
 
-defineEmits(['click']);
+defineEmits(["click"]);
 </script>
 
 <style scoped lang="scss">

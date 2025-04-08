@@ -1,8 +1,8 @@
 <template>
   <div class="toast-container">
-    <div 
-      v-for="toast in toasts" 
-      :key="toast.id" 
+    <div
+      v-for="toast in toasts"
+      :key="toast.id"
       :class="['toast', toast.type]"
       @click="hideById(toast.id)"
     >
@@ -38,7 +38,7 @@ const { toasts, hideById } = useToast();
 
   &.success {
     background-color: #e6f4e6;
-    color: #4CAF50;
+    color: #4caf50;
   }
 }
 </style>

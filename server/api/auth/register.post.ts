@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
     !body.email ||
     !body.password ||
     typeof body.email !== "string" ||
-    typeof body.password !== "string" 
+    typeof body.password !== "string"
   ) {
     throw createError({
       statusCode: 400,
@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
         email: user.email,
       },
       config.jwtSecret,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     setCookie(event, "session", token, {

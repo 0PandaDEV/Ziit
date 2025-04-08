@@ -11,7 +11,7 @@ export const TimeRangeEnum = {
   CUSTOM_RANGE: "custom-range",
 } as const;
 
-export type TimeRange = typeof TimeRangeEnum[keyof typeof TimeRangeEnum];
+export type TimeRange = (typeof TimeRangeEnum)[keyof typeof TimeRangeEnum];
 
 type StatRecord = Record<string, number>;
 
@@ -124,7 +124,7 @@ export async function fetchStats(): Promise<void> {
       throw new Error(`API error: ${response.status}`);
     }
 
-    const dailyData = await response.json() as DailyData[];
+    const dailyData = (await response.json()) as DailyData[];
     state.isAuthenticated = true;
 
     if (Array.isArray(dailyData) && dailyData.length > 0) {
@@ -168,9 +168,7 @@ export async function fetchStats(): Promise<void> {
       state.data = result;
       state.status = "success";
     } else {
-      console.warn(
-        `No data found for range: ${state.timeRange}`
-      );
+      console.warn(`No data found for range: ${state.timeRange}`);
       state.data = { ...initialStats };
       state.status = "success";
     }

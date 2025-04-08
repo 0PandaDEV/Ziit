@@ -12,7 +12,8 @@
             <div
               v-for="project in sortedProjects.slice(0, 10)"
               :key="project.name"
-              class="project-item">
+              class="project-item"
+            >
               <div class="project-name">{{ project.name }}</div>
               <div class="project-time">{{ formatTime(project.seconds) }}</div>
               <div class="project-percentage">
@@ -28,7 +29,8 @@
             <div
               v-for="language in languageBreakdown.slice(0, 10)"
               :key="language.name"
-              class="language-item">
+              class="language-item"
+            >
               <div class="language-name">{{ language.name || "Unknown" }}</div>
               <div class="language-time">
                 {{ formatTime(language.seconds) }}
@@ -48,7 +50,8 @@
             <div
               v-for="editor in editorBreakdown.slice(0, 10)"
               :key="editor.name"
-              class="editor-item">
+              class="editor-item"
+            >
               <div class="editor-name">{{ editor.name || "Unknown" }}</div>
               <div class="editor-time">
                 {{ formatTime(editor.seconds) }}
@@ -66,7 +69,8 @@
             <div
               v-for="os in osBreakdown.slice(0, 10)"
               :key="os.name"
-              class="os-item">
+              class="os-item"
+            >
               <div class="os-name">{{ os.name || "Unknown" }}</div>
               <div class="os-time">
                 {{ formatTime(os.seconds) }}
@@ -120,7 +124,7 @@ watch(
       updateChart();
     }
   },
-  { immediate: true, deep: true }
+  { immediate: true, deep: true },
 );
 
 const sortedProjects = computed(() => {
@@ -130,7 +134,7 @@ const sortedProjects = computed(() => {
     ([name, seconds]) => ({
       name,
       seconds: seconds as number,
-    })
+    }),
   );
 
   if (projectSort.value === "time") {
@@ -147,7 +151,7 @@ const languageBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    })
+    }),
   );
 
   return languages.sort((a, b) => b.seconds - a.seconds);
@@ -160,7 +164,7 @@ const editorBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    })
+    }),
   );
 
   return editors.sort((a, b) => b.seconds - a.seconds);
@@ -173,7 +177,7 @@ const osBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    })
+    }),
   );
 
   return osArray.sort((a, b) => b.seconds - a.seconds);
@@ -226,7 +230,7 @@ function renderChart() {
       PointElement,
       LineController,
       Tooltip,
-      Filler
+      Filler,
     );
 
     const ctx = document.createElement("canvas");
@@ -512,7 +516,7 @@ function getChartData(): number[] {
             .split("T")[0];
 
     const dayData = stats.value.dailyData.find(
-      (day) => day.date === targetDate
+      (day) => day.date === targetDate,
     );
 
     if (dayData?.hourlyData) {
@@ -593,7 +597,7 @@ function getChartData(): number[] {
 
       monthlyData.set(
         yearMonth,
-        monthlyData.get(yearMonth)! + day.totalSeconds / 3600
+        monthlyData.get(yearMonth)! + day.totalSeconds / 3600,
       );
     });
 

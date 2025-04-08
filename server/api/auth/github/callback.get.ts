@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
           code,
           redirect_uri: config.githubRedirectUri,
         }),
-      }
+      },
     );
 
     const accessToken = tokenResponse.access_token;
@@ -80,7 +80,7 @@ export default defineEventHandler(async (event) => {
           Authorization: `Bearer ${accessToken}`,
           Accept: "application/vnd.github.v3+json",
         },
-      }
+      },
     );
 
     const primaryEmail =

@@ -75,7 +75,7 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     const datesWithSummaries = summaries.map(
-      (s) => s.date.toISOString().split("T")[0]
+      (s) => s.date.toISOString().split("T")[0],
     );
 
     const datesToCheck: string[] = [];
@@ -134,7 +134,7 @@ export default defineEventHandler(async (event: H3Event) => {
             beats.sort(
               (a, b) =>
                 new Date(a.timestamp).getTime() -
-                new Date(b.timestamp).getTime()
+                new Date(b.timestamp).getTime(),
             );
 
             for (let i = 0; i < beats.length; i++) {

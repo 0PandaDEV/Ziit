@@ -1,11 +1,13 @@
 <template>
   <div class="input">
     <component class="icon" v-if="icon" :is="icon" />
-    <input 
-      :type="type" 
-      :placeholder="placeholder" 
+    <input
+      :type="type"
+      :placeholder="placeholder"
       :value="modelValue"
-      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      @input="
+        $emit('update:modelValue', ($event.target as HTMLInputElement).value)
+      "
       :readonly="locked"
     />
   </div>
@@ -33,7 +35,7 @@ const props = defineProps({
   },
 });
 
-defineEmits(['update:modelValue']);
+defineEmits(["update:modelValue"]);
 </script>
 
 <style lang="scss">

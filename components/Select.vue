@@ -3,14 +3,16 @@
     class="select-container"
     @click="toggleDropdown"
     @blur="closeDropdown"
-    tabindex="0">
+    tabindex="0"
+  >
     <div class="dropdown-menu" v-show="isOpen">
       <div
         v-for="(item, index) in items"
         :key="index"
         class="dropdown-item"
         :class="{ selected: selectedItem && selectedItem.value === item.value }"
-        @click.stop="selectItem(item)">
+        @click.stop="selectItem(item)"
+      >
         {{ item.label }}
         <div class="key-container" v-if="item.key">
           <template v-if="item.key.includes('+')">
@@ -58,9 +60,9 @@ const isOpen = ref(false);
 
 const selectedItem = computed<SelectItem<T> | null>(() => {
   if (props.modelValue !== undefined) {
-    return props.items.find(item => item.value === props.modelValue) ?? null;
+    return props.items.find((item) => item.value === props.modelValue) ?? null;
   }
-  return null; 
+  return null;
 });
 
 const toggleDropdown = () => {

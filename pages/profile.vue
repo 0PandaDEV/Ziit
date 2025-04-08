@@ -16,7 +16,12 @@
           </div>
         </div>
         <div class="buttons">
-          <Button v-if="!user?.hasGithubAccount" text="Link Github" keyName="L" @click="linkGithub" />
+          <Button
+            v-if="!user?.hasGithubAccount"
+            text="Link Github"
+            keyName="L"
+            @click="linkGithub"
+          />
           <Button text="Change Email" keyName="E" />
           <Button text="Change Password" keyName="P" />
           <Button text="Logout" keyName="Alt+L" @click="logout" />
@@ -28,23 +33,27 @@
         <Input
           :locked="true"
           :type="showApiKey ? 'text' : 'password'"
-          :modelValue="user?.apiKey" />
+          :modelValue="user?.apiKey"
+        />
         <div class="buttons">
           <Button
             v-if="showApiKey"
             text="Hide API Key"
             keyName="S"
-            @click="toggleApiKey" />
+            @click="toggleApiKey"
+          />
           <Button
             v-else
             text="Show API Key"
             keyName="S"
-            @click="toggleApiKey" />
+            @click="toggleApiKey"
+          />
           <Button text="Copy API Key" keyName="c" @click="copyApiKey" />
           <Button
             text="Regenerate API Key"
             keyName="r"
-            @click="regenerateApiKey" />
+            @click="regenerateApiKey"
+          />
         </div>
       </section>
 
@@ -80,7 +89,7 @@ interface ExtendedUser extends User {
   name?: string;
 }
 
-const userState = useState<ExtendedUser | null>('user', () => null);
+const userState = useState<ExtendedUser | null>("user", () => null);
 const user = computed(() => userState.value);
 const showApiKey = ref(false);
 const url = useRequestURL();
@@ -90,53 +99,53 @@ const route = useRoute();
 
 onMounted(async () => {
   await fetchUserData();
-  
+
   if (route.query.error) {
     const errorMessages: Record<string, string> = {
-      'link_failed': 'Failed to link GitHub account'
+      link_failed: "Failed to link GitHub account",
     };
-    
-    const message = errorMessages[route.query.error as string] || 'Error';
+
+    const message = errorMessages[route.query.error as string] || "Error";
     toast.error(message);
   }
-  
+
   if (route.query.success) {
     const successMessages: Record<string, string> = {
-      'github_linked': 'GitHub account successfully linked',
-      'github_updated': 'GitHub credentials updated',
-      'accounts_merged': 'Accounts successfully merged'
+      github_linked: "GitHub account successfully linked",
+      github_updated: "GitHub credentials updated",
+      accounts_merged: "Accounts successfully merged",
     };
-    
-    const message = successMessages[route.query.success as string] || 'Success';
+
+    const message = successMessages[route.query.success as string] || "Success";
     toast.success(message);
   }
-  
+
   keyboard.prevent.down([Key.L], async () => {
     if (!user.value?.hasGithubAccount) {
       await linkGithub();
     }
   });
-  
+
   keyboard.prevent.down([Key.E], async () => {
     // change email
   });
-  
+
   keyboard.prevent.down([Key.P], async () => {
     // change password
   });
-  
+
   keyboard.prevent.down([Key.AltLeft, Key.L], async () => {
     await logout();
   });
-  
+
   keyboard.prevent.down([Key.S], async () => {
     toggleApiKey();
   });
-  
+
   keyboard.prevent.down([Key.C], async () => {
     await copyApiKey();
   });
-  
+
   keyboard.prevent.down([Key.R], async () => {
     await regenerateApiKey();
   });
@@ -148,7 +157,7 @@ onUnmounted(() => {
 
 async function fetchUserData() {
   if (userState.value) return;
-  
+
   try {
     const data = await $fetch("/api/auth/user");
 
@@ -183,7 +192,7 @@ async function copyApiKey() {
 async function regenerateApiKey() {
   if (
     !confirm(
-      "Are you sure you want to regenerate your API key? Your existing VS Code extension setup will stop working until you update it."
+      "Are you sure you want to regenerate your API key? Your existing VS Code extension setup will stop working until you update it.",
     )
   ) {
     return;
@@ -197,7 +206,7 @@ async function regenerateApiKey() {
     if (userState.value) {
       userState.value = {
         ...userState.value,
-        apiKey: data.apiKey
+        apiKey: data.apiKey,
       };
       showApiKey.value = true;
       toast.success("API key regenerated successfully");

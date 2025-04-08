@@ -12,7 +12,7 @@ let nextId = 0;
 export const useToast = (
   msg?: string,
   toastType = "error",
-  duration = 5000
+  duration = 5000,
 ) => {
   const show = (text: string, msgType = "error", msgDuration = 3000) => {
     if (!text || text.trim() === "") {
@@ -30,12 +30,12 @@ export const useToast = (
 
   const error = (text: string, msgDuration = 3000) =>
     show(text, "error", msgDuration);
-  
+
   const success = (text: string, msgDuration = 3000) =>
     show(text, "success", msgDuration);
 
   const hideById = (id: string) => {
-    const index = toasts.value.findIndex(toast => toast.id === id);
+    const index = toasts.value.findIndex((toast) => toast.id === id);
     if (index !== -1) {
       toasts.value.splice(index, 1);
     }
@@ -55,6 +55,6 @@ export const useToast = (
     error,
     success,
     hide,
-    hideById
+    hideById,
   };
 };

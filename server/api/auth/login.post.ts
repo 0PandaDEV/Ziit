@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
 
     const passwordMatch = await bcrypt.compare(
       body.password,
-      user.passwordHash
+      user.passwordHash,
     );
 
     if (!passwordMatch) {
@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
         email: user.email,
       },
       config.jwtSecret,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     setCookie(event, "session", token, {

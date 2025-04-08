@@ -282,11 +282,11 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const result = Object.values(dailyStats).filter(
-      (day) => day.totalSeconds > 0 || Object.keys(day.projects).length > 0
+      (day) => day.totalSeconds > 0 || Object.keys(day.projects).length > 0,
     );
 
     result.sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
 
     if (
@@ -301,7 +301,7 @@ export default defineEventHandler(async (event: H3Event) => {
               .split("T")[0];
 
       const dayHeartbeats = heartbeats.filter(
-        (hb) => hb.timestamp.toISOString().split("T")[0] === targetDate
+        (hb) => hb.timestamp.toISOString().split("T")[0] === targetDate,
       );
 
       const hourlyData: HourlyData[] = Array(24)
@@ -315,13 +315,13 @@ export default defineEventHandler(async (event: H3Event) => {
           const hourBeats = dayHeartbeats.filter(
             (hb) =>
               hb.timestamp.getTime() >= hourStart.getTime() &&
-              hb.timestamp.getTime() < hourEnd.getTime()
+              hb.timestamp.getTime() < hourEnd.getTime(),
           );
 
           let totalSeconds = 0;
           if (hourBeats.length > 0) {
             hourBeats.sort(
-              (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+              (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
             );
 
             for (let i = 0; i < hourBeats.length; i++) {

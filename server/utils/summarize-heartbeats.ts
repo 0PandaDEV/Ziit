@@ -50,7 +50,7 @@ export async function summarizeHeartbeats() {
 
         projectHeartbeats.sort(
           (a: Heartbeat, b: Heartbeat) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
         );
 
         let totalSeconds = 0;
@@ -63,7 +63,7 @@ export async function summarizeHeartbeats() {
 
           const current = new Date(projectHeartbeats[i].timestamp).getTime();
           const previous = new Date(
-            projectHeartbeats[i - 1].timestamp
+            projectHeartbeats[i - 1].timestamp,
           ).getTime();
           const diff = (current - previous) / 1000;
 
