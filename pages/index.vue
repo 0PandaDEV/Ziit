@@ -6,7 +6,7 @@
       </div>
 
       <div class="metrics-tables">
-        <div class="projects-section" v-if="stats">
+        <div class="projects-section">
           <h2>TOP PROJECTS</h2>
           <div class="projects-list">
             <div
@@ -22,9 +22,7 @@
           </div>
         </div>
 
-        <div
-          class="languages-section"
-          v-if="stats && languageBreakdown.length > 0">
+        <div class="languages-section">
           <h2>TOP LANGUAGES</h2>
           <div class="language-list">
             <div
@@ -44,7 +42,7 @@
           </div>
         </div>
 
-        <div class="editors-section" v-if="stats && editorBreakdown.length > 0">
+        <div class="editors-section">
           <h2>EDITORS</h2>
           <div class="editor-list">
             <div
@@ -62,7 +60,7 @@
           </div>
         </div>
 
-        <div class="os-section" v-if="stats && osBreakdown.length > 0">
+        <div class="os-section">
           <h2>OPERATING SYSTEMS</h2>
           <div class="os-list">
             <div
@@ -97,7 +95,6 @@ type ItemWithTime = {
 
 const chartContainer = ref<HTMLElement | null>(null);
 const projectSort = ref<"time" | "name">("time");
-const uniqueFiles = ref(0);
 const uniqueLanguages = ref(0);
 let chart: any = null;
 
@@ -117,7 +114,6 @@ watch(
   () => stats.value,
   (newStats) => {
     if (newStats) {
-      uniqueFiles.value = newStats.files?.length || 0;
       uniqueLanguages.value = Object.keys(newStats.languages || {}).length;
     }
     if (chart) {
@@ -519,14 +515,10 @@ function getChartData(): number[] {
       (day) => day.date === targetDate
     );
 
-    if (dayData) {
-      const totalSeconds = dayData.totalSeconds || 0;
-
-      const workingHours = [9, 10, 11, 12, 13, 14, 15, 16, 17];
-      const distribution = [0.12, 0.14, 0.16, 0.1, 0.06, 0.12, 0.14, 0.1, 0.06];
-
-      workingHours.forEach((hour, index) => {
-        result[hour] = (totalSeconds * distribution[index]) / 3600;
+    if (dayData?.hourlyData) {
+      dayData.hourlyData.forEach((hourData) => {
+        const hour = new Date(hourData.timestamp).getHours();
+        result[hour] = hourData.totalSeconds / 3600;
       });
     }
   } else if (timeRange.value === "week") {

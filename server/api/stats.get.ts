@@ -1,8 +1,27 @@
 import { PrismaClient, Heartbeat } from "@prisma/client";
 import { H3Event } from "h3";
+import { TimeRangeEnum, TimeRange } from "~/lib/stats";
 
 const prisma = new PrismaClient();
 const HEARTBEAT_INTERVAL_SECONDS = 30;
+
+type HourlyData = {
+  timestamp: string;
+  totalSeconds: number;
+};
+
+type DailyStats = {
+  date: string;
+  totalSeconds: number;
+  projects: Record<string, number>;
+  languages: Record<string, number>;
+  editors: Record<string, number>;
+  os: Record<string, number>;
+  files: string[];
+  hourlyData?: HourlyData[];
+};
+
+type HeartbeatsByDayAndProject = Record<string, Record<string, Heartbeat[]>>;
 
 export default defineEventHandler(async (event: H3Event) => {
   if (!event.context.user) {
@@ -16,39 +35,68 @@ export default defineEventHandler(async (event: H3Event) => {
 
   try {
     const query = getQuery(event);
-    const startDateStr = query.startDate as string;
-    const endDateStr = (query.endDate as string) || new Date().toISOString();
+    const timeRange = query.timeRange as TimeRange;
 
-    if (!startDateStr) {
+    if (!timeRange || !Object.values(TimeRangeEnum).includes(timeRange)) {
       throw createError({
         statusCode: 400,
-        message: "startDate is required",
+        message: "Invalid timeRange value",
       });
     }
 
-    const startDate = new Date(startDateStr);
-    const endDate = new Date(endDateStr);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
 
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      throw createError({
-        statusCode: 400,
-        message: "Invalid date format",
-      });
+    let startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    let endDate = today;
+
+    if (timeRange === TimeRangeEnum.YESTERDAY) {
+      startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 1);
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(startDate);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (timeRange === TimeRangeEnum.WEEK) {
+      startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 7);
+      startDate.setHours(0, 0, 0, 0);
+    } else if (timeRange === TimeRangeEnum.MONTH) {
+      startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - 30);
+      startDate.setHours(0, 0, 0, 0);
+    } else if (timeRange === TimeRangeEnum.MONTH_TO_DATE) {
+      startDate = new Date(today);
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+    } else if (timeRange === TimeRangeEnum.LAST_MONTH) {
+      endDate = new Date(today);
+      endDate.setDate(0);
+      endDate.setHours(23, 59, 59, 999);
+
+      startDate = new Date(endDate);
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+    } else if (timeRange === TimeRangeEnum.YEAR_TO_DATE) {
+      startDate = new Date(today);
+      startDate.setMonth(0, 1);
+      startDate.setHours(0, 0, 0, 0);
+    } else if (timeRange === TimeRangeEnum.LAST_12_MONTHS) {
+      startDate = new Date(today);
+      startDate.setFullYear(startDate.getFullYear() - 1);
+      startDate.setHours(0, 0, 0, 0);
+    } else if (timeRange === TimeRangeEnum.ALL_TIME) {
+      startDate = new Date("2020-01-01");
+      startDate.setHours(0, 0, 0, 0);
     }
-
-    const startISODate = startDate.toISOString().split("T")[0];
-    const endISODate = endDate.toISOString().split("T")[0];
-
-    const startDateOnly = new Date(startISODate);
-    const endDateOnly = new Date(endISODate);
-    endDateOnly.setHours(23, 59, 59, 999);
 
     const summaries = await prisma.dailyProjectSummary.findMany({
       where: {
         userId,
         date: {
-          gte: startDateOnly,
-          lte: endDateOnly,
+          gte: startDate,
+          lte: endDate,
         },
       },
       orderBy: {
@@ -60,8 +108,8 @@ export default defineEventHandler(async (event: H3Event) => {
       where: {
         userId,
         timestamp: {
-          gte: startDateOnly,
-          lte: endDateOnly,
+          gte: startDate,
+          lte: endDate,
         },
       },
       orderBy: {
@@ -69,21 +117,10 @@ export default defineEventHandler(async (event: H3Event) => {
       },
     });
 
-    const dailyStats: Record<
-      string,
-      {
-        date: string;
-        totalSeconds: number;
-        projects: Record<string, number>;
-        languages: Record<string, number>;
-        editors: Record<string, number>;
-        os: Record<string, number>;
-        files: string[];
-      }
-    > = {};
+    const dailyStats: Record<string, DailyStats> = {};
 
-    let currentDate = new Date(startDateOnly);
-    while (currentDate <= endDateOnly) {
+    let currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
       const dateStr = currentDate.toISOString().split("T")[0];
       dailyStats[dateStr] = {
         date: dateStr,
@@ -124,10 +161,7 @@ export default defineEventHandler(async (event: H3Event) => {
       processedDayProjects.add(`${dateStr}_${s.project}`);
     });
 
-    const heartbeatsByDayAndProject: Record<
-      string,
-      Record<string, Heartbeat[]>
-    > = {};
+    const heartbeatsByDayAndProject: HeartbeatsByDayAndProject = {};
 
     heartbeats.forEach((hb) => {
       const dateStr = hb.timestamp.toISOString().split("T")[0];
@@ -247,59 +281,6 @@ export default defineEventHandler(async (event: H3Event) => {
       }
     }
 
-    const daysWithSummariesButNoDetails = summaries
-      .map((s) => s.date.toISOString().split("T")[0])
-      .filter((dateStr) => {
-        return (
-          dailyStats[dateStr] &&
-          (!dailyStats[dateStr].languages ||
-            Object.keys(dailyStats[dateStr].languages).length === 0)
-        );
-      });
-
-    for (const dateStr of daysWithSummariesButNoDetails) {
-      const dayHeartbeats = heartbeats.filter(
-        (hb) => hb.timestamp.toISOString().split("T")[0] === dateStr
-      );
-
-      const languages: Record<string, number> = {};
-      const editors: Record<string, number> = {};
-      const os: Record<string, number> = {};
-      const files = new Set<string>();
-
-      dayHeartbeats.forEach((hb) => {
-        if (
-          hb.language &&
-          dailyStats[dateStr].projects[hb.project || "unknown"]
-        ) {
-          const projectTime =
-            dailyStats[dateStr].projects[hb.project || "unknown"];
-          const totalBeats = dayHeartbeats.filter(
-            (b) => b.project === hb.project
-          ).length;
-
-          if (totalBeats > 0) {
-            const approxTimePerBeat = projectTime / totalBeats;
-            languages[hb.language] =
-              (languages[hb.language] || 0) + approxTimePerBeat;
-
-            if (hb.editor) {
-              editors[hb.editor] =
-                (editors[hb.editor] || 0) + approxTimePerBeat;
-            }
-            if (hb.os) {
-              os[hb.os] = (os[hb.os] || 0) + approxTimePerBeat;
-            }
-          }
-        }
-      });
-
-      dailyStats[dateStr].languages = languages;
-      dailyStats[dateStr].editors = editors;
-      dailyStats[dateStr].os = os;
-      dailyStats[dateStr].files = Array.from(files);
-    }
-
     const result = Object.values(dailyStats).filter(
       (day) => day.totalSeconds > 0 || Object.keys(day.projects).length > 0
     );
@@ -308,12 +289,89 @@ export default defineEventHandler(async (event: H3Event) => {
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
+    if (
+      timeRange === TimeRangeEnum.TODAY ||
+      timeRange === TimeRangeEnum.YESTERDAY
+    ) {
+      const targetDate =
+        timeRange === TimeRangeEnum.TODAY
+          ? today.toISOString().split("T")[0]
+          : new Date(today.setDate(today.getDate() - 1))
+              .toISOString()
+              .split("T")[0];
+
+      const dayHeartbeats = heartbeats.filter(
+        (hb) => hb.timestamp.toISOString().split("T")[0] === targetDate
+      );
+
+      const hourlyData: HourlyData[] = Array(24)
+        .fill(0)
+        .map((_, hour) => {
+          const hourStart = new Date(targetDate);
+          hourStart.setUTCHours(hour, 0, 0, 0);
+          const hourEnd = new Date(hourStart);
+          hourEnd.setUTCHours(hour + 1, 0, 0, 0);
+
+          const hourBeats = dayHeartbeats.filter(
+            (hb) =>
+              hb.timestamp.getTime() >= hourStart.getTime() &&
+              hb.timestamp.getTime() < hourEnd.getTime()
+          );
+
+          let totalSeconds = 0;
+          if (hourBeats.length > 0) {
+            hourBeats.sort(
+              (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+            );
+
+            for (let i = 0; i < hourBeats.length; i++) {
+              if (i === 0) {
+                totalSeconds += HEARTBEAT_INTERVAL_SECONDS;
+              } else {
+                const current = hourBeats[i].timestamp.getTime();
+                const previous = hourBeats[i - 1].timestamp.getTime();
+                const diff = Math.round((current - previous) / 1000);
+                totalSeconds += diff < 300 ? diff : HEARTBEAT_INTERVAL_SECONDS;
+              }
+            }
+          }
+
+          return {
+            timestamp: hourStart.toISOString(),
+            totalSeconds,
+          };
+        });
+
+      const dayIndex = result.findIndex((day) => day.date === targetDate);
+      if (dayIndex !== -1) {
+        result[dayIndex] = {
+          ...result[dayIndex],
+          hourlyData,
+        };
+      } else {
+        result.push({
+          date: targetDate,
+          totalSeconds: 0,
+          projects: {},
+          languages: {},
+          editors: {},
+          os: {},
+          files: [],
+          hourlyData,
+        });
+      }
+    }
+
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching stats:", error);
     throw createError({
-      statusCode: error.statusCode || 500,
-      message: error.message || "Failed to fetch statistics",
+      statusCode:
+        error instanceof Error && "statusCode" in error
+          ? (error as any).statusCode
+          : 500,
+      message:
+        error instanceof Error ? error.message : "Failed to fetch statistics",
     });
   }
 });

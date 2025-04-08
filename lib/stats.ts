@@ -1,16 +1,35 @@
-export type TimeRange =
-  | "today"
-  | "yesterday"
-  | "week"
-  | "month"
-  | "month-to-date"
-  | "last-month"
-  | "year-to-date"
-  | "last-12-months"
-  | "all-time"
-  | "custom-range";
+export const TimeRangeEnum = {
+  TODAY: "today",
+  YESTERDAY: "yesterday",
+  WEEK: "week",
+  MONTH: "month",
+  MONTH_TO_DATE: "month-to-date",
+  LAST_MONTH: "last-month",
+  YEAR_TO_DATE: "year-to-date",
+  LAST_12_MONTHS: "last-12-months",
+  ALL_TIME: "all-time",
+  CUSTOM_RANGE: "custom-range",
+} as const;
+
+export type TimeRange = typeof TimeRangeEnum[keyof typeof TimeRangeEnum];
 
 type StatRecord = Record<string, number>;
+
+type HourlyData = {
+  timestamp: string;
+  totalSeconds: number;
+};
+
+type DailyData = {
+  date: string;
+  totalSeconds: number;
+  projects: StatRecord;
+  languages: StatRecord;
+  editors: StatRecord;
+  os: StatRecord;
+  files: string[];
+  hourlyData?: HourlyData[];
+};
 
 type StatsResult = {
   totalSeconds: number;
@@ -18,8 +37,16 @@ type StatsResult = {
   languages: StatRecord;
   editors: StatRecord;
   os: StatRecord;
-  files: string[];
-  dailyData: any[];
+  dailyData: DailyData[];
+};
+
+type State = {
+  data: StatsResult;
+  timeRange: TimeRange;
+  cache: Record<string, StatsResult>;
+  status: "idle" | "pending" | "success" | "error";
+  error: Error | null;
+  isAuthenticated: boolean;
 };
 
 const initialStats: StatsResult = {
@@ -28,20 +55,19 @@ const initialStats: StatsResult = {
   languages: {},
   editors: {},
   os: {},
-  files: [],
   dailyData: [],
 };
 
-const state = {
+const state: State = {
   data: { ...initialStats },
-  timeRange: "today" as TimeRange,
-  cache: {} as Record<string, StatsResult>,
-  status: "idle" as "idle" | "pending" | "success" | "error",
-  error: null as Error | null,
+  timeRange: TimeRangeEnum.TODAY,
+  cache: {},
+  status: "idle",
+  error: null,
   isAuthenticated: true,
 };
 
-const listeners: Function[] = [];
+const listeners: (() => void)[] = [];
 
 export function subscribe(callback: () => void): () => void {
   listeners.push(callback);
@@ -53,66 +79,8 @@ export function subscribe(callback: () => void): () => void {
   };
 }
 
-function notify() {
+function notify(): void {
   listeners.forEach((callback) => callback());
-}
-
-function getDateRange(timeRange: TimeRange): {
-  startDate: string;
-  endDate: string;
-} {
-  const currentDate = new Date();
-  const today = new Date(currentDate);
-  today.setHours(23, 59, 59, 999);
-
-  let startDate = new Date(currentDate);
-  startDate.setHours(0, 0, 0, 0);
-  let endDate = today;
-
-  if (timeRange === "yesterday") {
-    startDate = new Date(currentDate);
-    startDate.setDate(startDate.getDate() - 1);
-    startDate.setHours(0, 0, 0, 0);
-
-    endDate = new Date(startDate);
-    endDate.setHours(23, 59, 59, 999);
-  } else if (timeRange === "week") {
-    startDate = new Date(currentDate);
-    startDate.setDate(startDate.getDate() - 7);
-    startDate.setHours(0, 0, 0, 0);
-  } else if (timeRange === "month") {
-    startDate = new Date(currentDate);
-    startDate.setDate(startDate.getDate() - 30);
-    startDate.setHours(0, 0, 0, 0);
-  } else if (timeRange === "month-to-date") {
-    startDate = new Date(currentDate);
-    startDate.setDate(1);
-    startDate.setHours(0, 0, 0, 0);
-  } else if (timeRange === "last-month") {
-    endDate = new Date(currentDate);
-    endDate.setDate(0);
-    endDate.setHours(23, 59, 59, 999);
-
-    startDate = new Date(endDate);
-    startDate.setDate(1);
-    startDate.setHours(0, 0, 0, 0);
-  } else if (timeRange === "year-to-date") {
-    startDate = new Date(currentDate);
-    startDate.setMonth(0, 1);
-    startDate.setHours(0, 0, 0, 0);
-  } else if (timeRange === "last-12-months") {
-    startDate = new Date(currentDate);
-    startDate.setFullYear(startDate.getFullYear() - 1);
-    startDate.setHours(0, 0, 0, 0);
-  } else if (timeRange === "all-time") {
-    startDate = new Date("2020-01-01");
-    startDate.setHours(0, 0, 0, 0);
-  }
-
-  return {
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString(),
-  };
 }
 
 export async function fetchStats(): Promise<void> {
@@ -135,12 +103,9 @@ export async function fetchStats(): Promise<void> {
   notify();
 
   try {
-    const { startDate, endDate } = getDateRange(state.timeRange);
     const baseUrl = window.location.origin;
-
     const url = new URL("/api/stats", baseUrl);
-    url.searchParams.append("startDate", startDate);
-    url.searchParams.append("endDate", endDate);
+    url.searchParams.append("timeRange", state.timeRange);
 
     const response = await fetch(url.toString(), {
       method: "GET",
@@ -159,7 +124,7 @@ export async function fetchStats(): Promise<void> {
       throw new Error(`API error: ${response.status}`);
     }
 
-    const dailyData = await response.json();
+    const dailyData = await response.json() as DailyData[];
     state.isAuthenticated = true;
 
     if (Array.isArray(dailyData) && dailyData.length > 0) {
@@ -168,36 +133,26 @@ export async function fetchStats(): Promise<void> {
       const languages: StatRecord = {};
       const editors: StatRecord = {};
       const os: StatRecord = {};
-      const files = new Set<string>();
 
       dailyData.forEach((day) => {
         totalSeconds += day.totalSeconds || 0;
 
-        // Aggregate projects
         Object.entries(day.projects || {}).forEach(([project, seconds]) => {
           projects[project] = (projects[project] || 0) + (seconds as number);
         });
 
-        // Aggregate languages
         Object.entries(day.languages || {}).forEach(([language, seconds]) => {
           languages[language] =
             (languages[language] || 0) + (seconds as number);
         });
 
-        // Aggregate editors
         Object.entries(day.editors || {}).forEach(([editor, seconds]) => {
           editors[editor] = (editors[editor] || 0) + (seconds as number);
         });
 
-        // Aggregate OS
         Object.entries(day.os || {}).forEach(([osName, seconds]) => {
           os[osName] = (os[osName] || 0) + (seconds as number);
         });
-
-        // Collect unique files
-        if (day.files) {
-          day.files.forEach((file: string) => files.add(file));
-        }
       });
 
       const result: StatsResult = {
@@ -206,7 +161,6 @@ export async function fetchStats(): Promise<void> {
         languages,
         editors,
         os,
-        files: Array.from(files),
         dailyData,
       };
 
@@ -215,18 +169,18 @@ export async function fetchStats(): Promise<void> {
       state.status = "success";
     } else {
       console.warn(
-        `No data found for range: ${state.timeRange} (${startDate} to ${endDate})`
+        `No data found for range: ${state.timeRange}`
       );
       state.data = { ...initialStats };
       state.status = "success";
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error fetching stats:", err);
-    state.error = err;
+    state.error = err instanceof Error ? err : new Error(String(err));
     state.data = { ...initialStats };
     state.status = "error";
 
-    if (err.message === "Authentication required") {
+    if (state.error.message === "Authentication required") {
       state.isAuthenticated = false;
       if (typeof window !== "undefined") {
         window.location.href = "/login";
