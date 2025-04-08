@@ -41,7 +41,8 @@ export default defineEventHandler(async (event: H3Event) => {
         timestamp: new Date(body.timestamp),
         project: body.project,
         language: body.language,
-        file: body.file,
+        editor: body.editor,
+        os: body.os,
       },
     });
 

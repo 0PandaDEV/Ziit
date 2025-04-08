@@ -44,6 +44,8 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     const query = getQuery(event);
     const project = query.project as string;
+    const editor = query.editor as string;
+    const os = query.os as string;
 
     const whereCondition: any = {
       userId: userId,
@@ -51,6 +53,12 @@ export default defineEventHandler(async (event: H3Event) => {
 
     if (project) {
       whereCondition.project = project;
+    }
+    if (editor) {
+      whereCondition.editor = editor;
+    }
+    if (os) {
+      whereCondition.os = os;
     }
 
     const heartbeats = await prisma.heartbeat.findMany({
