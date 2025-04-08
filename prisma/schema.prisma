@@ -29,8 +29,9 @@ model Heartbeat {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   project   String?
+  editor    String?
   language  String?
-  file      String?
+  os        String?
   createdAt DateTime @default(now())
 
   @@index([userId, timestamp])

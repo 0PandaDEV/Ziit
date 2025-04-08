@@ -19,8 +19,9 @@ CREATE TABLE "Heartbeat" (
     "timestamp" TIMESTAMPTZ(6) NOT NULL,
     "userId" TEXT NOT NULL,
     "project" TEXT,
+    "editor" TEXT,
     "language" TEXT,
-    "file" TEXT,
+    "os" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Heartbeat_pkey" PRIMARY KEY ("id")
