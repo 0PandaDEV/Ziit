@@ -84,7 +84,7 @@ import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
 import { Key, keyboard } from "wrdu-keyboard";
 
-interface ExtendedUser extends User {
+interface ExtendedUser extends Omit<User, 'passwordHash' | 'githubAccessToken' | 'githubRefreshToken' | 'createdAt'> {
   hasGithubAccount?: boolean;
   name?: string;
 }
