@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
+import { v4 as uuidv4 } from "uuid";
 
 const prisma = new PrismaClient();
 
@@ -12,7 +13,7 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   try {
-    const apiKey = generateUniqueId();
+    const apiKey = uuidv4();
 
     const updatedUser = await prisma.user.update({
       where: {
@@ -37,11 +38,3 @@ export default defineEventHandler(async (event: H3Event) => {
     });
   }
 });
-
-function generateUniqueId(): string {
-  return (
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15)
-  );
-}
