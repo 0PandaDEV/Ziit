@@ -15,12 +15,19 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const apiKey = authHeader.substring(7);
+    if (!apiKey || apiKey.length !== 32) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: "Unauthorized: Invalid API key format",
+      });
+    }
 
     const user = await prisma.user.findUnique({
       where: { apiKey },
+      select: { id: true, apiKey: true }
     });
 
-    if (!user) {
+    if (!user || user.apiKey !== apiKey) {
       throw createError({
         statusCode: 401,
         statusMessage: "Unauthorized: Invalid API key",
