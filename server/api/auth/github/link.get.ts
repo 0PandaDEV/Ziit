@@ -1,13 +1,15 @@
 import { v4 as uuidv4 } from "uuid";
+import { H3Event } from "h3";
 
-export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig();
-
-  const sessionCookie = getCookie(event, "session");
-  if (!sessionCookie) {
-    return sendRedirect(event, "/login?error=unauthorized");
+export default defineEventHandler(async (event: H3Event) => {
+  if (!event.context.user) {
+    throw createError({
+      statusCode: 401,
+      message: "Unauthorized",
+    });
   }
 
+  const config = useRuntimeConfig();
   const state = uuidv4();
 
   setCookie(event, "github_oauth_state", state, {
@@ -24,7 +26,7 @@ export default defineEventHandler(async (event) => {
     path: "/",
   });
 
-  setCookie(event, "github_link_session", sessionCookie, {
+  setCookie(event, "github_link_session", event.context.user.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 10,

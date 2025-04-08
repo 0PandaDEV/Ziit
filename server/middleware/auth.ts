@@ -1,4 +1,7 @@
 import jwt from "jsonwebtoken";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event) => {
   const path = getRequestURL(event).pathname;
@@ -15,7 +18,7 @@ export default defineEventHandler(async (event) => {
     return;
   }
 
-  if (path.startsWith("/api/auth/")) {
+  if (path.startsWith("/api/auth/login") || path.startsWith("/api/auth/register") || path.startsWith("/api/auth/github")) {
     return;
   }
 
@@ -35,6 +38,15 @@ export default defineEventHandler(async (event) => {
       throw new Error("Invalid token");
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId }
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    event.context.user = user;
     return;
   } catch (error) {
     console.error(error);

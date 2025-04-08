@@ -2,13 +2,7 @@ import { H3Event } from "h3";
 import { summarizeHeartbeats } from "~/server/utils/summarize-heartbeats";
 
 export default defineEventHandler(async (event: H3Event) => {
-  if (event.context.user) {
-    return event.context.user;
-  }
-
-  const sessionCookie = getCookie(event, "session");
-
-  if (!sessionCookie) {
+  if (!event.context.user) {
     throw createError({
       statusCode: 401,
       message: "Unauthorized",

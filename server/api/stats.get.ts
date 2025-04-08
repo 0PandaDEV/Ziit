@@ -1,46 +1,18 @@
 import { PrismaClient, Heartbeat } from "@prisma/client";
 import { H3Event } from "h3";
-import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
 const HEARTBEAT_INTERVAL_SECONDS = 30;
 
 export default defineEventHandler(async (event: H3Event) => {
-  let userId: string;
-
-  if (event.context.user) {
-    userId = event.context.user.id;
-  } else {
-    const sessionCookie = getCookie(event, "session");
-
-    if (!sessionCookie) {
-      throw createError({
-        statusCode: 401,
-        message: "Unauthorized",
-      });
-    }
-
-    try {
-      const config = useRuntimeConfig();
-      const decoded = jwt.verify(sessionCookie, config.jwtSecret);
-
-      if (
-        typeof decoded !== "object" ||
-        decoded === null ||
-        !("userId" in decoded)
-      ) {
-        throw new Error("Invalid token format");
-      }
-
-      userId = decoded.userId as string;
-    } catch (error) {
-      deleteCookie(event, "session");
-      throw createError({
-        statusCode: 401,
-        message: "Invalid session" + error,
-      });
-    }
+  if (!event.context.user) {
+    throw createError({
+      statusCode: 401,
+      message: "Unauthorized",
+    });
   }
+
+  const userId = event.context.user.id;
 
   try {
     const query = getQuery(event);
@@ -216,9 +188,6 @@ export default defineEventHandler(async (event: H3Event) => {
             if (beat.os) {
               os[beat.os] = (os[beat.os] || 0) + HEARTBEAT_INTERVAL_SECONDS;
             }
-            if (beat.file) {
-              files.add(beat.file);
-            }
             continue;
           }
 
@@ -252,10 +221,6 @@ export default defineEventHandler(async (event: H3Event) => {
             if (beat.os) {
               os[beat.os] = (os[beat.os] || 0) + HEARTBEAT_INTERVAL_SECONDS;
             }
-          }
-
-          if (beat.file) {
-            files.add(beat.file);
           }
         }
 
@@ -326,10 +291,6 @@ export default defineEventHandler(async (event: H3Event) => {
               os[hb.os] = (os[hb.os] || 0) + approxTimePerBeat;
             }
           }
-        }
-
-        if (hb.file) {
-          files.add(hb.file);
         }
       });
 

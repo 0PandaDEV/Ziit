@@ -4,9 +4,7 @@ import { H3Event } from "h3";
 const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event: H3Event) => {
-  const sessionCookie = getCookie(event, "session");
-
-  if (!sessionCookie) {
+  if (!event.context.user) {
     throw createError({
       statusCode: 401,
       message: "Unauthorized",

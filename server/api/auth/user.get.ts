@@ -1,14 +1,10 @@
-import { prisma } from "~~/prisma/prisma";
-import jwt from "jsonwebtoken";
+import { PrismaClient } from "@prisma/client";
+import { H3Event } from "h3";
 
-export default defineEventHandler(async (event) => {
-  if (event.context.user) {
-    return event.context.user;
-  }
+const prisma = new PrismaClient();
 
-  const sessionCookie = getCookie(event, "session");
-
-  if (!sessionCookie) {
+export default defineEventHandler(async (event: H3Event) => {
+  if (!event.context.user) {
     throw createError({
       statusCode: 401,
       message: "Unauthorized",
@@ -16,19 +12,8 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const config = useRuntimeConfig();
-    const decoded = jwt.verify(sessionCookie, config.jwtSecret);
-
-    if (
-      typeof decoded !== "object" ||
-      decoded === null ||
-      !("userId" in decoded)
-    ) {
-      throw new Error("Invalid token format");
-    }
-
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: event.context.user.id },
       select: {
         id: true,
         email: true,
@@ -54,13 +39,12 @@ export default defineEventHandler(async (event) => {
       hasGithubAccount: hasGithub,
     };
 
-    event.context.user = enrichedUser;
     return enrichedUser;
-  } catch (error) {
-    deleteCookie(event, "session");
+  } catch (error: any) {
+    console.error("Error fetching user:", error);
     throw createError({
-      statusCode: 401,
-      message: "Invalid session" + error,
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || "Internal server error",
     });
   }
 });
