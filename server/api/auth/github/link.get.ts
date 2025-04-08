@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from "uuid";
 import { H3Event } from "h3";
 import jwt from "jsonwebtoken";
 
@@ -11,7 +10,7 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   const config = useRuntimeConfig();
-  const state = uuidv4();
+  const state = crypto.randomUUID();
 
   setCookie(event, "github_oauth_state", state, {
     httpOnly: true,

@@ -12,7 +12,7 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   try {
-    const apiKey = generateUniqueId();
+    const apiKey = crypto.randomUUID();
 
     const updatedUser = await prisma.user.update({
       where: {
@@ -37,11 +37,3 @@ export default defineEventHandler(async (event: H3Event) => {
     });
   }
 });
-
-function generateUniqueId(): string {
-  return (
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15)
-  );
-}
