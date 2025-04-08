@@ -35,6 +35,8 @@
 <script setup lang="ts" generic="T">
 import { ref, computed } from "vue";
 import Key from "./Key.vue";
+import IconsDownUp from "./Icons/DownUp.vue";
+import IconsUpDown from "./Icons/UpDown.vue";
 
 interface SelectItem<V> {
   label: string;

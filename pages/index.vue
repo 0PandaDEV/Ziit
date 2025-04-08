@@ -43,6 +43,42 @@
             </div>
           </div>
         </div>
+
+        <div class="editors-section" v-if="stats && editorBreakdown.length > 0">
+          <h2>EDITORS</h2>
+          <div class="editor-list">
+            <div
+              v-for="editor in editorBreakdown.slice(0, 10)"
+              :key="editor.name"
+              class="editor-item">
+              <div class="editor-name">{{ editor.name || "Unknown" }}</div>
+              <div class="editor-time">
+                {{ formatTime(editor.seconds) }}
+              </div>
+              <div class="editor-percentage">
+                {{ ((editor.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="os-section" v-if="stats && osBreakdown.length > 0">
+          <h2>OPERATING SYSTEMS</h2>
+          <div class="os-list">
+            <div
+              v-for="os in osBreakdown.slice(0, 10)"
+              :key="os.name"
+              class="os-item">
+              <div class="os-name">{{ os.name || "Unknown" }}</div>
+              <div class="os-time">
+                {{ formatTime(os.seconds) }}
+              </div>
+              <div class="os-percentage">
+                {{ ((os.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </NuxtLayout>
@@ -50,21 +86,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { useStats } from "~/composables/useStats";
 import Key from "~/components/Key.vue";
 import { keyboard } from "wrdu-keyboard";
+import * as statsLib from "~/lib/stats";
 
-const { stats, timeRange, fetchStats, setTimeRange, formatTime } = useStats();
-
-interface Project {
+type ItemWithTime = {
   name: string;
   seconds: number;
-}
-
-interface Language {
-  name: string;
-  seconds: number;
-}
+};
 
 const chartContainer = ref<HTMLElement | null>(null);
 const projectSort = ref<"time" | "name">("time");
@@ -72,28 +101,39 @@ const uniqueFiles = ref(0);
 const uniqueLanguages = ref(0);
 let chart: any = null;
 
+const stats = ref(statsLib.getStats());
+const timeRange = ref(statsLib.getTimeRange());
+const { formatTime } = statsLib;
+
+const unsubscribe = statsLib.subscribe(() => {
+  stats.value = statsLib.getStats();
+  timeRange.value = statsLib.getTimeRange();
+  if (chart) {
+    updateChart();
+  }
+});
+
 watch(
-  timeRange,
-  async (newTimeRange) => {
-    await fetchStats();
-    if (stats.value) {
-      uniqueFiles.value = stats.value.files?.length || 0;
-      uniqueLanguages.value = Object.keys(stats.value.languages || {}).length;
+  () => stats.value,
+  (newStats) => {
+    if (newStats) {
+      uniqueFiles.value = newStats.files?.length || 0;
+      uniqueLanguages.value = Object.keys(newStats.languages || {}).length;
     }
     if (chart) {
       updateChart();
     }
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
 
 const sortedProjects = computed(() => {
   if (!stats.value || !stats.value.projects) return [];
 
-  const projects: Project[] = Object.entries(stats.value.projects).map(
+  const projects: ItemWithTime[] = Object.entries(stats.value.projects).map(
     ([name, seconds]) => ({
       name,
-      seconds,
+      seconds: seconds as number,
     })
   );
 
@@ -107,48 +147,66 @@ const sortedProjects = computed(() => {
 const languageBreakdown = computed(() => {
   if (!stats.value || !stats.value.languages) return [];
 
-  const languages: Language[] = Object.entries(stats.value.languages).map(
+  const languages: ItemWithTime[] = Object.entries(stats.value.languages).map(
     ([name, seconds]) => ({
       name: name || "Unknown",
-      seconds,
+      seconds: seconds as number,
     })
   );
 
   return languages.sort((a, b) => b.seconds - a.seconds);
 });
 
+const editorBreakdown = computed(() => {
+  if (!stats.value || !stats.value.editors) return [];
+
+  const editors: ItemWithTime[] = Object.entries(stats.value.editors).map(
+    ([name, seconds]) => ({
+      name: name || "Unknown",
+      seconds: seconds as number,
+    })
+  );
+
+  return editors.sort((a, b) => b.seconds - a.seconds);
+});
+
+const osBreakdown = computed(() => {
+  if (!stats.value || !stats.value.os) return [];
+
+  const osArray: ItemWithTime[] = Object.entries(stats.value.os).map(
+    ([name, seconds]) => ({
+      name: name || "Unknown",
+      seconds: seconds as number,
+    })
+  );
+
+  return osArray.sort((a, b) => b.seconds - a.seconds);
+});
+
 onMounted(() => {
-  setupKeyboardShortcuts();
+  keyboard.prevent.down([Key.D], () => statsLib.setTimeRange("today"));
+  keyboard.prevent.down([Key.E], () => statsLib.setTimeRange("yesterday"));
+  keyboard.prevent.down([Key.W], () => statsLib.setTimeRange("week"));
+  keyboard.prevent.down([Key.T], () => statsLib.setTimeRange("month"));
+  keyboard.prevent.down([Key.N], () => statsLib.setTimeRange("last-month"));
+  keyboard.prevent.down([Key.Y], () => statsLib.setTimeRange("year-to-date"));
+  keyboard.prevent.down([Key.L], () => statsLib.setTimeRange("last-12-months"));
+  keyboard.prevent.down([Key.A], () => statsLib.setTimeRange("all-time"));
+  keyboard.prevent.down([Key.C], () => statsLib.setTimeRange("custom-range"));
 
   if (chartContainer.value) {
     renderChart();
   }
-
-  setInterval(async () => {
-    await fetchStats();
-    if (stats.value) {
-      uniqueFiles.value = stats.value.files?.length || 0;
-      uniqueLanguages.value = Object.keys(stats.value.languages || {}).length;
-    }
-    if (chart) updateChart();
-  }, 60000);
 });
 
 onUnmounted(() => {
   keyboard.clear();
+  unsubscribe();
+  if (chart) {
+    chart.destroy();
+    chart = null;
+  }
 });
-
-function setupKeyboardShortcuts() {
-  keyboard.prevent.down([Key.D], () => setTimeRange("today"));
-  keyboard.prevent.down([Key.E], () => setTimeRange("yesterday"));
-  keyboard.prevent.down([Key.W], () => setTimeRange("week"));
-  keyboard.prevent.down([Key.T], () => setTimeRange("month"));
-  keyboard.prevent.down([Key.N], () => setTimeRange("last-month"));
-  keyboard.prevent.down([Key.Y], () => setTimeRange("year-to-date"));
-  keyboard.prevent.down([Key.L], () => setTimeRange("last-12-months"));
-  keyboard.prevent.down([Key.A], () => setTimeRange("all-time"));
-  keyboard.prevent.down([Key.C], () => setTimeRange("custom-range"));
-}
 
 function renderChart() {
   if (!chartContainer.value || !stats.value) return;
@@ -189,10 +247,9 @@ function renderChart() {
           {
             label: "Coding Time (hours)",
             data,
-
-            borderColor: "rgb(97, 116, 204)",
-            borderWidth: 1.5,
-            pointBackgroundColor: "rgb(97, 116, 204)",
+            borderColor: "#ff6200",
+            borderWidth: 3,
+            pointBackgroundColor: "#ff6200",
             pointRadius: 0,
             pointHoverRadius: 4,
             fill: "start",

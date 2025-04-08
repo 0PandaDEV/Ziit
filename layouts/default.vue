@@ -7,49 +7,67 @@
     </div>
     <div class="fade-bottom"></div>
     <div class="bottombar" v-if="$route.path === '/'">
-      <p class="coding-time">{{ formatTime(stats?.totalSeconds || 0) }}</p>
+      <p class="coding-time">{{ formattedTime }}</p>
       <Select v-model="selectedTimeRange" :items="timeRangeOptions" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, computed } from "vue";
-import { useStats } from "~/composables/useStats";
-import type { TimeRange } from "~/composables/useStats";
+import * as statsLib from "~/lib/stats";
 
-const { stats, fetchStats, formatTime, timeRange, setTimeRange } = useStats();
+const stats = ref(statsLib.getStats());
+const timeRange = ref(statsLib.getTimeRange());
 
-const selectedTimeRange = ref<TimeRange>(timeRange.value);
+const selectedTimeRange = computed({
+  get: () => timeRange.value,
+  set: (value: statsLib.TimeRange) => {
+    statsLib.setTimeRange(value);
+    timeRange.value = value;
+  },
+});
+
+const formattedTime = computed(() => {
+  return statsLib.formatTime(stats.value.totalSeconds || 0);
+});
+
+const unsubscribe = statsLib.subscribe(() => {
+  stats.value = statsLib.getStats();
+  timeRange.value = statsLib.getTimeRange();
+});
+
+onUnmounted(() => {
+  unsubscribe();
+});
 
 const timeRangeOptions = computed(() => [
-  { label: "Today", value: "today" as TimeRange, key: "D" },
-  { label: "Yesterday", value: "yesterday" as TimeRange, key: "E" },
-  { label: "Last 7 Days", value: "week" as TimeRange, key: "W" },
-  { label: "Last 30 Days", value: "month" as TimeRange, key: "T" },
-  { label: "Month to Date", value: "month-to-date" as TimeRange, key: "M" },
-  { label: "Last Month", value: "last-month" as TimeRange, key: "N" },
-  { label: "Year to Date", value: "year-to-date" as TimeRange, key: "Y" },
-  { label: "Last 12 Months", value: "last-12-months" as TimeRange, key: "L" },
-  { label: "All Time", value: "all-time" as TimeRange, key: "A" },
-  { label: "Custom Range", value: "custom-range" as TimeRange, key: "C" },
+  { label: "Today", value: "today" as statsLib.TimeRange, key: "D" },
+  { label: "Yesterday", value: "yesterday" as statsLib.TimeRange, key: "E" },
+  { label: "Last 7 Days", value: "week" as statsLib.TimeRange, key: "W" },
+  { label: "Last 30 Days", value: "month" as statsLib.TimeRange, key: "T" },
+  {
+    label: "Month to Date",
+    value: "month-to-date" as statsLib.TimeRange,
+    key: "M",
+  },
+  { label: "Last Month", value: "last-month" as statsLib.TimeRange, key: "N" },
+  {
+    label: "Year to Date",
+    value: "year-to-date" as statsLib.TimeRange,
+    key: "Y",
+  },
+  {
+    label: "Last 12 Months",
+    value: "last-12-months" as statsLib.TimeRange,
+    key: "L",
+  },
+  { label: "All Time", value: "all-time" as statsLib.TimeRange, key: "A" },
+  {
+    label: "Custom Range",
+    value: "custom-range" as statsLib.TimeRange,
+    key: "C",
+  },
 ]);
-
-watch(selectedTimeRange, (newValue, oldValue) => {
-  if (newValue !== oldValue) {
-    setTimeRange(newValue);
-  }
-});
-
-watch(timeRange, (newValue, oldValue) => {
-  if (newValue !== oldValue) {
-    selectedTimeRange.value = newValue;
-  }
-});
-
-onMounted(async () => {
-  await fetchStats();
-});
 </script>
 
 <style scoped lang="scss">

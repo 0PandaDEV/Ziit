@@ -34,9 +34,9 @@
         }
         
         &.active {
-          background-color: #6174cc;
+          background-color: #ff6200;
           color: white;
-          border-color: #6174cc;
+          border-color: #ff6200;
         }
       }
     }
@@ -44,7 +44,7 @@
   
   .chart-container {
     padding: 1rem;
-    background-color: #1d2330;
+    background-color: var(--background);
     border: 1px solid var(--border);
     margin-bottom: 2rem;
     

@@ -26,7 +26,6 @@
   align-items: center;
 
   .title {
-    font-family: Overt;
     display: flex;
     align-items: center;
   }
