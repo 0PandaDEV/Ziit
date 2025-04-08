@@ -18,7 +18,11 @@ export default defineEventHandler(async (event) => {
     return;
   }
 
-  if (path.startsWith("/api/auth/login") || path.startsWith("/api/auth/register") || path.startsWith("/api/auth/github")) {
+  if (
+    path.includes("login") ||
+    path.includes("register") ||
+    path.includes("github")
+  ) {
     return;
   }
 
@@ -39,7 +43,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId }
+      where: { id: decoded.userId },
     });
 
     if (!user) {
