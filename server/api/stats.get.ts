@@ -45,50 +45,50 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const today = new Date();
-    today.setHours(23, 59, 59, 999);
+    today.setUTCHours(23, 59, 59, 999);
 
     let startDate = new Date();
-    startDate.setHours(0, 0, 0, 0);
+    startDate.setUTCHours(0, 0, 0, 0);
     let endDate = today;
 
     if (timeRange === TimeRangeEnum.YESTERDAY) {
       startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - 1);
-      startDate.setHours(0, 0, 0, 0);
+      startDate.setUTCDate(startDate.getUTCDate() - 1);
+      startDate.setUTCHours(0, 0, 0, 0);
 
       endDate = new Date(startDate);
-      endDate.setHours(23, 59, 59, 999);
+      endDate.setUTCHours(23, 59, 59, 999);
     } else if (timeRange === TimeRangeEnum.WEEK) {
       startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - 7);
-      startDate.setHours(0, 0, 0, 0);
+      startDate.setUTCDate(startDate.getUTCDate() - 7);
+      startDate.setUTCHours(0, 0, 0, 0);
     } else if (timeRange === TimeRangeEnum.MONTH) {
       startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - 30);
-      startDate.setHours(0, 0, 0, 0);
+      startDate.setUTCDate(startDate.getUTCDate() - 30);
+      startDate.setUTCHours(0, 0, 0, 0);
     } else if (timeRange === TimeRangeEnum.MONTH_TO_DATE) {
       startDate = new Date(today);
-      startDate.setDate(1);
-      startDate.setHours(0, 0, 0, 0);
+      startDate.setUTCDate(1);
+      startDate.setUTCHours(0, 0, 0, 0);
     } else if (timeRange === TimeRangeEnum.LAST_MONTH) {
       endDate = new Date(today);
-      endDate.setDate(0);
-      endDate.setHours(23, 59, 59, 999);
+      endDate.setUTCDate(0);
+      endDate.setUTCHours(23, 59, 59, 999);
 
       startDate = new Date(endDate);
-      startDate.setDate(1);
-      startDate.setHours(0, 0, 0, 0);
+      startDate.setUTCDate(1);
+      startDate.setUTCHours(0, 0, 0, 0);
     } else if (timeRange === TimeRangeEnum.YEAR_TO_DATE) {
       startDate = new Date(today);
-      startDate.setMonth(0, 1);
-      startDate.setHours(0, 0, 0, 0);
+      startDate.setUTCMonth(0, 1);
+      startDate.setUTCHours(0, 0, 0, 0);
     } else if (timeRange === TimeRangeEnum.LAST_12_MONTHS) {
       startDate = new Date(today);
-      startDate.setFullYear(startDate.getFullYear() - 1);
-      startDate.setHours(0, 0, 0, 0);
+      startDate.setUTCFullYear(startDate.getUTCFullYear() - 1);
+      startDate.setUTCHours(0, 0, 0, 0);
     } else if (timeRange === TimeRangeEnum.ALL_TIME) {
-      startDate = new Date("2020-01-01");
-      startDate.setHours(0, 0, 0, 0);
+      startDate = new Date("2020-01-01T00:00:00.000Z");
+      startDate.setUTCHours(0, 0, 0, 0);
     }
 
     const summaries = await prisma.dailyProjectSummary.findMany({

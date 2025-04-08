@@ -41,7 +41,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const startDate = new Date(startDateStr);
     const endDate = new Date(endDateStr);
-    endDate.setHours(23, 59, 59, 999);
+    endDate.setUTCHours(23, 59, 59, 999);
 
     const summaries = await prisma.dailyProjectSummary.findMany({
       where: {
@@ -93,7 +93,7 @@ export default defineEventHandler(async (event: H3Event) => {
       for (const dateStr of datesToCheck) {
         const dayStart = new Date(dateStr);
         const dayEnd = new Date(dateStr);
-        dayEnd.setHours(23, 59, 59, 999);
+        dayEnd.setUTCHours(23, 59, 59, 999);
 
         const heartbeats = await prisma.heartbeat.findMany({
           where: {
