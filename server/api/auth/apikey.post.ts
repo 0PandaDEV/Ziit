@@ -1,6 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
-import { v4 as uuidv4 } from "uuid";
 
 const prisma = new PrismaClient();
 
@@ -13,7 +12,7 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   try {
-    const apiKey = uuidv4();
+    const apiKey = crypto.randomUUID();
 
     const updatedUser = await prisma.user.update({
       where: {
