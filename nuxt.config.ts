@@ -47,11 +47,6 @@ export default defineNuxtConfig({
           "http-equiv": "Cross-Origin-Resource-Policy",
           content: "same-origin",
         },
-        {
-          "http-equiv": "Content-Security-Policy",
-          content:
-            "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'",
-        },
       ],
     },
   },
