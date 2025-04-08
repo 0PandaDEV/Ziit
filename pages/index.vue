@@ -6,36 +6,38 @@
       </div>
 
       <div class="metrics-tables">
-        <div class="projects-section">
+        <div class="section">
           <h2>TOP PROJECTS</h2>
-          <div class="projects-list">
+          <div class="list">
             <div
               v-for="project in sortedProjects.slice(0, 10)"
               :key="project.name"
-              class="project-item"
+              class="item"
+              :style="{ '--percentage': `${((project.seconds / stats.totalSeconds) * 100).toFixed(1)}%` }"
             >
-              <div class="project-name">{{ project.name }}</div>
-              <div class="project-time">{{ formatTime(project.seconds) }}</div>
-              <div class="project-percentage">
+              <div class="name">{{ project.name }}</div>
+              <div class="time">{{ formatTime(project.seconds) }}</div>
+              <div class="percentage">
                 {{ ((project.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
               </div>
             </div>
           </div>
         </div>
 
-        <div class="languages-section">
+        <div class="section">
           <h2>TOP LANGUAGES</h2>
-          <div class="language-list">
+          <div class="list">
             <div
               v-for="language in languageBreakdown.slice(0, 10)"
               :key="language.name"
-              class="language-item"
+              class="item"
+              :style="{ '--percentage': `${((language.seconds / stats.totalSeconds) * 100).toFixed(1)}%` }"
             >
-              <div class="language-name">{{ language.name || "Unknown" }}</div>
-              <div class="language-time">
+              <div class="name">{{ language.name || "Unknown" }}</div>
+              <div class="time">
                 {{ formatTime(language.seconds) }}
               </div>
-              <div class="language-percentage">
+              <div class="percentage">
                 {{
                   ((language.seconds / stats.totalSeconds) * 100).toFixed(1)
                 }}%
@@ -44,38 +46,40 @@
           </div>
         </div>
 
-        <div class="editors-section">
+        <div class="section">
           <h2>EDITORS</h2>
-          <div class="editor-list">
+          <div class="list">
             <div
               v-for="editor in editorBreakdown.slice(0, 10)"
               :key="editor.name"
-              class="editor-item"
+              class="item"
+              :style="{ '--percentage': `${((editor.seconds / stats.totalSeconds) * 100).toFixed(1)}%` }"
             >
-              <div class="editor-name">{{ editor.name || "Unknown" }}</div>
-              <div class="editor-time">
+              <div class="name">{{ editor.name || "Unknown" }}</div>
+              <div class="time">
                 {{ formatTime(editor.seconds) }}
               </div>
-              <div class="editor-percentage">
+              <div class="percentage">
                 {{ ((editor.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
               </div>
             </div>
           </div>
         </div>
 
-        <div class="os-section">
+        <div class="section">
           <h2>OPERATING SYSTEMS</h2>
-          <div class="os-list">
+          <div class="list">
             <div
               v-for="os in osBreakdown.slice(0, 10)"
               :key="os.name"
-              class="os-item"
+              class="item"
+              :style="{ '--percentage': `${((os.seconds / stats.totalSeconds) * 100).toFixed(1)}%` }"
             >
-              <div class="os-name">{{ os.name || "Unknown" }}</div>
-              <div class="os-time">
+              <div class="name">{{ os.name || "Unknown" }}</div>
+              <div class="time">
                 {{ formatTime(os.seconds) }}
               </div>
-              <div class="os-percentage">
+              <div class="percentage">
                 {{ ((os.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
               </div>
             </div>
