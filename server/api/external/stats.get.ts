@@ -1,8 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { TimeRangeEnum, TimeRange } from "~/lib/stats";
+import { z } from "zod";
 
 const prisma = new PrismaClient();
+
+const apiKeySchema = z.string().uuid();
 
 export default defineEventHandler(async (event: H3Event) => {
   try {
@@ -15,7 +18,9 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const apiKey = authHeader.substring(7);
-    if (!apiKey || apiKey.length !== 32) {
+    const validationResult = apiKeySchema.safeParse(apiKey);
+    
+    if (!validationResult.success) {
       throw createError({
         statusCode: 401,
         statusMessage: "Unauthorized: Invalid API key format",
