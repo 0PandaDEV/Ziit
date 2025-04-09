@@ -142,8 +142,6 @@ export default defineCronHandler(
           },
         },
       });
-
-      console.log("Summarization completed successfully");
     } catch (error) {
       console.error("Error in summarization cron job:", error);
     }
