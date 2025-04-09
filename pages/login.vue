@@ -122,15 +122,15 @@ async function githubAuth() {
 }
 
 useSeoMeta({
-  title: "Login - Ziit",
-  description: "Sign in to your Ziit account to track your coding time",
-  ogTitle: "Login - Ziit",
-  ogDescription: "Sign in to your Ziit account to track your coding time",
+  title: "Ziit - Code Time Tracking",
+  description: "Track your coding time and productivity with Ziit",
+  ogTitle: "Ziit - Code Time Tracking",
+  ogDescription: "Track your coding time and productivity with Ziit",
   ogImage: "https://ziit.app/logo.webp",
   ogUrl: "https://ziit.app/login",
   ogSiteName: "Ziit",
-  twitterTitle: "Login - Ziit",
-  twitterDescription: "Sign in to your Ziit account to track your coding time",
+  twitterTitle: "Ziit - Code Time Tracking",
+  twitterDescription: "Track your coding time and productivity with Ziit",
   twitterImage: "https://ziit.app/logo.webp",
   twitterCard: "summary",
   twitterCreator: "@pandadev_",
