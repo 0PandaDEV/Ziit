@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
   if (
     path.includes("login") ||
     path.includes("register") ||
-    path.includes("github")
+    (path.includes("github") && !path.includes("link"))
   ) {
     return;
   }
