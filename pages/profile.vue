@@ -150,6 +150,10 @@ onMounted(async () => {
   if (route.query.error) {
     const errorMessages: Record<string, string> = {
       link_failed: "Failed to link GitHub account",
+      invalid_state: "Invalid state parameter",
+      no_code: "No code provided",
+      no_email: "No email found",
+      github_auth_failed: "GitHub authentication failed"
     };
 
     const message = errorMessages[route.query.error as string] || "Error";
@@ -160,7 +164,7 @@ onMounted(async () => {
     const successMessages: Record<string, string> = {
       github_linked: "GitHub account successfully linked",
       github_updated: "GitHub credentials updated",
-      accounts_merged: "Accounts successfully merged",
+      accounts_merged: "Accounts successfully merged"
     };
 
     const message = successMessages[route.query.success as string] || "Success";
