@@ -1,6 +1,14 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { prisma } from "~~/prisma/prisma";
+import { z } from "zod";
+
+const passwordSchema = z.string()
+  .min(12, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/[0-9]/, "Password must contain at least one number")
+  .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character");
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -19,6 +27,14 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    const passwordValidation = passwordSchema.safeParse(body.password);
+    if (!passwordValidation.success) {
+      throw createError({
+        statusCode: 400,
+        message: passwordValidation.error.errors[0].message,
+      });
+    }
+
     const existingUser = await prisma.user.findUnique({
       where: { email: body.email },
     });
