@@ -2,7 +2,7 @@
 export default defineNuxtConfig({
   compatibilityDate: "2025-04-09",
   devtools: { enabled: false },
-  modules: ["@nuxtjs/sitemap"],
+  modules: ["@nuxtjs/sitemap", "nuxt-cron"],
   ssr: true,
   runtimeConfig: {
     jwtSecret: process.env.NUXT_JWT_SECRET,
@@ -20,5 +20,10 @@ export default defineNuxtConfig({
         "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
       title: "Ziit",
     },
+  },
+  cron: {
+    runOnInit: true,
+    timeZone: "UTC+0",
+    jobsDir: "cron",
   },
 });
