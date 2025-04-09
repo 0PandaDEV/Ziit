@@ -97,6 +97,49 @@ onMounted(() => {
 onUnmounted(() => {
   keyboard.clear();
 });
+
+useSeoMeta({
+  title: "Register - Ziit",
+  description: "Create your Ziit account to start tracking your coding time",
+  ogTitle: "Register - Ziit",
+  ogDescription: "Create your Ziit account to start tracking your coding time",
+  ogImage: "https://ziit.app/logo.webp",
+  ogUrl: "https://ziit.app/register",
+  ogSiteName: "Ziit",
+  twitterTitle: "Register - Ziit",
+  twitterDescription: "Create your Ziit account to start tracking your coding time",
+  twitterImage: "https://ziit.app/logo.webp",
+  twitterCard: "summary",
+  twitterCreator: "@pandadev_",
+  twitterSite: "@pandadev_",
+  author: "PandaDEV",
+});
+
+useHead({
+  htmlAttrs: { lang: "en" },
+  link: [
+    {
+      rel: "canonical",
+      href: "https://ziit.app/register",
+    },
+    {
+      rel: "icon",
+      type: "image/ico",
+      href: "/favicon.ico",
+    },
+  ],
+  script: [
+    {
+      type: "application/ld+json",
+      innerHTML: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: "Register - Ziit",
+        url: "https://ziit.app/register",
+      }),
+    },
+  ],
+});
 </script>
 
 <style lang="scss">

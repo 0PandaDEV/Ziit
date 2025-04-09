@@ -101,6 +101,49 @@ const origin = url.origin;
 const toast = useToast();
 const route = useRoute();
 
+useSeoMeta({
+  title: "Profile - Ziit",
+  description: "Manage your Ziit account settings and API keys",
+  ogTitle: "Profile - Ziit",
+  ogDescription: "Manage your Ziit account settings and API keys",
+  ogImage: "https://ziit.app/logo.webp",
+  ogUrl: "https://ziit.app/profile",
+  ogSiteName: "Ziit",
+  twitterTitle: "Profile - Ziit",
+  twitterDescription: "Manage your Ziit account settings and API keys",
+  twitterImage: "https://ziit.app/logo.webp",
+  twitterCard: "summary",
+  twitterCreator: "@pandadev_",
+  twitterSite: "@pandadev_",
+  author: "PandaDEV",
+});
+
+useHead({
+  htmlAttrs: { lang: "en" },
+  link: [
+    {
+      rel: "canonical",
+      href: "https://ziit.app/profile",
+    },
+    {
+      rel: "icon",
+      type: "image/ico",
+      href: "/favicon.ico",
+    },
+  ],
+  script: [
+    {
+      type: "application/ld+json",
+      innerHTML: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: "Profile - Ziit",
+        url: "https://ziit.app/profile",
+      }),
+    },
+  ],
+});
+
 onMounted(async () => {
   await fetchUserData();
 

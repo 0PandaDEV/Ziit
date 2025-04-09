@@ -117,6 +117,49 @@ import { keyboard } from "wrdu-keyboard";
 import * as statsLib from "~/lib/stats";
 import type { Heartbeat } from "~/lib/stats";
 
+useSeoMeta({
+  title: "Ziit - Code Time Tracking",
+  description: "Track your coding time and productivity with Ziit",
+  ogTitle: "Ziit - Code Time Tracking",
+  ogDescription: "Track your coding time and productivity with Ziit",
+  ogImage: "https://ziit.app/logo.webp",
+  ogUrl: "https://ziit.app",
+  ogSiteName: "Ziit",
+  twitterTitle: "Ziit - Code Time Tracking",
+  twitterDescription: "Track your coding time and productivity with Ziit",
+  twitterImage: "https://ziit.app/logo.webp",
+  twitterCard: "summary",
+  twitterCreator: "@pandadev_",
+  twitterSite: "@pandadev_",
+  author: "PandaDEV",
+});
+
+useHead({
+  htmlAttrs: { lang: "en" },
+  link: [
+    {
+      rel: "canonical",
+      href: "https://ziit.app",
+    },
+    {
+      rel: "icon",
+      type: "image/ico",
+      href: "/favicon.ico",
+    },
+  ],
+  script: [
+    {
+      type: "application/ld+json",
+      innerHTML: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: "Ziit",
+        url: "https://ziit.app",
+      }),
+    },
+  ],
+});
+
 type ItemWithTime = {
   name: string;
   seconds: number;
