@@ -10,22 +10,22 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@prisma/client": "^6.6.0",
-    "@types/bcrypt": "^5.0.2",
-    "@types/jsonwebtoken": "^9.0.9",
-    "bcrypt": "^5.1.1",
-    "chart.js": "^4.4.8",
-    "jsonwebtoken": "^9.0.2",
-    "nuxt": "^3.16.2",
-    "pg": "^8.14.1",
-    "prisma": "^6.6.0",
-    "sass-embedded": "^1.86.2",
-    "vue": "^3.5.13",
-    "vue-router": "^4.5.0",
+    "@prisma/client": "6.6.0",
+    "@types/bcrypt": "5.0.2",
+    "@types/jsonwebtoken": "9.0.9",
+    "bcrypt": "5.1.1",
+    "chart.js": "4.4.8",
+    "jsonwebtoken": "9.0.2",
+    "nuxt": "3.16.2",
+    "pg": "8.14.1",
+    "prisma": "6.6.0",
+    "sass-embedded": "1.86.3",
+    "vue": "3.5.13",
+    "vue-router": "4.5.0",
     "wrdu-keyboard": "github:0PandaDEV/keyboard",
-    "zod": "^3.24.2"
+    "zod": "3.24.2"
   },
   "devDependencies": {
-    "prettier": "^3.5.3"
+    "prettier": "3.5.3"
   }
 }
