@@ -13,8 +13,12 @@
               v-for="project in sortedProjects.slice(0, 10)"
               :key="project.name"
               class="item"
-              :style="{ '--percentage': `${((project.seconds / stats.totalSeconds) * 100).toFixed(1)}%` }"
-            >
+              :style="{
+                '--percentage': `${(
+                  (project.seconds / stats.totalSeconds) *
+                  100
+                ).toFixed(1)}%`,
+              }">
               <div class="name">{{ project.name }}</div>
               <div class="time">{{ formatTime(project.seconds) }}</div>
               <div class="percentage">
@@ -31,8 +35,12 @@
               v-for="language in languageBreakdown.slice(0, 10)"
               :key="language.name"
               class="item"
-              :style="{ '--percentage': `${((language.seconds / stats.totalSeconds) * 100).toFixed(1)}%` }"
-            >
+              :style="{
+                '--percentage': `${(
+                  (language.seconds / stats.totalSeconds) *
+                  100
+                ).toFixed(1)}%`,
+              }">
               <div class="name">{{ language.name || "Unknown" }}</div>
               <div class="time">
                 {{ formatTime(language.seconds) }}
@@ -53,8 +61,12 @@
               v-for="editor in editorBreakdown.slice(0, 10)"
               :key="editor.name"
               class="item"
-              :style="{ '--percentage': `${((editor.seconds / stats.totalSeconds) * 100).toFixed(1)}%` }"
-            >
+              :style="{
+                '--percentage': `${(
+                  (editor.seconds / stats.totalSeconds) *
+                  100
+                ).toFixed(1)}%`,
+              }">
               <div class="name">{{ editor.name || "Unknown" }}</div>
               <div class="time">
                 {{ formatTime(editor.seconds) }}
@@ -73,8 +85,12 @@
               v-for="os in osBreakdown.slice(0, 10)"
               :key="os.name"
               class="item"
-              :style="{ '--percentage': `${((os.seconds / stats.totalSeconds) * 100).toFixed(1)}%` }"
-            >
+              :style="{
+                '--percentage': `${(
+                  (os.seconds / stats.totalSeconds) *
+                  100
+                ).toFixed(1)}%`,
+              }">
               <div class="name">{{ os.name || "Unknown" }}</div>
               <div class="time">
                 {{ formatTime(os.seconds) }}
@@ -95,6 +111,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import Key from "~/components/Key.vue";
 import { keyboard } from "wrdu-keyboard";
 import * as statsLib from "~/lib/stats";
+import type { Heartbeat } from "~/lib/stats";
 
 type ItemWithTime = {
   name: string;
@@ -128,7 +145,7 @@ watch(
       updateChart();
     }
   },
-  { immediate: true, deep: true },
+  { immediate: true, deep: true }
 );
 
 const sortedProjects = computed(() => {
@@ -138,7 +155,7 @@ const sortedProjects = computed(() => {
     ([name, seconds]) => ({
       name,
       seconds: seconds as number,
-    }),
+    })
   );
 
   if (projectSort.value === "time") {
@@ -155,7 +172,7 @@ const languageBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    }),
+    })
   );
 
   return languages.sort((a, b) => b.seconds - a.seconds);
@@ -168,7 +185,7 @@ const editorBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    }),
+    })
   );
 
   return editors.sort((a, b) => b.seconds - a.seconds);
@@ -181,11 +198,14 @@ const osBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    }),
+    })
   );
 
   return osArray.sort((a, b) => b.seconds - a.seconds);
 });
+
+const HEARTBEAT_INTERVAL_SECONDS = 30;
+const MAX_HEARTBEAT_DIFF_SECONDS = 300;
 
 onMounted(() => {
   keyboard.prevent.down([Key.D], () => statsLib.setTimeRange("today"));
@@ -234,7 +254,7 @@ function renderChart() {
       PointElement,
       LineController,
       Tooltip,
-      Filler,
+      Filler
     );
 
     const ctx = document.createElement("canvas");
@@ -473,163 +493,232 @@ function getChartLabels(): string[] {
 }
 
 function getChartData(): number[] {
-  if (!stats.value || !stats.value.dailyData) return [];
+  if (!stats.value || !stats.value.heartbeats) return [];
 
-  let count;
+  const relevantHeartbeats = stats.value.heartbeats;
+  const labels = getChartLabels();
+  const result = Array(labels.length).fill(0);
 
-  if (timeRange.value === "today" || timeRange.value === "yesterday") {
-    count = 24;
-  } else if (timeRange.value === "week") {
-    count = 7;
-  } else if (
-    timeRange.value === "month" ||
-    timeRange.value === "month-to-date" ||
-    timeRange.value === "last-month"
-  ) {
-    const today = new Date();
-    let startDate = new Date();
+  const localNow = new Date();
+  let localStartDate = new Date(localNow);
+  let localEndDate = new Date(localNow);
 
-    if (timeRange.value === "month") {
-      startDate.setDate(today.getDate() - 30);
-    } else if (timeRange.value === "month-to-date") {
-      startDate.setDate(1);
-    } else if (timeRange.value === "last-month") {
-      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      today.setDate(0);
-    }
+  switch (timeRange.value) {
+    case statsLib.TimeRangeEnum.TODAY:
+      localStartDate.setHours(0, 0, 0, 0);
+      localEndDate.setHours(23, 59, 59, 999);
+      break;
+    case statsLib.TimeRangeEnum.YESTERDAY:
+      localStartDate.setDate(localStartDate.getDate() - 1);
+      localStartDate.setHours(0, 0, 0, 0);
+      localEndDate.setDate(localEndDate.getDate() - 1);
+      localEndDate.setHours(23, 59, 59, 999);
+      break;
+    case statsLib.TimeRangeEnum.WEEK:
+      localStartDate.setDate(
+        localStartDate.getDate() - localStartDate.getDay()
+      );
+      localStartDate.setHours(0, 0, 0, 0);
+      localEndDate = new Date(localStartDate);
+      localEndDate.setDate(localEndDate.getDate() + 6);
+      localEndDate.setHours(23, 59, 59, 999);
+      break;
+    case statsLib.TimeRangeEnum.MONTH_TO_DATE:
+      localStartDate.setDate(1);
+      localStartDate.setHours(0, 0, 0, 0);
+      localEndDate.setHours(23, 59, 59, 999);
+      break;
+    case statsLib.TimeRangeEnum.MONTH:
+      localStartDate.setDate(localStartDate.getDate() - 30);
+      localStartDate.setHours(0, 0, 0, 0);
+      localEndDate.setHours(23, 59, 59, 999);
+      break;
+    case statsLib.TimeRangeEnum.LAST_MONTH:
+      localStartDate = new Date(
+        localNow.getFullYear(),
+        localNow.getMonth() - 1,
+        1,
+        0,
+        0,
+        0,
+        0
+      );
+      localEndDate = new Date(
+        localNow.getFullYear(),
+        localNow.getMonth(),
+        0,
+        23,
+        59,
+        59,
+        999
+      );
+      break;
+    case statsLib.TimeRangeEnum.YEAR_TO_DATE:
+      localStartDate = new Date(localNow.getFullYear(), 0, 1, 0, 0, 0, 0);
+      localEndDate.setHours(23, 59, 59, 999);
+      break;
+    case statsLib.TimeRangeEnum.LAST_12_MONTHS:
+      localStartDate = new Date(localNow);
+      localStartDate.setFullYear(localStartDate.getFullYear() - 1);
+      localStartDate.setHours(0, 0, 0, 0);
+      localEndDate.setHours(23, 59, 59, 999);
+      break;
+    case statsLib.TimeRangeEnum.ALL_TIME:
+      if (relevantHeartbeats.length > 0) {
+        localStartDate = new Date(relevantHeartbeats[0].timestamp as Date);
+        localStartDate.setHours(0, 0, 0, 0);
+      } else {
+        localStartDate.setHours(0, 0, 0, 0);
+      }
+      localEndDate.setHours(23, 59, 59, 999);
 
-    const diffTime = Math.abs(today.getTime() - startDate.getTime());
-    count = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-  } else if (
-    timeRange.value === "year-to-date" ||
-    timeRange.value === "last-12-months"
-  ) {
-    count = timeRange.value === "year-to-date" ? new Date().getMonth() + 1 : 12;
-  } else {
-    count = 30;
+      break;
+    default:
+      localStartDate.setDate(localStartDate.getDate() - 30);
+      localStartDate.setHours(0, 0, 0, 0);
+      localEndDate.setHours(23, 59, 59, 999);
+      break;
   }
 
-  const result = Array(count).fill(0);
-
-  if (timeRange.value === "today" || timeRange.value === "yesterday") {
-    const targetDate =
-      timeRange.value === "today"
-        ? new Date().toISOString().split("T")[0]
-        : new Date(new Date().setDate(new Date().getDate() - 1))
-            .toISOString()
-            .split("T")[0];
-
-    const dayData = stats.value.dailyData.find(
-      (day) => day.date === targetDate,
-    );
-
-    if (dayData?.hourlyData) {
-      dayData.hourlyData.forEach((hourData) => {
-        const hour = new Date(hourData.timestamp).getHours();
-        result[hour] = hourData.totalSeconds / 3600;
-      });
+  const heartbeatsByProject: Record<string, Heartbeat[]> = {};
+  relevantHeartbeats.forEach((hb) => {
+    const projectKey = hb.project || "unknown";
+    if (!heartbeatsByProject[projectKey]) {
+      heartbeatsByProject[projectKey] = [];
     }
-  } else if (timeRange.value === "week") {
-    const today = new Date();
 
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split("T")[0];
+    const ts = hb.timestamp as Date;
+    if (ts >= localStartDate && ts <= localEndDate) {
+      heartbeatsByProject[projectKey].push(hb);
+    }
+  });
 
-      const dayData = stats.value.dailyData.find((day) => day.date === dateStr);
-      if (dayData) {
-        result[6 - i] = dayData.totalSeconds / 3600;
+  if (
+    timeRange.value === statsLib.TimeRangeEnum.TODAY ||
+    timeRange.value === statsLib.TimeRangeEnum.YESTERDAY
+  ) {
+    for (const projectKey in heartbeatsByProject) {
+      const projectBeats = heartbeatsByProject[projectKey];
+      for (let i = 0; i < projectBeats.length; i++) {
+        const currentBeat = projectBeats[i];
+        const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
+        const durationSeconds = calculateInlinedDuration(
+          currentBeat,
+          previousBeat
+        );
+        const localHour = (currentBeat.timestamp as Date).getHours();
+        if (localHour >= 0 && localHour < 24) {
+          result[localHour] = (result[localHour] || 0) + durationSeconds / 3600;
+        }
+      }
+    }
+  } else if (timeRange.value === statsLib.TimeRangeEnum.WEEK) {
+    for (const projectKey in heartbeatsByProject) {
+      const projectBeats = heartbeatsByProject[projectKey];
+      for (let i = 0; i < projectBeats.length; i++) {
+        const currentBeat = projectBeats[i];
+        const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
+        const durationSeconds = calculateInlinedDuration(
+          currentBeat,
+          previousBeat
+        );
+        const localDayOfWeek = (currentBeat.timestamp as Date).getDay();
+
+        const labelIndex = localDayOfWeek;
+        if (labelIndex >= 0 && labelIndex < 7) {
+          result[labelIndex] =
+            (result[labelIndex] || 0) + durationSeconds / 3600;
+        }
       }
     }
   } else if (
-    timeRange.value === "month" ||
-    timeRange.value === "month-to-date" ||
-    timeRange.value === "last-month"
+    timeRange.value === statsLib.TimeRangeEnum.MONTH ||
+    timeRange.value === statsLib.TimeRangeEnum.MONTH_TO_DATE ||
+    timeRange.value === statsLib.TimeRangeEnum.LAST_MONTH ||
+    timeRange.value === statsLib.TimeRangeEnum.ALL_TIME
   ) {
-    const today = new Date();
-    let startDate = new Date();
-    let endDate = new Date(today);
-
-    if (timeRange.value === "month") {
-      startDate.setDate(today.getDate() - 30);
-    } else if (timeRange.value === "month-to-date") {
-      startDate.setDate(1);
-    } else if (timeRange.value === "last-month") {
-      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      endDate = new Date(today.getFullYear(), today.getMonth(), 0);
-    }
-
-    let currentDate = new Date(startDate);
-    let index = 0;
-
-    while (currentDate <= endDate && index < count) {
-      const dateStr = currentDate.toISOString().split("T")[0];
-      const dayData = stats.value.dailyData.find((day) => day.date === dateStr);
-
-      if (dayData) {
-        result[index] = dayData.totalSeconds / 3600;
-      }
-
+    const dateStrToChartIndex = new Map<string, number>();
+    let currentDate = new Date(localStartDate);
+    let idx = 0;
+    while (currentDate <= localEndDate && idx < labels.length) {
+      const dateStr = `${currentDate.getFullYear()}-${String(
+        currentDate.getMonth() + 1
+      ).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+      dateStrToChartIndex.set(dateStr, idx);
       currentDate.setDate(currentDate.getDate() + 1);
-      index++;
+      idx++;
+    }
+
+    for (const projectKey in heartbeatsByProject) {
+      const projectBeats = heartbeatsByProject[projectKey];
+      for (let i = 0; i < projectBeats.length; i++) {
+        const currentBeat = projectBeats[i];
+        const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
+        const durationSeconds = calculateInlinedDuration(
+          currentBeat,
+          previousBeat
+        );
+        const ts = currentBeat.timestamp as Date;
+        const localDateStr = `${ts.getFullYear()}-${String(
+          ts.getMonth() + 1
+        ).padStart(2, "0")}-${String(ts.getDate()).padStart(2, "0")}`;
+        const index = dateStrToChartIndex.get(localDateStr);
+        if (index !== undefined) {
+          result[index] = (result[index] || 0) + durationSeconds / 3600;
+        }
+      }
     }
   } else if (
-    timeRange.value === "year-to-date" ||
-    timeRange.value === "last-12-months"
+    timeRange.value === statsLib.TimeRangeEnum.YEAR_TO_DATE ||
+    timeRange.value === statsLib.TimeRangeEnum.LAST_12_MONTHS
   ) {
-    const today = new Date();
-    const monthlyData = new Map<string, number>();
-
-    let startMonth, startYear;
-
-    if (timeRange.value === "year-to-date") {
-      startMonth = 0;
-      startYear = today.getFullYear();
-    } else {
-      startMonth = today.getMonth() + 1;
-      startYear = today.getFullYear() - 1;
+    const yearMonthToChartIndex = new Map<string, number>();
+    let currentMonthDate = new Date(localStartDate);
+    currentMonthDate.setDate(1);
+    let monthIdx = 0;
+    while (currentMonthDate <= localEndDate && monthIdx < labels.length) {
+      const yearMonthKey = `${currentMonthDate.getFullYear()}-${currentMonthDate.getMonth()}`;
+      yearMonthToChartIndex.set(yearMonthKey, monthIdx);
+      currentMonthDate.setMonth(currentMonthDate.getMonth() + 1);
+      monthIdx++;
     }
 
-    stats.value.dailyData.forEach((day) => {
-      const date = new Date(day.date);
-      const yearMonth = `${date.getFullYear()}-${date.getMonth()}`;
-
-      if (!monthlyData.has(yearMonth)) {
-        monthlyData.set(yearMonth, 0);
-      }
-
-      monthlyData.set(
-        yearMonth,
-        monthlyData.get(yearMonth)! + day.totalSeconds / 3600,
-      );
-    });
-
-    for (let i = 0; i < count; i++) {
-      const month = (startMonth + i) % 12;
-      const year = startYear + Math.floor((startMonth + i) / 12);
-      const key = `${year}-${month}`;
-
-      if (monthlyData.has(key)) {
-        result[i] = monthlyData.get(key)!;
-      }
-    }
-  } else {
-    const today = new Date();
-
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split("T")[0];
-
-      const dayData = stats.value.dailyData.find((day) => day.date === dateStr);
-      if (dayData) {
-        result[29 - i] = dayData.totalSeconds / 3600;
+    for (const projectKey in heartbeatsByProject) {
+      const projectBeats = heartbeatsByProject[projectKey];
+      for (let i = 0; i < projectBeats.length; i++) {
+        const currentBeat = projectBeats[i];
+        const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
+        const durationSeconds = calculateInlinedDuration(
+          currentBeat,
+          previousBeat
+        );
+        const ts = currentBeat.timestamp as Date;
+        const localYearMonthKey = `${ts.getFullYear()}-${ts.getMonth()}`;
+        const index = yearMonthToChartIndex.get(localYearMonthKey);
+        if (index !== undefined) {
+          result[index] = (result[index] || 0) + durationSeconds / 3600;
+        }
       }
     }
   }
 
   return result;
+}
+
+function calculateInlinedDuration(
+  current: Heartbeat,
+  previous?: Heartbeat
+): number {
+  let durationSeconds = HEARTBEAT_INTERVAL_SECONDS;
+  if (previous) {
+    const currentTs = (current.timestamp as Date).getTime();
+    const previousTs = (previous.timestamp as Date).getTime();
+    const diffSeconds = Math.round((currentTs - previousTs) / 1000);
+    if (diffSeconds < MAX_HEARTBEAT_DIFF_SECONDS) {
+      durationSeconds = diffSeconds;
+    }
+  }
+  return durationSeconds;
 }
 </script>
 

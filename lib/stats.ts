@@ -31,6 +31,15 @@ type DailyData = {
   hourlyData?: HourlyData[];
 };
 
+export interface Heartbeat {
+  id: string;
+  timestamp: Date | string;
+  project?: string | null;
+  language?: string | null;
+  editor?: string | null;
+  os?: string | null;
+}
+
 type StatsResult = {
   totalSeconds: number;
   projects: StatRecord;
@@ -38,6 +47,7 @@ type StatsResult = {
   editors: StatRecord;
   os: StatRecord;
   dailyData: DailyData[];
+  heartbeats: Heartbeat[];
 };
 
 type State = {
@@ -56,6 +66,7 @@ const initialStats: StatsResult = {
   editors: {},
   os: {},
   dailyData: [],
+  heartbeats: [],
 };
 
 const state: State = {
@@ -124,54 +135,156 @@ export async function fetchStats(): Promise<void> {
       throw new Error(`API error: ${response.status}`);
     }
 
-    const dailyData = (await response.json()) as DailyData[];
+    const apiResponse = (await response.json()) as {
+      summaries: DailyData[];
+      heartbeats: any[];
+    };
     state.isAuthenticated = true;
 
-    if (Array.isArray(dailyData) && dailyData.length > 0) {
-      let totalSeconds = 0;
-      const projects: StatRecord = {};
-      const languages: StatRecord = {};
-      const editors: StatRecord = {};
-      const os: StatRecord = {};
+    const allParsedHeartbeats = (apiResponse.heartbeats || []).map((hb) => ({
+      ...hb,
+      timestamp: new Date(hb.timestamp),
+    })) as Heartbeat[];
 
-      dailyData.forEach((day) => {
-        totalSeconds += day.totalSeconds || 0;
+    let calculatedTotalSeconds = 0;
+    const calculatedProjects: StatRecord = {};
+    const calculatedLanguages: StatRecord = {};
+    const calculatedEditors: StatRecord = {};
+    const calculatedOs: StatRecord = {};
 
-        Object.entries(day.projects || {}).forEach(([project, seconds]) => {
-          projects[project] = (projects[project] || 0) + (seconds as number);
-        });
+    const localNow = new Date();
+    let localStartDate = new Date(localNow);
+    let localEndDate = new Date(localNow);
 
-        Object.entries(day.languages || {}).forEach(([language, seconds]) => {
-          languages[language] =
-            (languages[language] || 0) + (seconds as number);
-        });
+    switch (state.timeRange) {
+      case TimeRangeEnum.TODAY:
+        localStartDate.setHours(0, 0, 0, 0);
+        localEndDate.setHours(23, 59, 59, 999);
+        break;
+      case TimeRangeEnum.YESTERDAY:
+        localStartDate.setDate(localStartDate.getDate() - 1);
+        localStartDate.setHours(0, 0, 0, 0);
+        localEndDate.setDate(localEndDate.getDate() - 1);
+        localEndDate.setHours(23, 59, 59, 999);
+        break;
+      case TimeRangeEnum.WEEK:
+        localStartDate.setDate(
+          localStartDate.getDate() - localStartDate.getDay()
+        );
+        localStartDate.setHours(0, 0, 0, 0);
+        localEndDate = new Date(localStartDate);
+        localEndDate.setDate(localEndDate.getDate() + 6);
+        localEndDate.setHours(23, 59, 59, 999);
+        break;
+      case TimeRangeEnum.MONTH_TO_DATE:
+        localStartDate.setDate(1);
+        localStartDate.setHours(0, 0, 0, 0);
+        localEndDate.setHours(23, 59, 59, 999);
+        break;
+      case TimeRangeEnum.LAST_MONTH:
+        localStartDate = new Date(
+          localNow.getFullYear(),
+          localNow.getMonth() - 1,
+          1,
+          0,
+          0,
+          0,
+          0
+        );
+        localEndDate = new Date(
+          localNow.getFullYear(),
+          localNow.getMonth(),
+          0,
+          23,
+          59,
+          59,
+          999
+        );
+        break;
+      case TimeRangeEnum.YEAR_TO_DATE:
+        localStartDate = new Date(localNow.getFullYear(), 0, 1, 0, 0, 0, 0);
+        localEndDate.setHours(23, 59, 59, 999);
+        break;
+      case TimeRangeEnum.LAST_12_MONTHS:
+        localStartDate = new Date(localNow);
+        localStartDate.setFullYear(localStartDate.getFullYear() - 1);
+        localStartDate.setHours(0, 0, 0, 0);
+        localEndDate.setHours(23, 59, 59, 999);
+        break;
 
-        Object.entries(day.editors || {}).forEach(([editor, seconds]) => {
-          editors[editor] = (editors[editor] || 0) + (seconds as number);
-        });
-
-        Object.entries(day.os || {}).forEach(([osName, seconds]) => {
-          os[osName] = (os[osName] || 0) + (seconds as number);
-        });
-      });
-
-      const result: StatsResult = {
-        totalSeconds,
-        projects,
-        languages,
-        editors,
-        os,
-        dailyData,
-      };
-
-      state.cache[cacheKey] = result;
-      state.data = result;
-      state.status = "success";
-    } else {
-      console.warn(`No data found for range: ${state.timeRange}`);
-      state.data = { ...initialStats };
-      state.status = "success";
+      default:
+        localStartDate.setDate(localStartDate.getDate() - 30);
+        localStartDate.setHours(0, 0, 0, 0);
+        localEndDate.setHours(23, 59, 59, 999);
+        console.warn(
+          `Using default 30-day aggregation for time range: ${state.timeRange}`
+        );
+        break;
     }
+
+    const relevantHeartbeats = allParsedHeartbeats
+      .filter((hb) => {
+        const ts = hb.timestamp as Date;
+        return ts >= localStartDate && ts <= localEndDate;
+      })
+      .sort(
+        (a, b) =>
+          (a.timestamp as Date).getTime() - (b.timestamp as Date).getTime()
+      );
+
+    const heartbeatsByProject: Record<string, Heartbeat[]> = {};
+    relevantHeartbeats.forEach((hb) => {
+      const projectKey = hb.project || "unknown";
+      if (!heartbeatsByProject[projectKey]) {
+        heartbeatsByProject[projectKey] = [];
+      }
+      heartbeatsByProject[projectKey].push(hb);
+    });
+
+    for (const projectKey in heartbeatsByProject) {
+      const projectBeats = heartbeatsByProject[projectKey];
+      let projectTotalSeconds = 0;
+
+      for (let i = 0; i < projectBeats.length; i++) {
+        const currentBeat = projectBeats[i];
+        const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
+        const durationSeconds = calculateHeartbeatDuration(
+          currentBeat,
+          previousBeat
+        );
+
+        projectTotalSeconds += durationSeconds;
+
+        if (currentBeat.language) {
+          calculatedLanguages[currentBeat.language] =
+            (calculatedLanguages[currentBeat.language] || 0) + durationSeconds;
+        }
+        if (currentBeat.editor) {
+          calculatedEditors[currentBeat.editor] =
+            (calculatedEditors[currentBeat.editor] || 0) + durationSeconds;
+        }
+        if (currentBeat.os) {
+          calculatedOs[currentBeat.os] =
+            (calculatedOs[currentBeat.os] || 0) + durationSeconds;
+        }
+      }
+      calculatedProjects[projectKey] = projectTotalSeconds;
+      calculatedTotalSeconds += projectTotalSeconds;
+    }
+
+    const result: StatsResult = {
+      totalSeconds: calculatedTotalSeconds,
+      projects: calculatedProjects,
+      languages: calculatedLanguages,
+      editors: calculatedEditors,
+      os: calculatedOs,
+      dailyData: apiResponse.summaries || [],
+      heartbeats: allParsedHeartbeats,
+    };
+
+    state.cache[cacheKey] = result;
+    state.data = result;
+    state.status = "success";
   } catch (err: unknown) {
     console.error("Error fetching stats:", err);
     state.error = err instanceof Error ? err : new Error(String(err));
@@ -225,6 +338,35 @@ export function getStatus(): "idle" | "pending" | "success" | "error" {
 
 export function isAuthenticated(): boolean {
   return state.isAuthenticated;
+}
+
+const HEARTBEAT_INTERVAL_SECONDS = 30;
+const MAX_HEARTBEAT_DIFF_SECONDS = 300;
+
+function calculateHeartbeatDuration(
+  current: Heartbeat,
+  previous?: Heartbeat
+): number {
+  if (!previous) {
+    return HEARTBEAT_INTERVAL_SECONDS;
+  }
+
+  const currentTs = (
+    current.timestamp instanceof Date
+      ? current.timestamp
+      : new Date(current.timestamp)
+  ).getTime();
+  const previousTs = (
+    previous.timestamp instanceof Date
+      ? previous.timestamp
+      : new Date(previous.timestamp)
+  ).getTime();
+
+  const diffSeconds = Math.round((currentTs - previousTs) / 1000);
+
+  return diffSeconds < MAX_HEARTBEAT_DIFF_SECONDS
+    ? diffSeconds
+    : HEARTBEAT_INTERVAL_SECONDS;
 }
 
 if (typeof window !== "undefined") {
