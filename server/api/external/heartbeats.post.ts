@@ -4,6 +4,8 @@ import { z } from "zod";
 
 const prisma = new PrismaClient();
 
+const apiKeySchema = z.string().uuid();
+
 const heartbeatSchema = z.object({
   timestamp: z.string().datetime(),
   project: z.string().min(1).max(255),
@@ -23,7 +25,9 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const apiKey = authHeader.substring(7);
-    if (!apiKey || apiKey.length !== 32) {
+    const validationResult = apiKeySchema.safeParse(apiKey);
+
+    if (!validationResult.success) {
       throw createError({
         statusCode: 401,
         statusMessage: "Unauthorized: Invalid API key format",
