@@ -33,10 +33,14 @@ model Heartbeat {
   editor    String?
   language  String?
   os        String?
+  file      String?
+  branch    String?
   createdAt DateTime @default(now())
 
   @@index([userId, timestamp])
   @@index([timestamp])
+  @@index([branch])
+  @@index([file])
 }
 
 model DailyProjectSummary {
