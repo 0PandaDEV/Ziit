@@ -16,6 +16,7 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     const authHeader = getHeader(event, "authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.error("Heartbeats error: Missing or invalid API key format");
       throw createError({
         statusCode: 401,
         statusMessage: "Unauthorized: Missing or invalid API key",
@@ -24,6 +25,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const apiKey = authHeader.substring(7);
     if (!apiKey || apiKey.length !== 32) {
+      console.error("Heartbeats error: Invalid API key length");
       throw createError({
         statusCode: 401,
         statusMessage: "Unauthorized: Invalid API key format",
@@ -36,6 +38,7 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (!user || user.apiKey !== apiKey) {
+      console.error("Heartbeats error: Invalid API key");
       throw createError({
         statusCode: 401,
         statusMessage: "Unauthorized: Invalid API key",
@@ -62,6 +65,7 @@ export default defineEventHandler(async (event: H3Event) => {
     };
   } catch (error: any) {
     if (error instanceof z.ZodError) {
+      console.error("Heartbeats error: Validation error", error.errors[0].message);
       throw createError({
         statusCode: 400,
         statusMessage: `Bad request: ${error.errors[0].message}`,
@@ -70,7 +74,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (error.statusCode) {
       throw error;
     }
-    console.error("Error processing heartbeat:", error);
+    console.error("Heartbeats error:", error instanceof Error ? error.message : "Unknown error");
     throw createError({
       statusCode: 500,
       statusMessage: "Internal server error",

@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 
 export default defineEventHandler(async (event: H3Event) => {
   if (!event.context.user) {
+    console.error("GitHub Link error: Unauthorized access attempt");
     throw createError({
       statusCode: 401,
       message: "Unauthorized",

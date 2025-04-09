@@ -11,6 +11,7 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     const authHeader = getHeader(event, "authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.error("External Stats error: Missing or invalid API key format");
       throw createError({
         statusCode: 401,
         statusMessage: "Unauthorized: Missing or invalid API key",
@@ -21,6 +22,7 @@ export default defineEventHandler(async (event: H3Event) => {
     const validationResult = apiKeySchema.safeParse(apiKey);
 
     if (!validationResult.success) {
+      console.error("External Stats error: Invalid API key format");
       throw createError({
         statusCode: 401,
         statusMessage: "Unauthorized: Invalid API key format",
@@ -33,6 +35,7 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (!user || user.apiKey !== apiKey) {
+      console.error("External Stats error: Invalid API key");
       throw createError({
         statusCode: 401,
         statusMessage: "Unauthorized: Invalid API key",
@@ -43,6 +46,7 @@ export default defineEventHandler(async (event: H3Event) => {
     const timeRange = query.timeRange as TimeRange;
 
     if (!timeRange || !Object.values(TimeRangeEnum).includes(timeRange)) {
+      console.error(`External Stats error: Invalid timeRange value ${timeRange}`);
       throw createError({
         statusCode: 400,
         message: "Invalid timeRange value",
@@ -162,7 +166,7 @@ export default defineEventHandler(async (event: H3Event) => {
       heartbeats: heartbeats,
     };
   } catch (error: any) {
-    console.error("Error retrieving daily stats:", error);
+    console.error("External Stats error:", error instanceof Error ? error.message : "Unknown error");
     throw createError({
       statusCode: error.statusCode || 500,
       statusMessage: error.statusMessage || "Internal server error",
