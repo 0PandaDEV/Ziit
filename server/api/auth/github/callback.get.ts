@@ -99,6 +99,7 @@ export default defineEventHandler(async (event) => {
           "userId" in decoded
         ) {
           const userId = decoded.userId;
+          let redirectUrl = "/profile?success=github_linked";
 
           await prisma.$transaction(async (tx) => {
             const [existingGithubUser, currentUser] = await Promise.all([
@@ -134,10 +135,8 @@ export default defineEventHandler(async (event) => {
                 }),
               ]);
 
-              return sendRedirect(event, "/profile?success=accounts_merged");
-            }
-
-            if (currentUser?.githubId === githubUser.id.toString()) {
+              redirectUrl = "/profile?success=accounts_merged";
+            } else if (currentUser?.githubId === githubUser.id.toString()) {
               await tx.user.update({
                 where: { id: userId },
                 data: {
@@ -145,29 +144,28 @@ export default defineEventHandler(async (event) => {
                   githubRefreshToken: refreshToken,
                 },
               });
-              return sendRedirect(event, "/profile?success=github_updated");
+              redirectUrl = "/profile?success=github_updated";
+            } else {
+              await tx.user.update({
+                where: { id: userId },
+                data: {
+                  githubId: githubUser.id.toString(),
+                  githubUsername: githubUser.login,
+                  githubAccessToken: accessToken,
+                  githubRefreshToken: refreshToken,
+                },
+              });
             }
-
-            await tx.user.update({
-              where: { id: userId },
-              data: {
-                githubId: githubUser.id.toString(),
-                githubUsername: githubUser.login,
-                githubAccessToken: accessToken,
-                githubRefreshToken: refreshToken,
-              },
-            });
-
-            return sendRedirect(event, "/profile?success=github_linked");
           });
+
+          return sendRedirect(event, redirectUrl);
         }
       } catch {
-        console.error("Error linking GitHub account");
         return sendRedirect(event, "/profile?error=link_failed");
       }
     }
 
-    await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       let user = await tx.user.findFirst({
         where: { githubId: githubUser.id.toString() },
       });
@@ -218,12 +216,16 @@ export default defineEventHandler(async (event) => {
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60 * 24 * 7,
         path: "/",
+        sameSite: "lax"
       });
 
-      return sendRedirect(event, "/");
+      return "/";
     });
+
+    return sendRedirect(event, result);
   } catch {
     console.error("GitHub OAuth error");
     return sendRedirect(event, "/login?error=github_auth_failed");
   }
 });
+
