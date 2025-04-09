@@ -11,16 +11,17 @@ datasource db {
 }
 
 model User {
-  id                 String      @id @default(uuid())
-  email              String      @unique
-  passwordHash       String?
-  githubId           String?     @unique
-  githubUsername     String?
-  githubAccessToken  String?
-  githubRefreshToken String?
-  apiKey             String      @unique @default(uuid())
-  createdAt          DateTime    @default(now())
-  heartbeats         Heartbeat[]
+  id                  String                @id @default(uuid())
+  email               String                @unique
+  passwordHash        String?
+  githubId            String?               @unique
+  githubUsername      String?
+  githubAccessToken   String?
+  githubRefreshToken  String?
+  apiKey              String                @unique @default(uuid())
+  createdAt           DateTime              @default(now())
+  heartbeats          Heartbeat[]
+  DailyProjectSummary DailyProjectSummary[]
 }
 
 model Heartbeat {
@@ -41,6 +42,7 @@ model Heartbeat {
 model DailyProjectSummary {
   id           String   @id @default(uuid())
   userId       String
+  user         User     @relation(fields: [userId], references: [id])
   date         DateTime @db.Date
   project      String
   totalSeconds Int
