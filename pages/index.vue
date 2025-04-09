@@ -118,14 +118,14 @@ import * as statsLib from "~/lib/stats";
 import type { Heartbeat } from "~/lib/stats";
 
 useSeoMeta({
-  title: "Ziit - Code Time Tracking",
+  title: "Ziit - Coding Statistics",
   description: "Track your coding time and productivity with Ziit",
-  ogTitle: "Ziit - Code Time Tracking",
+  ogTitle: "Ziit - Coding Statistics",
   ogDescription: "Track your coding time and productivity with Ziit",
   ogImage: "https://ziit.app/logo.webp",
   ogUrl: "https://ziit.app",
   ogSiteName: "Ziit",
-  twitterTitle: "Ziit - Code Time Tracking",
+  twitterTitle: "Ziit - Coding Statistics",
   twitterDescription: "Track your coding time and productivity with Ziit",
   twitterImage: "https://ziit.app/logo.webp",
   twitterCard: "summary",
