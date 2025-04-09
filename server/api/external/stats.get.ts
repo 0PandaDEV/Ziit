@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
+import { TimeRangeEnum, TimeRange } from "~/lib/stats";
 
 const prisma = new PrismaClient();
 
@@ -34,19 +35,86 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const query = getQuery(event);
-    const startDateStr = query.startDate as string;
-    const endDateStr =
-      (query.endDate as string) || startDateStr || new Date().toISOString().split("T")[0];
+    const timeRange = query.timeRange as TimeRange;
 
-    if (!startDateStr) {
+    if (!timeRange || !Object.values(TimeRangeEnum).includes(timeRange)) {
       throw createError({
         statusCode: 400,
-        statusMessage: "Bad Request: startDate is required",
+        message: "Invalid timeRange value",
       });
     }
 
-    let fetchStartDate = new Date(startDateStr + 'T00:00:00Z');
-    let fetchEndDate = new Date(endDateStr + 'T23:59:59.999Z');
+    const utcTodayEnd = new Date();
+    utcTodayEnd.setUTCHours(23, 59, 59, 999);
+    const utcTodayStart = new Date(utcTodayEnd);
+    utcTodayStart.setUTCHours(0, 0, 0, 0);
+
+    const utcYesterdayEnd = new Date(utcTodayStart);
+    utcYesterdayEnd.setUTCDate(utcYesterdayEnd.getUTCDate() - 1);
+    utcYesterdayEnd.setUTCHours(23, 59, 59, 999);
+    const utcYesterdayStart = new Date(utcYesterdayEnd);
+    utcYesterdayStart.setUTCHours(0, 0, 0, 0);
+
+    const utcTomorrowEnd = new Date(utcTodayEnd);
+    utcTomorrowEnd.setUTCDate(utcTomorrowEnd.getUTCDate() + 1);
+    utcTomorrowEnd.setUTCHours(23, 59, 59, 999);
+
+    const utcDayBeforeYesterdayStart = new Date(utcYesterdayStart);
+    utcDayBeforeYesterdayStart.setUTCDate(utcDayBeforeYesterdayStart.getUTCDate() - 1);
+    utcDayBeforeYesterdayStart.setUTCHours(0, 0, 0, 0);
+
+    let fetchStartDate: Date;
+    let fetchEndDate: Date;
+
+    if (timeRange === TimeRangeEnum.TODAY) {
+      fetchStartDate = utcYesterdayStart;
+      fetchEndDate = utcTomorrowEnd;
+    } else if (timeRange === TimeRangeEnum.YESTERDAY) {
+      fetchStartDate = utcDayBeforeYesterdayStart;
+      fetchEndDate = utcTodayEnd;
+    } else if (timeRange === TimeRangeEnum.WEEK) {
+      fetchStartDate = new Date(utcTodayEnd);
+      fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 7);
+      fetchStartDate.setUTCHours(0, 0, 0, 0);
+      fetchEndDate = utcTodayEnd;
+    } else if (timeRange === TimeRangeEnum.MONTH) {
+      fetchStartDate = new Date(utcTodayEnd);
+      fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 30);
+      fetchStartDate.setUTCHours(0, 0, 0, 0);
+      fetchEndDate = utcTodayEnd;
+    } else if (timeRange === TimeRangeEnum.MONTH_TO_DATE) {
+      fetchStartDate = new Date(utcTodayEnd);
+      fetchStartDate.setUTCDate(1);
+      fetchStartDate.setUTCHours(0, 0, 0, 0);
+      fetchEndDate = utcTodayEnd;
+    } else if (timeRange === TimeRangeEnum.LAST_MONTH) {
+      const lastDayOfLastUTCMonth = new Date(utcTodayStart);
+      lastDayOfLastUTCMonth.setUTCDate(0);
+      lastDayOfLastUTCMonth.setUTCHours(23, 59, 59, 999);
+
+      const firstDayOfLastUTCMonth = new Date(lastDayOfLastUTCMonth);
+      firstDayOfLastUTCMonth.setUTCDate(1);
+      firstDayOfLastUTCMonth.setUTCHours(0, 0, 0, 0);
+
+      fetchStartDate = firstDayOfLastUTCMonth;
+      fetchEndDate = lastDayOfLastUTCMonth;
+    } else if (timeRange === TimeRangeEnum.YEAR_TO_DATE) {
+      fetchStartDate = new Date(utcTodayEnd);
+      fetchStartDate.setUTCMonth(0, 1);
+      fetchStartDate.setUTCHours(0, 0, 0, 0);
+      fetchEndDate = utcTodayEnd;
+    } else if (timeRange === TimeRangeEnum.LAST_12_MONTHS) {
+      fetchStartDate = new Date(utcTodayEnd);
+      fetchStartDate.setUTCFullYear(fetchStartDate.getUTCFullYear() - 1);
+      fetchStartDate.setUTCHours(0, 0, 0, 0);
+      fetchEndDate = utcTodayEnd;
+    } else if (timeRange === TimeRangeEnum.ALL_TIME) {
+      fetchStartDate = new Date("2020-01-01T00:00:00.000Z");
+      fetchEndDate = utcTodayEnd;
+    } else {
+      fetchStartDate = utcYesterdayStart;
+      fetchEndDate = utcTomorrowEnd;
+    }
 
     const summaries = await prisma.dailyProjectSummary.findMany({
       where: {
@@ -75,10 +143,14 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     return {
-      summaries: summaries.map(s => ({
+      summaries: summaries.map((s) => ({
         date: s.date.toISOString().split("T")[0],
         totalSeconds: s.totalSeconds,
-        project: s.project,
+        projects: { [s.project]: s.totalSeconds },
+        languages: {},
+        editors: {},
+        os: {},
+        files: [],
       })),
       heartbeats: heartbeats,
     };
