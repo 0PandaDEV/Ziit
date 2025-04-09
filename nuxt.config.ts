@@ -9,6 +9,7 @@ export default defineNuxtConfig({
     githubClientId: process.env.NUXT_GITHUB_CLIENT_ID,
     githubClientSecret: process.env.NUXT_GITHUB_CLIENT_SECRET,
     githubRedirectUri: process.env.NUXT_GITHUB_REDIRECT_URI,
+    corsOrigin: process.env.NUXT_HOST || "same-origin",
   },
   nitro: {
     preset: "bun",
@@ -25,5 +26,14 @@ export default defineNuxtConfig({
     runOnInit: true,
     timeZone: "UTC+0",
     jobsDir: "cron",
+  },
+  routeRules: {
+    "/api/**": {
+      cors: true,
+      headers: {
+        "Access-Control-Allow-Methods": "GET,POST",
+        "Access-Control-Allow-Origin": "{{ runtimeConfig.corsOrigin }}",
+      },
+    },
   },
 });
