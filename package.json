@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@nuxtjs/sitemap": "^7.2.10",
     "@prisma/client": "6.6.0",
     "@types/bcrypt": "5.0.2",
     "@types/jsonwebtoken": "9.0.9",

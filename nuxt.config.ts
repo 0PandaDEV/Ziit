@@ -1,7 +1,8 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: "2024-11-01",
+  compatibilityDate: "2025-04-09",
   devtools: { enabled: false },
+  modules: ["@nuxtjs/sitemap"],
   ssr: true,
   runtimeConfig: {
     jwtSecret: process.env.NUXT_JWT_SECRET,
