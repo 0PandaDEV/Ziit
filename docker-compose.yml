@@ -9,6 +9,7 @@ services:
       NUXT_GITHUB_CLIENT_ID: ${NUXT_GITHUB_CLIENT_ID} # Github client id
       NUXT_GITHUB_CLIENT_SECRET: ${NUXT_GITHUB_CLIENT_SECRET} # Github client secret
       NUXT_GITHUB_REDIRECT_URI: ${NUXT_GITHUB_REDIRECT_URI} # Your redirect url for the github auth e.g. https://ziit.example.com/api/auth/github/callback
+      NUXT_HOST: ${NUXT_HOST} # The domain where ziit will be hosted e.g. ziit.example.com
     restart: unless-stopped
     volumes:
       - ./files:/anders/files
