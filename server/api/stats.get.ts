@@ -134,8 +134,13 @@ export default defineEventHandler(async (event: H3Event) => {
         editors: {},
         os: {},
         files: [],
+        branches: []
       })),
-      heartbeats: heartbeats,
+      heartbeats: heartbeats.map(h => ({
+        ...h,
+        timestamp: h.timestamp.toISOString(),
+        createdAt: h.createdAt.toISOString()
+      }))
     };
   } catch (error: unknown) {
     console.error("Error fetching stats:", error);

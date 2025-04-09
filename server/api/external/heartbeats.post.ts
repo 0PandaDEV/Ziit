@@ -10,6 +10,8 @@ const heartbeatSchema = z.object({
   language: z.string().min(1).max(50),
   editor: z.string().min(1).max(50),
   os: z.string().min(1).max(50),
+  branch: z.string().max(255).optional(),
+  file: z.string().max(255)
 });
 
 export default defineEventHandler(async (event: H3Event) => {
@@ -53,6 +55,8 @@ export default defineEventHandler(async (event: H3Event) => {
         language: validatedData.language,
         editor: validatedData.editor,
         os: validatedData.os,
+        branch: validatedData.branch,
+        file: validatedData.file
       },
     });
 
