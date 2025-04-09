@@ -169,7 +169,7 @@ export async function fetchStats(): Promise<void> {
         break;
       case TimeRangeEnum.WEEK:
         localStartDate.setDate(
-          localStartDate.getDate() - localStartDate.getDay()
+          localStartDate.getDate() - localStartDate.getDay(),
         );
         localStartDate.setHours(0, 0, 0, 0);
         localEndDate = new Date(localStartDate);
@@ -189,7 +189,7 @@ export async function fetchStats(): Promise<void> {
           0,
           0,
           0,
-          0
+          0,
         );
         localEndDate = new Date(
           localNow.getFullYear(),
@@ -198,7 +198,7 @@ export async function fetchStats(): Promise<void> {
           23,
           59,
           59,
-          999
+          999,
         );
         break;
       case TimeRangeEnum.YEAR_TO_DATE:
@@ -217,7 +217,7 @@ export async function fetchStats(): Promise<void> {
         localStartDate.setHours(0, 0, 0, 0);
         localEndDate.setHours(23, 59, 59, 999);
         console.warn(
-          `Using default 30-day aggregation for time range: ${state.timeRange}`
+          `Using default 30-day aggregation for time range: ${state.timeRange}`,
         );
         break;
     }
@@ -229,7 +229,7 @@ export async function fetchStats(): Promise<void> {
       })
       .sort(
         (a, b) =>
-          (a.timestamp as Date).getTime() - (b.timestamp as Date).getTime()
+          (a.timestamp as Date).getTime() - (b.timestamp as Date).getTime(),
       );
 
     const heartbeatsByProject: Record<string, Heartbeat[]> = {};
@@ -250,7 +250,7 @@ export async function fetchStats(): Promise<void> {
         const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
         const durationSeconds = calculateHeartbeatDuration(
           currentBeat,
-          previousBeat
+          previousBeat,
         );
 
         projectTotalSeconds += durationSeconds;
@@ -345,7 +345,7 @@ const MAX_HEARTBEAT_DIFF_SECONDS = 300;
 
 function calculateHeartbeatDuration(
   current: Heartbeat,
-  previous?: Heartbeat
+  previous?: Heartbeat,
 ): number {
   if (!previous) {
     return HEARTBEAT_INTERVAL_SECONDS;

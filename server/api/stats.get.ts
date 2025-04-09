@@ -42,7 +42,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const utcDayBeforeYesterdayStart = new Date(utcYesterdayStart);
     utcDayBeforeYesterdayStart.setUTCDate(
-      utcDayBeforeYesterdayStart.getUTCDate() - 1
+      utcDayBeforeYesterdayStart.getUTCDate() - 1,
     );
     utcDayBeforeYesterdayStart.setUTCHours(0, 0, 0, 0);
 

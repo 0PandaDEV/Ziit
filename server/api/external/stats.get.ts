@@ -19,7 +19,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const apiKey = authHeader.substring(7);
     const validationResult = apiKeySchema.safeParse(apiKey);
-    
+
     if (!validationResult.success) {
       throw createError({
         statusCode: 401,
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const user = await prisma.user.findUnique({
       where: { apiKey },
-      select: { id: true, apiKey: true }
+      select: { id: true, apiKey: true },
     });
 
     if (!user || user.apiKey !== apiKey) {
@@ -65,7 +65,9 @@ export default defineEventHandler(async (event: H3Event) => {
     utcTomorrowEnd.setUTCHours(23, 59, 59, 999);
 
     const utcDayBeforeYesterdayStart = new Date(utcYesterdayStart);
-    utcDayBeforeYesterdayStart.setUTCDate(utcDayBeforeYesterdayStart.getUTCDate() - 1);
+    utcDayBeforeYesterdayStart.setUTCDate(
+      utcDayBeforeYesterdayStart.getUTCDate() - 1,
+    );
     utcDayBeforeYesterdayStart.setUTCHours(0, 0, 0, 0);
 
     let fetchStartDate: Date;

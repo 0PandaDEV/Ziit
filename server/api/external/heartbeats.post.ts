@@ -32,7 +32,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const user = await prisma.user.findUnique({
       where: { apiKey },
-      select: { id: true, apiKey: true }
+      select: { id: true, apiKey: true },
     });
 
     if (!user || user.apiKey !== apiKey) {

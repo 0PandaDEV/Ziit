@@ -18,7 +18,8 @@
                   (project.seconds / stats.totalSeconds) *
                   100
                 ).toFixed(1)}%`,
-              }">
+              }"
+            >
               <div class="name">{{ project.name }}</div>
               <div class="time">{{ formatTime(project.seconds) }}</div>
               <div class="percentage">
@@ -40,7 +41,8 @@
                   (language.seconds / stats.totalSeconds) *
                   100
                 ).toFixed(1)}%`,
-              }">
+              }"
+            >
               <div class="name">{{ language.name || "Unknown" }}</div>
               <div class="time">
                 {{ formatTime(language.seconds) }}
@@ -66,7 +68,8 @@
                   (editor.seconds / stats.totalSeconds) *
                   100
                 ).toFixed(1)}%`,
-              }">
+              }"
+            >
               <div class="name">{{ editor.name || "Unknown" }}</div>
               <div class="time">
                 {{ formatTime(editor.seconds) }}
@@ -90,7 +93,8 @@
                   (os.seconds / stats.totalSeconds) *
                   100
                 ).toFixed(1)}%`,
-              }">
+              }"
+            >
               <div class="name">{{ os.name || "Unknown" }}</div>
               <div class="time">
                 {{ formatTime(os.seconds) }}
@@ -145,7 +149,7 @@ watch(
       updateChart();
     }
   },
-  { immediate: true, deep: true }
+  { immediate: true, deep: true },
 );
 
 const sortedProjects = computed(() => {
@@ -155,7 +159,7 @@ const sortedProjects = computed(() => {
     ([name, seconds]) => ({
       name,
       seconds: seconds as number,
-    })
+    }),
   );
 
   if (projectSort.value === "time") {
@@ -172,7 +176,7 @@ const languageBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    })
+    }),
   );
 
   return languages.sort((a, b) => b.seconds - a.seconds);
@@ -185,7 +189,7 @@ const editorBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    })
+    }),
   );
 
   return editors.sort((a, b) => b.seconds - a.seconds);
@@ -198,7 +202,7 @@ const osBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    })
+    }),
   );
 
   return osArray.sort((a, b) => b.seconds - a.seconds);
@@ -254,7 +258,7 @@ function renderChart() {
       PointElement,
       LineController,
       Tooltip,
-      Filler
+      Filler,
     );
 
     const ctx = document.createElement("canvas");
@@ -516,7 +520,7 @@ function getChartData(): number[] {
       break;
     case statsLib.TimeRangeEnum.WEEK:
       localStartDate.setDate(
-        localStartDate.getDate() - localStartDate.getDay()
+        localStartDate.getDate() - localStartDate.getDay(),
       );
       localStartDate.setHours(0, 0, 0, 0);
       localEndDate = new Date(localStartDate);
@@ -541,7 +545,7 @@ function getChartData(): number[] {
         0,
         0,
         0,
-        0
+        0,
       );
       localEndDate = new Date(
         localNow.getFullYear(),
@@ -550,7 +554,7 @@ function getChartData(): number[] {
         23,
         59,
         59,
-        999
+        999,
       );
       break;
     case statsLib.TimeRangeEnum.YEAR_TO_DATE:
@@ -604,7 +608,7 @@ function getChartData(): number[] {
         const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
         const durationSeconds = calculateInlinedDuration(
           currentBeat,
-          previousBeat
+          previousBeat,
         );
         const localHour = (currentBeat.timestamp as Date).getHours();
         if (localHour >= 0 && localHour < 24) {
@@ -620,7 +624,7 @@ function getChartData(): number[] {
         const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
         const durationSeconds = calculateInlinedDuration(
           currentBeat,
-          previousBeat
+          previousBeat,
         );
         const localDayOfWeek = (currentBeat.timestamp as Date).getDay();
 
@@ -642,7 +646,7 @@ function getChartData(): number[] {
     let idx = 0;
     while (currentDate <= localEndDate && idx < labels.length) {
       const dateStr = `${currentDate.getFullYear()}-${String(
-        currentDate.getMonth() + 1
+        currentDate.getMonth() + 1,
       ).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
       dateStrToChartIndex.set(dateStr, idx);
       currentDate.setDate(currentDate.getDate() + 1);
@@ -656,11 +660,11 @@ function getChartData(): number[] {
         const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
         const durationSeconds = calculateInlinedDuration(
           currentBeat,
-          previousBeat
+          previousBeat,
         );
         const ts = currentBeat.timestamp as Date;
         const localDateStr = `${ts.getFullYear()}-${String(
-          ts.getMonth() + 1
+          ts.getMonth() + 1,
         ).padStart(2, "0")}-${String(ts.getDate()).padStart(2, "0")}`;
         const index = dateStrToChartIndex.get(localDateStr);
         if (index !== undefined) {
@@ -690,7 +694,7 @@ function getChartData(): number[] {
         const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
         const durationSeconds = calculateInlinedDuration(
           currentBeat,
-          previousBeat
+          previousBeat,
         );
         const ts = currentBeat.timestamp as Date;
         const localYearMonthKey = `${ts.getFullYear()}-${ts.getMonth()}`;
@@ -707,7 +711,7 @@ function getChartData(): number[] {
 
 function calculateInlinedDuration(
   current: Heartbeat,
-  previous?: Heartbeat
+  previous?: Heartbeat,
 ): number {
   let durationSeconds = HEARTBEAT_INTERVAL_SECONDS;
   if (previous) {
