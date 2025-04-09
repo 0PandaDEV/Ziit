@@ -1,5 +1,5 @@
-import { v4 as uuidv4 } from "uuid";
 import { H3Event } from "h3";
+import jwt from "jsonwebtoken";
 
 export default defineEventHandler(async (event: H3Event) => {
   if (!event.context.user) {
@@ -10,7 +10,7 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   const config = useRuntimeConfig();
-  const state = uuidv4();
+  const state = crypto.randomUUID();
 
   setCookie(event, "github_oauth_state", state, {
     httpOnly: true,
@@ -26,7 +26,11 @@ export default defineEventHandler(async (event: H3Event) => {
     path: "/",
   });
 
-  setCookie(event, "github_link_session", event.context.user.id, {
+  const token = jwt.sign({ userId: event.context.user.id }, config.jwtSecret, {
+    expiresIn: "7d",
+  });
+
+  setCookie(event, "github_link_session", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 10,

@@ -1,7 +1,16 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
+import { z } from "zod";
 
 const prisma = new PrismaClient();
+
+const heartbeatSchema = z.object({
+  timestamp: z.string().datetime(),
+  project: z.string().min(1).max(255),
+  language: z.string().min(1).max(50),
+  editor: z.string().min(1).max(50),
+  os: z.string().min(1).max(50),
+});
 
 export default defineEventHandler(async (event: H3Event) => {
   try {
@@ -14,12 +23,19 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const apiKey = authHeader.substring(7);
+    if (!apiKey || apiKey.length !== 32) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: "Unauthorized: Invalid API key format",
+      });
+    }
 
     const user = await prisma.user.findUnique({
       where: { apiKey },
+      select: { id: true, apiKey: true },
     });
 
-    if (!user) {
+    if (!user || user.apiKey !== apiKey) {
       throw createError({
         statusCode: 401,
         statusMessage: "Unauthorized: Invalid API key",
@@ -27,22 +43,16 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const body = await readBody(event);
-
-    if (!body || !body.timestamp) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: "Bad request: Missing required fields",
-      });
-    }
+    const validatedData = heartbeatSchema.parse(body);
 
     const heartbeat = await prisma.heartbeat.create({
       data: {
         userId: user.id,
-        timestamp: new Date(body.timestamp),
-        project: body.project,
-        language: body.language,
-        editor: body.editor,
-        os: body.os,
+        timestamp: new Date(validatedData.timestamp),
+        project: validatedData.project,
+        language: validatedData.language,
+        editor: validatedData.editor,
+        os: validatedData.os,
       },
     });
 
@@ -51,6 +61,12 @@ export default defineEventHandler(async (event: H3Event) => {
       id: heartbeat.id,
     };
   } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `Bad request: ${error.errors[0].message}`,
+      });
+    }
     if (error.statusCode) {
       throw error;
     }

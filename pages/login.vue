@@ -120,6 +120,49 @@ async function login() {
 async function githubAuth() {
   window.location.href = "/api/auth/github";
 }
+
+useSeoMeta({
+  title: "Ziit - Code Time Tracking",
+  description: "Track your coding time and productivity with Ziit",
+  ogTitle: "Ziit - Code Time Tracking",
+  ogDescription: "Track your coding time and productivity with Ziit",
+  ogImage: "https://ziit.app/logo.webp",
+  ogUrl: "https://ziit.app/login",
+  ogSiteName: "Ziit",
+  twitterTitle: "Ziit - Code Time Tracking",
+  twitterDescription: "Track your coding time and productivity with Ziit",
+  twitterImage: "https://ziit.app/logo.webp",
+  twitterCard: "summary",
+  twitterCreator: "@pandadev_",
+  twitterSite: "@pandadev_",
+  author: "PandaDEV",
+});
+
+useHead({
+  htmlAttrs: { lang: "en" },
+  link: [
+    {
+      rel: "canonical",
+      href: "https://ziit.app/login",
+    },
+    {
+      rel: "icon",
+      type: "image/ico",
+      href: "/favicon.ico",
+    },
+  ],
+  script: [
+    {
+      type: "application/ld+json",
+      innerHTML: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: "Login - Ziit",
+        url: "https://ziit.app/login",
+      }),
+    },
+  ],
+});
 </script>
 
 <style lang="scss">

@@ -1,8 +1,6 @@
-import { v4 as uuidv4 } from "uuid";
-
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
-  const state = uuidv4();
+  const state = crypto.randomUUID();
 
   setCookie(event, "github_oauth_state", state, {
     httpOnly: true,

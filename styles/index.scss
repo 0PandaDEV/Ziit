@@ -17,11 +17,11 @@
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 24px;
-    
+
     @media (max-width: 768px) {
       grid-template-columns: 1fr;
     }
-    
+
     .section {
       padding: 0;
       background-color: transparent;
@@ -56,7 +56,7 @@
       overflow: hidden;
 
       &::before {
-        content: '';
+        content: "";
         position: absolute;
         top: 0;
         left: 0;

@@ -1,8 +1,11 @@
-import { PrismaClient, Heartbeat } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
+import { TimeRangeEnum, TimeRange } from "~/lib/stats";
+import { z } from "zod";
 
 const prisma = new PrismaClient();
-const HEARTBEAT_INTERVAL_SECONDS = 30;
+
+const apiKeySchema = z.string().uuid();
 
 export default defineEventHandler(async (event: H3Event) => {
   try {
@@ -15,12 +18,21 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const apiKey = authHeader.substring(7);
+    const validationResult = apiKeySchema.safeParse(apiKey);
+
+    if (!validationResult.success) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: "Unauthorized: Invalid API key format",
+      });
+    }
 
     const user = await prisma.user.findUnique({
       where: { apiKey },
+      select: { id: true, apiKey: true },
     });
 
-    if (!user) {
+    if (!user || user.apiKey !== apiKey) {
       throw createError({
         statusCode: 401,
         statusMessage: "Unauthorized: Invalid API key",
@@ -28,27 +40,95 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const query = getQuery(event);
-    const startDateStr = query.startDate as string;
-    const endDateStr =
-      (query.endDate as string) || new Date().toISOString().split("T")[0];
+    const timeRange = query.timeRange as TimeRange;
 
-    if (!startDateStr) {
+    if (!timeRange || !Object.values(TimeRangeEnum).includes(timeRange)) {
       throw createError({
         statusCode: 400,
-        statusMessage: "Bad Request: startDate is required",
+        message: "Invalid timeRange value",
       });
     }
 
-    const startDate = new Date(startDateStr);
-    const endDate = new Date(endDateStr);
-    endDate.setHours(23, 59, 59, 999);
+    const utcTodayEnd = new Date();
+    utcTodayEnd.setUTCHours(23, 59, 59, 999);
+    const utcTodayStart = new Date(utcTodayEnd);
+    utcTodayStart.setUTCHours(0, 0, 0, 0);
+
+    const utcYesterdayEnd = new Date(utcTodayStart);
+    utcYesterdayEnd.setUTCDate(utcYesterdayEnd.getUTCDate() - 1);
+    utcYesterdayEnd.setUTCHours(23, 59, 59, 999);
+    const utcYesterdayStart = new Date(utcYesterdayEnd);
+    utcYesterdayStart.setUTCHours(0, 0, 0, 0);
+
+    const utcTomorrowEnd = new Date(utcTodayEnd);
+    utcTomorrowEnd.setUTCDate(utcTomorrowEnd.getUTCDate() + 1);
+    utcTomorrowEnd.setUTCHours(23, 59, 59, 999);
+
+    const utcDayBeforeYesterdayStart = new Date(utcYesterdayStart);
+    utcDayBeforeYesterdayStart.setUTCDate(
+      utcDayBeforeYesterdayStart.getUTCDate() - 1,
+    );
+    utcDayBeforeYesterdayStart.setUTCHours(0, 0, 0, 0);
+
+    let fetchStartDate: Date;
+    let fetchEndDate: Date;
+
+    if (timeRange === TimeRangeEnum.TODAY) {
+      fetchStartDate = utcYesterdayStart;
+      fetchEndDate = utcTomorrowEnd;
+    } else if (timeRange === TimeRangeEnum.YESTERDAY) {
+      fetchStartDate = utcDayBeforeYesterdayStart;
+      fetchEndDate = utcTodayEnd;
+    } else if (timeRange === TimeRangeEnum.WEEK) {
+      fetchStartDate = new Date(utcTodayEnd);
+      fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 7);
+      fetchStartDate.setUTCHours(0, 0, 0, 0);
+      fetchEndDate = utcTodayEnd;
+    } else if (timeRange === TimeRangeEnum.MONTH) {
+      fetchStartDate = new Date(utcTodayEnd);
+      fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 30);
+      fetchStartDate.setUTCHours(0, 0, 0, 0);
+      fetchEndDate = utcTodayEnd;
+    } else if (timeRange === TimeRangeEnum.MONTH_TO_DATE) {
+      fetchStartDate = new Date(utcTodayEnd);
+      fetchStartDate.setUTCDate(1);
+      fetchStartDate.setUTCHours(0, 0, 0, 0);
+      fetchEndDate = utcTodayEnd;
+    } else if (timeRange === TimeRangeEnum.LAST_MONTH) {
+      const lastDayOfLastUTCMonth = new Date(utcTodayStart);
+      lastDayOfLastUTCMonth.setUTCDate(0);
+      lastDayOfLastUTCMonth.setUTCHours(23, 59, 59, 999);
+
+      const firstDayOfLastUTCMonth = new Date(lastDayOfLastUTCMonth);
+      firstDayOfLastUTCMonth.setUTCDate(1);
+      firstDayOfLastUTCMonth.setUTCHours(0, 0, 0, 0);
+
+      fetchStartDate = firstDayOfLastUTCMonth;
+      fetchEndDate = lastDayOfLastUTCMonth;
+    } else if (timeRange === TimeRangeEnum.YEAR_TO_DATE) {
+      fetchStartDate = new Date(utcTodayEnd);
+      fetchStartDate.setUTCMonth(0, 1);
+      fetchStartDate.setUTCHours(0, 0, 0, 0);
+      fetchEndDate = utcTodayEnd;
+    } else if (timeRange === TimeRangeEnum.LAST_12_MONTHS) {
+      fetchStartDate = new Date(utcTodayEnd);
+      fetchStartDate.setUTCFullYear(fetchStartDate.getUTCFullYear() - 1);
+      fetchStartDate.setUTCHours(0, 0, 0, 0);
+      fetchEndDate = utcTodayEnd;
+    } else if (timeRange === TimeRangeEnum.ALL_TIME) {
+      fetchStartDate = new Date("2020-01-01T00:00:00.000Z");
+      fetchEndDate = utcTodayEnd;
+    } else {
+      fetchStartDate = utcYesterdayStart;
+      fetchEndDate = utcTomorrowEnd;
+    }
 
     const summaries = await prisma.dailyProjectSummary.findMany({
       where: {
         userId: user.id,
         date: {
-          gte: startDate,
-          lte: endDate,
+          gte: fetchStartDate,
+          lte: fetchEndDate,
         },
       },
       orderBy: {
@@ -56,114 +136,31 @@ export default defineEventHandler(async (event: H3Event) => {
       },
     });
 
-    const groupedSummaries: Record<string, any> = {};
-
-    summaries.forEach((summary) => {
-      const dateStr = summary.date.toISOString().split("T")[0];
-
-      if (!groupedSummaries[dateStr]) {
-        groupedSummaries[dateStr] = {
-          date: dateStr,
-          totalSeconds: 0,
-          projects: {},
-        };
-      }
-
-      groupedSummaries[dateStr].totalSeconds += summary.totalSeconds;
-      groupedSummaries[dateStr].projects[summary.project] =
-        summary.totalSeconds;
+    const heartbeats = await prisma.heartbeat.findMany({
+      where: {
+        userId: user.id,
+        timestamp: {
+          gte: fetchStartDate,
+          lte: fetchEndDate,
+        },
+      },
+      orderBy: {
+        timestamp: "asc",
+      },
     });
 
-    const datesWithSummaries = summaries.map(
-      (s) => s.date.toISOString().split("T")[0],
-    );
-
-    const datesToCheck: string[] = [];
-    let checkDate = new Date(startDate);
-
-    while (checkDate <= endDate) {
-      const dateStr = checkDate.toISOString().split("T")[0];
-      if (!datesWithSummaries.includes(dateStr)) {
-        datesToCheck.push(dateStr);
-      }
-      checkDate.setDate(checkDate.getDate() + 1);
-    }
-
-    if (datesToCheck.length > 0) {
-      for (const dateStr of datesToCheck) {
-        const dayStart = new Date(dateStr);
-        const dayEnd = new Date(dateStr);
-        dayEnd.setHours(23, 59, 59, 999);
-
-        const heartbeats = await prisma.heartbeat.findMany({
-          where: {
-            userId: user.id,
-            timestamp: {
-              gte: dayStart,
-              lte: dayEnd,
-            },
-          },
-          orderBy: {
-            timestamp: "asc",
-          },
-        });
-
-        if (heartbeats.length > 0) {
-          const projectHeartbeats: Record<string, Heartbeat[]> = {};
-
-          heartbeats.forEach((heartbeat) => {
-            const project = heartbeat.project || "unknown";
-
-            if (!projectHeartbeats[project]) {
-              projectHeartbeats[project] = [];
-            }
-
-            projectHeartbeats[project].push(heartbeat);
-          });
-
-          groupedSummaries[dateStr] = {
-            date: dateStr,
-            totalSeconds: 0,
-            projects: {},
-          };
-
-          for (const project in projectHeartbeats) {
-            const beats = projectHeartbeats[project];
-            let projectSeconds = 0;
-
-            beats.sort(
-              (a, b) =>
-                new Date(a.timestamp).getTime() -
-                new Date(b.timestamp).getTime(),
-            );
-
-            for (let i = 0; i < beats.length; i++) {
-              if (i === 0) {
-                projectSeconds += HEARTBEAT_INTERVAL_SECONDS;
-                continue;
-              }
-
-              const current = new Date(beats[i].timestamp).getTime();
-              const previous = new Date(beats[i - 1].timestamp).getTime();
-              const diff = (current - previous) / 1000;
-
-              if (diff < 300) {
-                projectSeconds += diff;
-              } else {
-                projectSeconds += HEARTBEAT_INTERVAL_SECONDS;
-              }
-            }
-
-            groupedSummaries[dateStr].projects[project] =
-              Math.round(projectSeconds);
-            groupedSummaries[dateStr].totalSeconds +=
-              Math.round(projectSeconds);
-          }
-        }
-      }
-    }
-
-    return Object.values(groupedSummaries);
+    return {
+      summaries: summaries.map((s) => ({
+        date: s.date.toISOString().split("T")[0],
+        totalSeconds: s.totalSeconds,
+        projects: { [s.project]: s.totalSeconds },
+        languages: {},
+        editors: {},
+        os: {},
+        files: [],
+      })),
+      heartbeats: heartbeats,
+    };
   } catch (error: any) {
     console.error("Error retrieving daily stats:", error);
     throw createError({

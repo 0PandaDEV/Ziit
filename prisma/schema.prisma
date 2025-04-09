@@ -11,20 +11,20 @@ datasource db {
 }
 
 model User {
-  id                 String      @id @default(cuid())
+  id                 String      @id @default(uuid())
   email              String      @unique
   passwordHash       String?
   githubId           String?     @unique
   githubUsername     String?
   githubAccessToken  String?
   githubRefreshToken String?
-  apiKey             String      @unique @default(cuid())
+  apiKey             String      @unique @default(uuid())
   createdAt          DateTime    @default(now())
   heartbeats         Heartbeat[]
 }
 
 model Heartbeat {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid())
   timestamp DateTime @db.Timestamptz(6)
   userId    String
   user      User     @relation(fields: [userId], references: [id])
@@ -39,7 +39,7 @@ model Heartbeat {
 }
 
 model DailyProjectSummary {
-  id           String   @id @default(cuid())
+  id           String   @id @default(uuid())
   userId       String
   date         DateTime @db.Date
   project      String
