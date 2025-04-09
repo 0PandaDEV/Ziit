@@ -7,6 +7,16 @@ export default defineEventHandler(async (event) => {
   const path = getRequestURL(event).pathname;
   const sessionCookie = getCookie(event, "session");
 
+  const publicPaths = [
+    "/login",
+    "/register",
+    "login",
+    "register",
+    "github",
+    "sitemap.xml",
+    "robots.txt"
+  ];
+
   if (path === "/login" || path === "/register") {
     if (sessionCookie) {
       return sendRedirect(event, "/");
@@ -18,11 +28,7 @@ export default defineEventHandler(async (event) => {
     return;
   }
 
-  if (
-    path.includes("login") ||
-    path.includes("register") ||
-    (path.includes("github") && !path.includes("link"))
-  ) {
+  if (publicPaths.some(p => path.includes(p) && !(p === "github" && path.includes("link")))) {
     return;
   }
 
