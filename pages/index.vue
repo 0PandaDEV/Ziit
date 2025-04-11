@@ -252,7 +252,6 @@ const osBreakdown = computed(() => {
 });
 
 const HEARTBEAT_INTERVAL_SECONDS = 30;
-const MAX_HEARTBEAT_DIFF_SECONDS = 300;
 
 onMounted(() => {
   keyboard.prevent.down([Key.D], () => statsLib.setTimeRange("today"));
@@ -754,18 +753,23 @@ function getChartData(): number[] {
 
 function calculateInlinedDuration(
   current: Heartbeat,
-  previous?: Heartbeat,
+  previous?: Heartbeat
 ): number {
-  let durationSeconds = HEARTBEAT_INTERVAL_SECONDS;
-  if (previous) {
-    const currentTs = (current.timestamp as Date).getTime();
-    const previousTs = (previous.timestamp as Date).getTime();
-    const diffSeconds = Math.round((currentTs - previousTs) / 1000);
-    if (diffSeconds < MAX_HEARTBEAT_DIFF_SECONDS) {
-      durationSeconds = diffSeconds;
-    }
+  const keystrokeTimeoutSecs = statsLib.getKeystrokeTimeout() * 60;
+  
+  if (!previous) {
+    return HEARTBEAT_INTERVAL_SECONDS;
   }
-  return durationSeconds;
+  
+  const currentTs = (current.timestamp as Date).getTime();
+  const previousTs = (previous.timestamp as Date).getTime();
+  const diffSeconds = Math.round((currentTs - previousTs) / 1000);
+  
+  if (diffSeconds < keystrokeTimeoutSecs) {
+    return diffSeconds;
+  } else {
+    return HEARTBEAT_INTERVAL_SECONDS;
+  }
 }
 </script>
 

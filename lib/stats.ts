@@ -13,6 +13,34 @@ export const TimeRangeEnum = {
 
 export type TimeRange = (typeof TimeRangeEnum)[keyof typeof TimeRangeEnum];
 
+let keystrokeTimeoutMinutes = 15;
+
+export function setKeystrokeTimeout(minutes: number): void {
+  keystrokeTimeoutMinutes = minutes;
+  console.log(
+    `Stats lib: Keystroke timeout set to ${minutes} minutes (${minutes * 60} seconds)`
+  );
+}
+
+export function getKeystrokeTimeout(): number {
+  if (typeof window !== "undefined") {
+    try {
+      const userState = useState<any>("user");
+      if (
+        userState.value &&
+        typeof userState.value.keystrokeTimeoutMinutes === "number"
+      ) {
+        return userState.value.keystrokeTimeoutMinutes;
+      }
+    } catch (error) {
+      console.error("Error getting keystroke timeout from user state:", error);
+      return keystrokeTimeoutMinutes;
+    }
+  }
+
+  return keystrokeTimeoutMinutes;
+}
+
 type StatRecord = Record<string, number>;
 
 type HourlyData = {
@@ -169,7 +197,7 @@ export async function fetchStats(): Promise<void> {
         break;
       case TimeRangeEnum.WEEK:
         localStartDate.setDate(
-          localStartDate.getDate() - localStartDate.getDay(),
+          localStartDate.getDate() - localStartDate.getDay()
         );
         localStartDate.setHours(0, 0, 0, 0);
         localEndDate = new Date(localStartDate);
@@ -189,7 +217,7 @@ export async function fetchStats(): Promise<void> {
           0,
           0,
           0,
-          0,
+          0
         );
         localEndDate = new Date(
           localNow.getFullYear(),
@@ -198,7 +226,7 @@ export async function fetchStats(): Promise<void> {
           23,
           59,
           59,
-          999,
+          999
         );
         break;
       case TimeRangeEnum.YEAR_TO_DATE:
@@ -217,7 +245,7 @@ export async function fetchStats(): Promise<void> {
         localStartDate.setHours(0, 0, 0, 0);
         localEndDate.setHours(23, 59, 59, 999);
         console.warn(
-          `Using default 30-day aggregation for time range: ${state.timeRange}`,
+          `Using default 30-day aggregation for time range: ${state.timeRange}`
         );
         break;
     }
@@ -229,7 +257,7 @@ export async function fetchStats(): Promise<void> {
       })
       .sort(
         (a, b) =>
-          (a.timestamp as Date).getTime() - (b.timestamp as Date).getTime(),
+          (a.timestamp as Date).getTime() - (b.timestamp as Date).getTime()
       );
 
     const heartbeatsByProject: Record<string, Heartbeat[]> = {};
@@ -250,7 +278,7 @@ export async function fetchStats(): Promise<void> {
         const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
         const durationSeconds = calculateHeartbeatDuration(
           currentBeat,
-          previousBeat,
+          previousBeat
         );
 
         projectTotalSeconds += durationSeconds;
@@ -341,11 +369,10 @@ export function isAuthenticated(): boolean {
 }
 
 const HEARTBEAT_INTERVAL_SECONDS = 30;
-const MAX_HEARTBEAT_DIFF_SECONDS = 300;
 
 function calculateHeartbeatDuration(
   current: Heartbeat,
-  previous?: Heartbeat,
+  previous?: Heartbeat
 ): number {
   if (!previous) {
     return HEARTBEAT_INTERVAL_SECONDS;
@@ -364,7 +391,7 @@ function calculateHeartbeatDuration(
 
   const diffSeconds = Math.round((currentTs - previousTs) / 1000);
 
-  return diffSeconds < MAX_HEARTBEAT_DIFF_SECONDS
+  return diffSeconds < getKeystrokeTimeout() * 60
     ? diffSeconds
     : HEARTBEAT_INTERVAL_SECONDS;
 }

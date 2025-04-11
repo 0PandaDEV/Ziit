@@ -12,16 +12,15 @@
           <div class="values">
             <p>{{ user?.id }}</p>
             <p>{{ user?.email }}</p>
-            <p>{{ user?.hasGithubAccount ? "yes" : "no" }}</p>
+            <p>{{ hasGithubAccount ? "yes" : "no" }}</p>
           </div>
         </div>
         <div class="buttons">
           <Button
-            v-if="!user?.hasGithubAccount"
+            v-if="!hasGithubAccount"
             text="Link Github"
             keyName="L"
-            @click="linkGithub"
-          />
+            @click="linkGithub" />
           <Button text="Change Email" keyName="E" />
           <Button text="Change Password" keyName="P" />
           <Button text="Logout" keyName="Alt+L" @click="logout" />
@@ -33,27 +32,41 @@
         <Input
           :locked="true"
           :type="showApiKey ? 'text' : 'password'"
-          :modelValue="user?.apiKey"
-        />
+          :modelValue="user?.apiKey" />
         <div class="buttons">
           <Button
             v-if="showApiKey"
             text="Hide API Key"
             keyName="S"
-            @click="toggleApiKey"
-          />
+            @click="toggleApiKey" />
           <Button
             v-else
             text="Show API Key"
             keyName="S"
-            @click="toggleApiKey"
-          />
+            @click="toggleApiKey" />
           <Button text="Copy API Key" keyName="c" @click="copyApiKey" />
           <Button
             text="Regenerate API Key"
             keyName="r"
-            @click="regenerateApiKey"
-          />
+            @click="regenerateApiKey" />
+        </div>
+      </section>
+
+      <section class="tracking-settings">
+        <h2 class="title">Tracking Settings</h2>
+        <div class="setting-group">
+          <label for="keystrokeTimeout">Keystroke Timeout (minutes):</label>
+          <input
+            id="keystrokeTimeout"
+            type="number"
+            min="1"
+            max="60"
+            v-model="keystrokeTimeout"
+            @change="updateKeystrokeTimeout" />
+          <p class="setting-description">
+            Coding activity with gaps less than this duration will be counted
+            continuously.
+          </p>
         </div>
       </section>
 
@@ -83,23 +96,17 @@
 import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
 import { Key, keyboard } from "wrdu-keyboard";
+import * as statsLib from "~/lib/stats";
 
-interface ExtendedUser
-  extends Omit<
-    User,
-    "passwordHash" | "githubAccessToken" | "githubRefreshToken" | "createdAt"
-  > {
-  hasGithubAccount?: boolean;
-  name?: string;
-}
-
-const userState = useState<ExtendedUser | null>("user", () => null);
+const userState = useState<User | null>("user");
 const user = computed(() => userState.value);
 const showApiKey = ref(false);
 const url = useRequestURL();
 const origin = url.origin;
 const toast = useToast();
 const route = useRoute();
+const keystrokeTimeout = ref(15);
+const hasGithubAccount = computed(() => !!user.value?.githubId);
 
 useSeoMeta({
   title: "Profile - Ziit",
@@ -145,7 +152,9 @@ useHead({
 });
 
 onMounted(async () => {
-  await fetchUserData();
+  if (user.value) {
+    keystrokeTimeout.value = user.value.keystrokeTimeoutMinutes;
+  }
 
   if (route.query.error) {
     const errorMessages: Record<string, string> = {
@@ -168,7 +177,7 @@ onMounted(async () => {
   }
 
   keyboard.prevent.down([Key.L], async () => {
-    if (!user.value?.hasGithubAccount) {
+    if (hasGithubAccount) {
       await linkGithub();
     }
   });
@@ -202,21 +211,29 @@ onUnmounted(() => {
   keyboard.clear();
 });
 
-async function fetchUserData() {
-  if (userState.value) return;
+async function updateKeystrokeTimeout() {
+  if (!user.value) return;
 
   try {
-    const data = await $fetch("/api/auth/user");
+    await $fetch("/api/user", {
+      method: "POST",
+      body: {
+        keystrokeTimeoutMinutes: keystrokeTimeout.value,
+      },
+    });
 
-    const userData = {
-      ...data,
-      hasGithubAccount: !!data.githubId,
-      name: data.githubUsername || data.email?.split("@")[0] || "User",
-    };
-    userState.value = userData;
+    if (userState.value) {
+      userState.value.keystrokeTimeoutMinutes = keystrokeTimeout.value;
+    }
+
+    statsLib.setKeystrokeTimeout(keystrokeTimeout.value);
+
+    toast.success("Keystroke timeout updated");
+    
+    await statsLib.refreshStats();
   } catch (error) {
-    console.error("Error fetching user data:", error);
-    toast.error("Failed to load user data");
+    console.error("Error updating keystroke timeout:", error);
+    toast.error("Failed to update keystroke timeout");
   }
 }
 
@@ -239,7 +256,7 @@ async function copyApiKey() {
 async function regenerateApiKey() {
   if (
     !confirm(
-      "Are you sure you want to regenerate your API key? Your existing VS Code extension setup will stop working until you update it.",
+      "Are you sure you want to regenerate your API key? Your existing VS Code extension setup will stop working until you update it."
     )
   ) {
     return;
