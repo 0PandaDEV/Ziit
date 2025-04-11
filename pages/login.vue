@@ -44,7 +44,6 @@
         type="password"
         :icon="IconsKey"
       />
-      <Message v-if="error" :message="error" />
     </form>
     <div class="buttons">
       <Button text="Login" keyName="enter" @click="login" />
