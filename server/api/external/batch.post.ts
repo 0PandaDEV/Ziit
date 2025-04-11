@@ -12,8 +12,6 @@ const heartbeatSchema = z.object({
   language: z.string().min(1).max(50),
   editor: z.string().min(1).max(50),
   os: z.string().min(1).max(50),
-  branch: z.string().max(255).optional(),
-  file: z.string().max(255)
 });
 
 export default defineEventHandler(async (event: H3Event) => {
@@ -49,24 +47,27 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const body = await readBody(event);
-    const validatedData = heartbeatSchema.parse(body);
+    const heartbeats = z.array(heartbeatSchema).parse(body);
 
-    const heartbeat = await prisma.heartbeat.create({
-      data: {
-        userId: user.id,
-        timestamp: new Date(validatedData.timestamp),
-        project: validatedData.project,
-        language: validatedData.language,
-        editor: validatedData.editor,
-        os: validatedData.os,
-        branch: validatedData.branch,
-        file: validatedData.file
-      },
-    });
+    const createdHeartbeats = await prisma.$transaction(
+      heartbeats.map((heartbeat) =>
+        prisma.heartbeat.create({
+          data: {
+            userId: user.id,
+            timestamp: new Date(heartbeat.timestamp),
+            project: heartbeat.project,
+            language: heartbeat.language,
+            editor: heartbeat.editor,
+            os: heartbeat.os,
+          },
+        })
+      )
+    );
 
     return {
       success: true,
-      id: heartbeat.id,
+      count: createdHeartbeats.length,
+      ids: createdHeartbeats.map((h) => h.id),
     };
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -78,10 +79,10 @@ export default defineEventHandler(async (event: H3Event) => {
     if (error.statusCode) {
       throw error;
     }
-    console.error("Error processing heartbeat:", error);
+    console.error("Error processing heartbeats:", error);
     throw createError({
       statusCode: 500,
       statusMessage: "Internal server error",
     });
   }
-});
+}); 
