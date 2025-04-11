@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
     typeof body.email !== "string" ||
     typeof body.password !== "string"
   ) {
+    console.error("Login error: Email and password are required");
     throw createError({
       statusCode: 400,
       message: "Email and password are required",
@@ -24,6 +25,7 @@ export default defineEventHandler(async (event) => {
     });
 
     if (!user || !user.passwordHash) {
+      console.error(`Login error: Invalid credentials for email ${body.email}`);
       throw createError({
         statusCode: 401,
         message: "Invalid email or password",
@@ -36,6 +38,7 @@ export default defineEventHandler(async (event) => {
     );
 
     if (!passwordMatch) {
+      console.error(`Login error: Invalid password for email ${body.email}`);
       throw createError({
         statusCode: 401,
         message: "Invalid email or password",
@@ -61,6 +64,7 @@ export default defineEventHandler(async (event) => {
 
     await sendRedirect(event, "/");
   } catch (error) {
+    console.error("Login error:", error instanceof Error ? error.message : "Unknown error");
     throw createError({
       statusCode: 401,
       message:

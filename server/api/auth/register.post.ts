@@ -20,6 +20,7 @@ export default defineEventHandler(async (event) => {
     typeof body.email !== "string" ||
     typeof body.password !== "string"
   ) {
+    console.error("Registration error: Email and Password are required");
     throw createError({
       statusCode: 400,
       message: "Email and Password are required",
@@ -32,6 +33,7 @@ export default defineEventHandler(async (event) => {
     });
 
     if (existingUser) {
+      console.error(`Registration error: Email ${body.email} already in use`);
       throw createError({
         statusCode: 400,
         message: "Email already in use",
@@ -67,6 +69,7 @@ export default defineEventHandler(async (event) => {
 
     return sendRedirect(event, "/");
   } catch (error) {
+    console.error("Registration error:", error instanceof Error ? error.message : "Unknown error");
     throw createError({
       statusCode: 400,
       message:

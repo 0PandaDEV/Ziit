@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event: H3Event) => {
   if (!event.context.user) {
+    console.error("User error: Unauthorized access attempt");
     throw createError({
       statusCode: 401,
       message: "Unauthorized",
@@ -24,6 +25,7 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (!user) {
+      console.error(`User error: User not found for ID ${event.context.user.id}`);
       throw createError({
         statusCode: 404,
         message: "User not found",
@@ -41,7 +43,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     return enrichedUser;
   } catch (error: any) {
-    console.error("Error fetching user:", error);
+    console.error("User error:", error instanceof Error ? error.message : "Unknown error");
     throw createError({
       statusCode: error.statusCode || 500,
       statusMessage: error.statusMessage || "Internal server error",
