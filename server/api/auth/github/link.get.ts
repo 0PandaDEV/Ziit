@@ -2,6 +2,15 @@ import { H3Event } from "h3";
 import jwt from "jsonwebtoken";
 
 export default defineEventHandler(async (event: H3Event) => {
+  const config = useRuntimeConfig();
+
+  if (config.disableRegistering === "true") {
+    throw createError({
+      statusCode: 403,
+      message: "Registration is currently disabled"
+    });
+  }
+
   if (!event.context.user) {
     throw createError({
       statusCode: 401,
@@ -9,7 +18,6 @@ export default defineEventHandler(async (event: H3Event) => {
     });
   }
 
-  const config = useRuntimeConfig();
   const state = crypto.randomUUID();
 
   setCookie(event, "github_oauth_state", state, {

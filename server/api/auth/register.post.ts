@@ -3,8 +3,16 @@ import jwt from "jsonwebtoken";
 import { prisma } from "~~/prisma/prisma";
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event);
   const config = useRuntimeConfig();
+  
+  if (config.disableRegistering === "true") {
+    throw createError({
+      statusCode: 403,
+      message: "Registration is currently disabled",
+    });
+  }
+
+  const body = await readBody(event);
 
   if (
     !body.email ||

@@ -10,6 +10,7 @@ export default defineNuxtConfig({
     githubClientSecret: process.env.NUXT_GITHUB_CLIENT_SECRET,
     githubRedirectUri: process.env.NUXT_GITHUB_REDIRECT_URI,
     corsOrigin: process.env.NUXT_HOST || "same-origin",
+    disableRegistering: process.env.NUXT_DISABLE_REGISTRATION,
   },
   nitro: {
     preset: "bun",
@@ -40,8 +41,8 @@ export default defineNuxtConfig({
       headers: {
         "Access-Control-Allow-Methods": "POST",
         "Access-Control-Allow-Origin": "vscode-webview://*",
-        "Access-Control-Allow-Headers": "authorization,content-type"
-      }
-    }
+        "Access-Control-Allow-Headers": "authorization,content-type",
+      },
+    },
   },
 });
