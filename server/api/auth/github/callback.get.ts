@@ -60,11 +60,10 @@ export default defineEventHandler(async (event) => {
           code,
           redirect_uri: config.githubRedirectUri,
         }),
-      },
+      }
     );
 
     const accessToken = tokenResponse.access_token;
-    const refreshToken = tokenResponse.refresh_token || "";
 
     const githubUser = await $fetch<GithubUser>("https://api.github.com/user", {
       headers: {
@@ -80,7 +79,7 @@ export default defineEventHandler(async (event) => {
           Authorization: `Bearer ${accessToken}`,
           Accept: "application/vnd.github.v3+json",
         },
-      },
+      }
     );
 
     const primaryEmail =
@@ -109,7 +108,7 @@ export default defineEventHandler(async (event) => {
           });
 
           if (existingGithubUser && existingGithubUser.id !== userId) {
-            await prisma.heartbeat.updateMany({
+            await prisma.heartbeats.updateMany({
               where: { userId: existingGithubUser.id },
               data: { userId: userId },
             });
@@ -124,7 +123,6 @@ export default defineEventHandler(async (event) => {
                 githubId: githubUser.id.toString(),
                 githubUsername: githubUser.login,
                 githubAccessToken: accessToken,
-                githubRefreshToken: refreshToken,
               },
             });
 
@@ -136,7 +134,6 @@ export default defineEventHandler(async (event) => {
               where: { id: userId },
               data: {
                 githubAccessToken: accessToken,
-                githubRefreshToken: refreshToken,
               },
             });
             return sendRedirect(event, "/profile?success=github_updated");
@@ -148,7 +145,6 @@ export default defineEventHandler(async (event) => {
               githubId: githubUser.id.toString(),
               githubUsername: githubUser.login,
               githubAccessToken: accessToken,
-              githubRefreshToken: refreshToken,
             },
           });
 
@@ -176,7 +172,6 @@ export default defineEventHandler(async (event) => {
             githubId: githubUser.id.toString(),
             githubUsername: githubUser.login,
             githubAccessToken: accessToken,
-            githubRefreshToken: refreshToken,
           },
         });
       } else {
@@ -187,7 +182,6 @@ export default defineEventHandler(async (event) => {
             githubId: githubUser.id.toString(),
             githubUsername: githubUser.login,
             githubAccessToken: accessToken,
-            githubRefreshToken: refreshToken,
           },
         });
       }
@@ -196,7 +190,6 @@ export default defineEventHandler(async (event) => {
         where: { id: user.id },
         data: {
           githubAccessToken: accessToken,
-          githubRefreshToken: refreshToken,
         },
       });
     }
