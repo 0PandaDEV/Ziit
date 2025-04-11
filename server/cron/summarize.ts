@@ -9,11 +9,11 @@ export default defineCronHandler(
   async () => {
     try {
       const now = new Date();
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
+      const randomOffset = Math.floor(Math.random() * 24 * 60 * 60 * 1000);
+      const yesterday = new Date(now.getTime() - randomOffset);
       yesterday.setHours(0, 0, 0, 0);
 
-      const today = new Date(now);
+      const today = new Date(now.getTime() - randomOffset + 24 * 60 * 60 * 1000);
       today.setHours(0, 0, 0, 0);
 
       const heartbeatsToSummarize = await prisma.heartbeat.findMany({
