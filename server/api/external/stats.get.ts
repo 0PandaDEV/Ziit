@@ -123,7 +123,7 @@ export default defineEventHandler(async (event: H3Event) => {
       fetchEndDate = utcTomorrowEnd;
     }
 
-    const summaries = await prisma.dailyProjectSummary.findMany({
+    const summaries = await prisma.summaries.findMany({
       where: {
         userId: user.id,
         date: {
@@ -136,7 +136,7 @@ export default defineEventHandler(async (event: H3Event) => {
       },
     });
 
-    const heartbeats = await prisma.heartbeat.findMany({
+    const heartbeats = await prisma.heartbeats.findMany({
       where: {
         userId: user.id,
         timestamp: {
