@@ -1,8 +1,7 @@
 import { defineCronHandler } from "#nuxt/cron";
-import { PrismaClient, Heartbeat } from "@prisma/client";
+import { PrismaClient, Heartbeats } from "@prisma/client";
 
 const prisma = new PrismaClient();
-const HEARTBEAT_INTERVAL_SECONDS = 30;
 
 export default defineCronHandler(
   "daily",
@@ -16,132 +15,75 @@ export default defineCronHandler(
       const today = new Date(now);
       today.setHours(0, 0, 0, 0);
 
-      const heartbeatsToSummarize = await prisma.heartbeat.findMany({
+      const heartbeatsToSummarize = await prisma.heartbeats.findMany({
         where: {
-          AND: [
-            { timestamp: { lt: yesterday } },
-            {
-              NOT: {
-                AND: [
-                  {
-                    userId: {
-                      in: await prisma.dailyProjectSummary
-                        .findMany({ select: { userId: true } })
-                        .then((s) => s.map((x) => x.userId)),
-                    },
-                  },
-                  {
-                    project: {
-                      in: await prisma.dailyProjectSummary
-                        .findMany({ select: { project: true } })
-                        .then((s) => s.map((x) => x.project)),
-                    },
-                  },
-                ],
-              },
-            },
-          ],
+          timestamp: { lt: today },
+          summariesId: null,
         },
         orderBy: {
           timestamp: "asc",
         },
       });
 
-      const userProjectHeartbeats: Record<string, Record<string, any>> = {};
+      const userDateHeartbeats: Record<
+        string,
+        Record<string, Heartbeats[]>
+      > = {};
 
       heartbeatsToSummarize.forEach((heartbeat) => {
         const userId = heartbeat.userId;
-        const project = heartbeat.project || "unknown";
         const date = new Date(heartbeat.timestamp);
         date.setHours(0, 0, 0, 0);
         const dateKey = date.toISOString().split("T")[0];
 
-        if (!userProjectHeartbeats[userId]) {
-          userProjectHeartbeats[userId] = {};
+        if (!userDateHeartbeats[userId]) {
+          userDateHeartbeats[userId] = {};
         }
 
-        if (!userProjectHeartbeats[userId][dateKey]) {
-          userProjectHeartbeats[userId][dateKey] = {};
+        if (!userDateHeartbeats[userId][dateKey]) {
+          userDateHeartbeats[userId][dateKey] = [];
         }
 
-        if (!userProjectHeartbeats[userId][dateKey][project]) {
-          userProjectHeartbeats[userId][dateKey][project] = {
-            heartbeats: [],
-          };
-        }
-
-        userProjectHeartbeats[userId][dateKey][project].heartbeats.push(
-          heartbeat
-        );
+        userDateHeartbeats[userId][dateKey].push(heartbeat);
       });
 
-      for (const userId in userProjectHeartbeats) {
-        for (const dateKey in userProjectHeartbeats[userId]) {
-          for (const project in userProjectHeartbeats[userId][dateKey]) {
-            const projectHeartbeats =
-              userProjectHeartbeats[userId][dateKey][project].heartbeats;
+      for (const userId in userDateHeartbeats) {
+        for (const dateKey in userDateHeartbeats[userId]) {
+          const dateHeartbeats = userDateHeartbeats[userId][dateKey];
 
-            projectHeartbeats.sort(
-              (a: Heartbeat, b: Heartbeat) =>
-                new Date(a.timestamp).getTime() -
-                new Date(b.timestamp).getTime()
-            );
+          dateHeartbeats.sort(
+            (a: Heartbeats, b: Heartbeats) =>
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
 
-            let totalSeconds = 0;
-
-            for (let i = 0; i < projectHeartbeats.length; i++) {
-              if (i === 0) {
-                totalSeconds += HEARTBEAT_INTERVAL_SECONDS;
-                continue;
-              }
-
-              const current = new Date(
-                projectHeartbeats[i].timestamp
-              ).getTime();
-              const previous = new Date(
-                projectHeartbeats[i - 1].timestamp
-              ).getTime();
-              const diff = (current - previous) / 1000;
-
-              if (diff < 300) {
-                totalSeconds += diff;
-              } else {
-                totalSeconds += HEARTBEAT_INTERVAL_SECONDS;
-              }
-            }
-
-            await prisma.dailyProjectSummary.upsert({
-              where: {
-                userId_date_project: {
-                  userId,
-                  date: new Date(dateKey),
-                  project,
-                },
-              },
-              update: {
-                totalSeconds: Math.round(totalSeconds),
-              },
-              create: {
+          const summary = await prisma.summaries.upsert({
+            where: {
+              userId_date: {
                 userId,
                 date: new Date(dateKey),
-                project,
-                totalSeconds: Math.round(totalSeconds),
               },
-            });
-          }
+            },
+            update: {},
+            create: {
+              userId,
+              date: new Date(dateKey),
+            },
+          });
+
+          await prisma.$transaction(
+            dateHeartbeats.map((heartbeat) =>
+              prisma.heartbeats.update({
+                where: { id: heartbeat.id },
+                data: { summariesId: summary.id },
+              })
+            )
+          );
         }
       }
 
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-      await prisma.heartbeat.deleteMany({
-        where: {
-          timestamp: {
-            lt: sixMonthsAgo,
-          },
-        },
-      });
+      console.log(
+        `Summarization complete. Processed ${heartbeatsToSummarize.length} heartbeats.`
+      );
     } catch (error) {
       console.error("Error in summarization cron job:", error);
     }
