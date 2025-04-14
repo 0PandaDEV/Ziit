@@ -182,6 +182,8 @@ export default defineEventHandler(async (event) => {
           user = await tx.user.update({
             where: { id: user.id },
             data: {
+              githubId: githubUser.id.toString(),
+              githubUsername: githubUser.login,
               githubAccessToken: accessToken,
               githubRefreshToken: refreshToken,
             },
@@ -198,6 +200,14 @@ export default defineEventHandler(async (event) => {
             },
           });
         }
+      } else {
+        user = await tx.user.update({
+          where: { id: user.id },
+          data: {
+            githubAccessToken: accessToken,
+            githubRefreshToken: refreshToken,
+          },
+        });
       }
 
       const token = jwt.sign({ userId: user.id }, config.jwtSecret, {
@@ -212,12 +222,12 @@ export default defineEventHandler(async (event) => {
         sameSite: "lax"
       });
 
-      return user;
+      return "/";
     });
 
-    return sendRedirect(event, "/");
-  } catch (error) {
-    console.error("GitHub Callback error:", error instanceof Error ? error.message : "Unknown error");
+    return sendRedirect(event, result);
+  } catch {
+    console.error("GitHub OAuth error");
     return sendRedirect(event, "/login?error=github_auth_failed");
   }
 });
