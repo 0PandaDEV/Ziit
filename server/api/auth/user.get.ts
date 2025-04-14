@@ -45,8 +45,8 @@ export default defineEventHandler(async (event: H3Event) => {
   } catch (error: any) {
     console.error("User error:", error instanceof Error ? error.message : "Unknown error");
     throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || "Internal server error",
+      statusCode: 500,
+      message: "Failed to fetch user data",
     });
   }
 });

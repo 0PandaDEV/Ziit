@@ -82,7 +82,7 @@ export default defineEventHandler(async (event: H3Event) => {
     console.error("Error processing heartbeats:", error);
     throw createError({
       statusCode: 500,
-      statusMessage: "Internal server error",
+      message: "Failed to process heartbeats",
     });
   }
 }); 

@@ -146,14 +146,13 @@ export default defineEventHandler(async (event: H3Event) => {
       }))
     };
   } catch (error: unknown) {
-    console.error("Stats error:", error instanceof Error ? error.message : "Unknown error");
+    console.error("Stats error occurred");
     throw createError({
       statusCode:
         error instanceof Error && "statusCode" in error
           ? (error as any).statusCode
           : 500,
-      message:
-        error instanceof Error ? error.message : "Failed to fetch statistics",
+      message: "Failed to fetch statistics",
     });
   }
 });

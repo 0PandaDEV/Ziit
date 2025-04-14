@@ -75,7 +75,7 @@ export default defineEventHandler(async (event: H3Event) => {
       console.error("Heartbeats error: Validation error", error.errors[0].message);
       throw createError({
         statusCode: 400,
-        statusMessage: `Bad request: ${error.errors[0].message}`,
+        statusMessage: "Bad request: validation failed",
       });
     }
     if (error.statusCode) {

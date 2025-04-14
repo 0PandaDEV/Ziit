@@ -171,11 +171,14 @@ export default defineEventHandler(async (event: H3Event) => {
         createdAt: h.createdAt.toISOString()
       }))
     };
-  } catch (error: any) {
-    console.error("External Stats error:", error instanceof Error ? error.message : "Unknown error");
+  } catch (error: unknown) {
+    console.error("External Stats error occurred");
     throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || "Internal server error",
+      statusCode:
+        error instanceof Error && "statusCode" in error
+          ? (error as any).statusCode
+          : 500,
+      message: "Failed to fetch statistics",
     });
   }
 });
