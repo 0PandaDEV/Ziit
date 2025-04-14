@@ -1,5 +1,13 @@
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
+
+  if (config.disableRegistering === "true") {
+    throw createError({
+      statusCode: 403, 
+      message: "Registration is currently disabled"
+    });
+  }
+
   const state = crypto.randomUUID();
 
   setCookie(event, "github_oauth_state", state, {

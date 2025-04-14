@@ -163,8 +163,13 @@ export default defineEventHandler(async (event: H3Event) => {
         editors: {},
         os: {},
         files: [],
+        branches: []
       })),
-      heartbeats: heartbeats,
+      heartbeats: heartbeats.map(h => ({
+        ...h,
+        timestamp: h.timestamp.toISOString(),
+        createdAt: h.createdAt.toISOString()
+      }))
     };
   } catch (error: any) {
     console.error("External Stats error:", error instanceof Error ? error.message : "Unknown error");
