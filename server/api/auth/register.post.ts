@@ -28,6 +28,7 @@ export default defineEventHandler(async (event) => {
     typeof body.email !== "string" ||
     typeof body.password !== "string"
   ) {
+    console.error("Registration error: missing credentials");
     throw createError({
       statusCode: 400,
       message: "Email and Password are required",
@@ -48,8 +49,9 @@ export default defineEventHandler(async (event) => {
     });
 
     if (existingUser) {
+      console.error("Registration error: email already in use");
       throw createError({
-        statusCode: 400,
+        statusCode: 409,
         message: "Email already in use",
       });
     }
@@ -83,12 +85,10 @@ export default defineEventHandler(async (event) => {
 
     return sendRedirect(event, "/");
   } catch (error) {
+    console.error("Registration error:", error instanceof Error ? error.message : "Unknown error");
     throw createError({
-      statusCode: 400,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Registration failed. Please try again.",
+      statusCode: 500,
+      message: "Registration failed",
     });
   }
 });

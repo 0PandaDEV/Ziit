@@ -1,11 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
-import { TimeRangeEnum, TimeRange } from "~/lib/stats";
+import { TimeRangeEnum } from "~/lib/stats";
+import type { TimeRange } from "~/lib/stats";
 
 const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event: H3Event) => {
   if (!event.context.user) {
+    console.error("Stats error: Unauthorized access attempt");
     throw createError({
       statusCode: 401,
       message: "Unauthorized",
@@ -19,6 +21,7 @@ export default defineEventHandler(async (event: H3Event) => {
     const timeRange = query.timeRange as TimeRange;
 
     if (!timeRange || !Object.values(TimeRangeEnum).includes(timeRange)) {
+      console.error(`Stats error: Invalid timeRange value ${timeRange}`);
       throw createError({
         statusCode: 400,
         message: "Invalid timeRange value",
@@ -143,14 +146,13 @@ export default defineEventHandler(async (event: H3Event) => {
       }))
     };
   } catch (error: unknown) {
-    console.error("Error fetching stats:", error);
+    console.error("Stats error occurred");
     throw createError({
       statusCode:
         error instanceof Error && "statusCode" in error
           ? (error as any).statusCode
           : 500,
-      message:
-        error instanceof Error ? error.message : "Failed to fetch statistics",
+      message: "Failed to fetch statistics",
     });
   }
 });

@@ -30,6 +30,7 @@ export default defineEventHandler(async (event) => {
   const storedState = getCookie(event, "github_oauth_state");
 
   if (!state || state !== storedState) {
+    console.error("GitHub Callback error: Invalid state");
     return sendRedirect(event, "/login?error=invalid_state");
   }
 
@@ -42,6 +43,7 @@ export default defineEventHandler(async (event) => {
 
   const code = query.code as string;
   if (!code) {
+    console.error("GitHub Callback error: No code provided");
     return sendRedirect(event, "/login?error=no_code");
   }
 
@@ -87,6 +89,7 @@ export default defineEventHandler(async (event) => {
       emails.find((email) => email.primary)?.email || emails[0]?.email;
 
     if (!primaryEmail) {
+      console.error("GitHub Callback error: No primary email found");
       return sendRedirect(event, "/login?error=no_email");
     }
 

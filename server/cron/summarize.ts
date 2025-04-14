@@ -1,5 +1,6 @@
 import { defineCronHandler } from "#nuxt/cron";
-import { PrismaClient, Heartbeat } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
+import type { Heartbeat } from "@prisma/client";
 
 const prisma = new PrismaClient();
 const HEARTBEAT_INTERVAL_SECONDS = 30;
@@ -143,7 +144,7 @@ export default defineCronHandler(
         },
       });
     } catch (error) {
-      console.error("Error in summarization cron job:", error);
+      console.error("Error in summarization cron job");
     }
   },
   {

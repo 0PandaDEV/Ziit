@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
     typeof body.email !== "string" ||
     typeof body.password !== "string"
   ) {
+    console.error("Login error: missing credentials");
     throw createError({
       statusCode: 400,
       message: "Email and password are required",
@@ -24,18 +25,17 @@ export default defineEventHandler(async (event) => {
     });
 
     if (!user || !user.passwordHash) {
+      console.error("Login error: invalid credentials");
       throw createError({
         statusCode: 401,
         message: "Invalid email or password",
       });
     }
 
-    const passwordMatch = await bcrypt.compare(
-      body.password,
-      user.passwordHash,
-    );
+    const isPasswordValid = await bcrypt.compare(body.password, user.passwordHash);
 
-    if (!passwordMatch) {
+    if (!isPasswordValid) {
+      console.error("Login error: invalid credentials");
       throw createError({
         statusCode: 401,
         message: "Invalid email or password",
@@ -61,10 +61,10 @@ export default defineEventHandler(async (event) => {
 
     await sendRedirect(event, "/");
   } catch (error) {
+    console.error("Login error:", error instanceof Error ? error.message : "Unknown error");
     throw createError({
-      statusCode: 401,
-      message:
-        error instanceof Error ? error.message : "Invalid email or password",
+      statusCode: 500,
+      message: "Invalid email or password",
     });
   }
 });
