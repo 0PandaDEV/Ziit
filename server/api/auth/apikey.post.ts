@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event: H3Event) => {
   if (!event.context.user) {
+    console.error("API Key error: Unauthorized access attempt");
     throw createError({
       statusCode: 401,
       message: "Unauthorized",
@@ -30,10 +31,10 @@ export default defineEventHandler(async (event: H3Event) => {
       apiKey: updatedUser.apiKey,
     };
   } catch (error: any) {
-    console.error("Error regenerating API key:", error);
+    console.error("API Key error:", error instanceof Error ? error.message : "Unknown error");
     throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || "Internal server error",
+      statusCode: 500,
+      message: "Failed to generate API key",
     });
   }
 });
