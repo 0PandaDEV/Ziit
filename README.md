@@ -35,7 +35,9 @@ The easiest way to run Ziit is using [Docker Compose](https://github.com/0PandaD
    | NUXT_JWT_SECRET           | Random string for JWT authentication | (Generate with `openssl rand --hex 64`)            |
    | NUXT_GITHUB_CLIENT_ID     | GitHub OAuth client ID               | your_github_client_id                              |
    | NUXT_GITHUB_CLIENT_SECRET | GitHub OAuth client secret           | your_github_client_secret                          |
-   | NUXT_GITHUB_REDIRECT_URI  | GitHub OAuth redirect URL            | <https://your-domain.com/api/auth/github/callback> |
+   | NUXT_GITHUB_REDIRECT_URI  | GitHub OAuth redirect URL            | https://ziit.exmaple.com/api/auth/github/callback  |
+   | NUXT_HOST                 | Domain where Ziit will be hosted     | ziit.exmaple.com                                   |
+   | NUXT_DISABLE_REGISTRATION | Disable user registration            | false                                              |
 
 2. **Build and Start Containers:**
 

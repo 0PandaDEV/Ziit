@@ -2,15 +2,31 @@ import { H3Event } from "h3";
 import jwt from "jsonwebtoken";
 
 export default defineEventHandler(async (event: H3Event) => {
-  const sessionCookie = getCookie(event, "session");
-  if (!sessionCookie) {
+  const config = useRuntimeConfig();
+
+  if (config.disableRegistering === "true") {
+    throw createError({
+      statusCode: 403,
+      message: "Registration is currently disabled"
+    });
+  }
+
+  if (!event.context.user) {
     throw createError({
       statusCode: 401,
       message: "Unauthorized",
     });
   }
 
-  const config = useRuntimeConfig();
+  const sessionCookie = getCookie(event, "session");
+  
+  if (!sessionCookie) {
+    throw createError({
+      statusCode: 401,
+      message: "No session found",
+    });
+  }
+  
   let userId: string;
   try {
     const decoded = jwt.verify(sessionCookie, config.jwtSecret);
