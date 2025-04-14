@@ -18,6 +18,32 @@ export default defineEventHandler(async (event: H3Event) => {
     });
   }
 
+  const sessionCookie = getCookie(event, "session");
+  
+  if (!sessionCookie) {
+    throw createError({
+      statusCode: 401,
+      message: "No session found",
+    });
+  }
+  
+  let userId: string;
+  try {
+    const decoded = jwt.verify(sessionCookie, config.jwtSecret);
+    if (typeof decoded !== "object" || decoded === null || !("userId" in decoded)) {
+      throw createError({
+        statusCode: 401,
+        message: "Invalid token",
+      });
+    }
+    userId = decoded.userId;
+  } catch {
+    throw createError({
+      statusCode: 401,
+      message: "Invalid token",
+    });
+  }
+
   const state = crypto.randomUUID();
 
   setCookie(event, "github_oauth_state", state, {
@@ -25,6 +51,7 @@ export default defineEventHandler(async (event: H3Event) => {
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 10,
     path: "/",
+    sameSite: "lax"
   });
 
   setCookie(event, "github_link_account", "true", {
@@ -32,9 +59,10 @@ export default defineEventHandler(async (event: H3Event) => {
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 10,
     path: "/",
+    sameSite: "lax"
   });
 
-  const token = jwt.sign({ userId: event.context.user.id }, config.jwtSecret, {
+  const token = jwt.sign({ userId }, config.jwtSecret, {
     expiresIn: "7d",
   });
 
@@ -43,6 +71,7 @@ export default defineEventHandler(async (event: H3Event) => {
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 10,
     path: "/",
+    sameSite: "lax"
   });
 
   const githubAuthUrl = new URL("https://github.com/login/oauth/authorize");
