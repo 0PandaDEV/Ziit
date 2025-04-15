@@ -104,6 +104,7 @@ const selectItem = (item: SelectItem<T>) => {
   flex-direction: column;
   margin-bottom: 8px;
   margin-right: -8px;
+  border: 1px solid var(--border);
 }
 
 .dropdown-item {
