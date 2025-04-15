@@ -112,7 +112,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import Key from "~/components/Key.vue";
+import Key from "~/components/Ui/Key.vue";
 import { keyboard } from "wrdu-keyboard";
 import * as statsLib from "~/lib/stats";
 import type { Heartbeat } from "~/lib/stats";
