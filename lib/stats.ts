@@ -13,10 +13,10 @@ export const TimeRangeEnum = {
 
 export type TimeRange = (typeof TimeRangeEnum)[keyof typeof TimeRangeEnum];
 
-let keystrokeTimeoutMinutes = 15;
+let keystrokeTimeout = 15;
 
 export function setKeystrokeTimeout(minutes: number): void {
-  keystrokeTimeoutMinutes = minutes;
+  keystrokeTimeout = minutes;
 }
 
 export function getKeystrokeTimeout(): number {
@@ -25,16 +25,16 @@ export function getKeystrokeTimeout(): number {
       const userState = useState<any>("user");
       if (
         userState.value &&
-        typeof userState.value.keystrokeTimeoutMinutes === "number"
+        typeof userState.value.keystrokeTimeout === "number"
       ) {
-        return userState.value.keystrokeTimeoutMinutes;
+        return userState.value.keystrokeTimeout;
       }
     } catch {
-      return keystrokeTimeoutMinutes;
+      return keystrokeTimeout;
     }
   }
 
-  return keystrokeTimeoutMinutes;
+  return keystrokeTimeout;
 }
 
 type StatRecord = Record<string, number>;
@@ -55,6 +55,11 @@ type DailyData = {
   hourlyData?: HourlyData[];
 };
 
+type DailySummary = {
+  date: string;
+  totalSeconds: number;
+};
+
 export interface Heartbeat {
   id: string;
   timestamp: Date | string;
@@ -72,6 +77,7 @@ type StatsResult = {
   os: StatRecord;
   dailyData: DailyData[];
   heartbeats: Heartbeat[];
+  dailySummaries: DailySummary[];
 };
 
 type State = {
@@ -91,6 +97,7 @@ const initialStats: StatsResult = {
   os: {},
   dailyData: [],
   heartbeats: [],
+  dailySummaries: []
 };
 
 const state: State = {
@@ -197,6 +204,7 @@ function convertUtcToLocal(apiResponse: any): StatsResult {
   const calculatedOs: StatRecord = {};
 
   const dailyData = apiResponse.summaries || [];
+  const dailySummaries = apiResponse.dailySummaries || [];
   
   dailyData.forEach((day: DailyData) => {
     calculatedTotalSeconds += day.totalSeconds;
@@ -226,6 +234,7 @@ function convertUtcToLocal(apiResponse: any): StatsResult {
     os: calculatedOs,
     dailyData,
     heartbeats: allParsedHeartbeats,
+    dailySummaries
   };
 }
 
