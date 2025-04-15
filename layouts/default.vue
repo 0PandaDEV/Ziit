@@ -62,11 +62,11 @@ const timeRangeOptions = computed(() => [
     key: "L",
   },
   { label: "All Time", value: "all-time" as statsLib.TimeRange, key: "A" },
-  {
-    label: "Custom Range",
-    value: "custom-range" as statsLib.TimeRange,
-    key: "C",
-  },
+  // {
+  //   label: "Custom Range",
+  //   value: "custom-range" as statsLib.TimeRange,
+  //   key: "C",
+  // },
 ]);
 </script>
 
