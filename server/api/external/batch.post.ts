@@ -51,7 +51,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const createdHeartbeats = await prisma.$transaction(
       heartbeats.map((heartbeat) =>
-        prisma.heartbeat.create({
+        prisma.heartbeats.create({
           data: {
             userId: user.id,
             timestamp: new Date(heartbeat.timestamp),
