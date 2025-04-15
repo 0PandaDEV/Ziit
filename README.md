@@ -1,9 +1,50 @@
-![Twitter Header](https://github.com/user-attachments/assets/bc6a1efd-2a7a-473a-8f09-ae75cafeba84)
+<p align="center">
+   <img src="https://github.com/user-attachments/assets/bc6a1efd-2a7a-473a-8f09-ae75cafeba84"/>
+</p>
+
+<h3 align="center">
+   The swiss army knife of coding time tracking.
+</h3>
+
+<div align="center">
+  <h3>
+    <a href="https://ziit.app">Website</a>
+    <span> • </span>
+    <a href="https://github.com/0PandaDEV/Ziit/wiki/Deploy">Deploy</a>
+    <span> • </span>
+    <a href="#-features">Features</a>
+    <span> • </span>
+    <a href="https://github.com/0pandadev/ziit/issues">Issues</a>
+    <span> • </span>
+    <a href="https://discord.gg/Y7SbYphVw9">Discord</a>
+  </h3>
+</div>
+
 
 > [!CAUTION]
 > This project is in a early developement state and not production ready at the moment that is also why signups are currently disabeld on [ziit.app](https://ziit.app).
 
+<details>
+  <summary><kbd>Star History</kbd></summary>
+  <a href="https://starchart.cc/0PandaDEV/Ziit">
+    <picture>
+      <img width="100%" src="https://starchart.cc/0PandaDEV/ziit.svg?variant=adaptive">
+    </picture>
+  </a>
+</details>
+
+## What is Ziit?
+
 Ziit or also pronounecd "tseet" is an open source and self-hostable alternative to wakatime with the goal of having better UI and UX design as well as privacy of your data as its on your own server instead of the nasty cloud.
+
+## Features
+
+- Time tracking directly from VSCode to your ziit instance of choise.
+- Advanced time filtering using differnt time ranges.
+- Clean & Minimal dashboard showing only the information needed.
+- Login with Github or Email+Password.
+- Import Data from Wakatime or a Wakapi Instance.
+- More to come...
 
 ## Development
 
@@ -19,35 +60,4 @@ Ziit or also pronounecd "tseet" is an open source and self-hostable alternative 
 
    ```bash
    bunx prisma migrate dev
-   ```
-
-## Docker Deployment
-
-The easiest way to run Ziit is using [Docker Compose](https://github.com/0PandaDEV/Ziit/blob/main/docker-compose.yml).
-
-1. **Configure Docker Compose:**
-   Edit the environment variables in the `docker-compose.yml` file to set your configuration values:
-
-   | Environment Variable      | Description                          | Example                                            |
-   | ------------------------- | ------------------------------------ | -------------------------------------------------- |
-   | NUXT_DATABASE_URL         | Database connection string           | postgresql://postgres:root@postgres:5432/ziit      |
-   | NUXT_JWT_SECRET           | Random string for JWT authentication | (Generate with `openssl rand --hex 64`)            |
-   | NUXT_GITHUB_CLIENT_ID     | GitHub OAuth client ID               | your_github_client_id                              |
-   | NUXT_GITHUB_CLIENT_SECRET | GitHub OAuth client secret           | your_github_client_secret                          |
-   | NUXT_GITHUB_REDIRECT_URI  | GitHub OAuth redirect URL            | https://ziit.exmaple.com/api/auth/github/callback  |
-   | NUXT_HOST                 | Domain where Ziit will be hosted     | ziit.exmaple.com                                   |
-   | NUXT_DISABLE_REGISTRATION | Disable user registration            | false                                              |
-
-2. **Build and Start Containers:**
-
-   ```bash
-   docker compose up --build -d
-   ```
-
-   The application will be available at `http://localhost:3000` (or your configured host/port).
-
-3. **Stop Containers:**
-
-   ```bash
-   docker compose down
    ```
