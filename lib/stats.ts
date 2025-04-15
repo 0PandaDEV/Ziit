@@ -13,7 +13,7 @@ export const TimeRangeEnum = {
 
 export type TimeRange = (typeof TimeRangeEnum)[keyof typeof TimeRangeEnum];
 
-let keystrokeTimeout = 15;
+let keystrokeTimeout = 0;
 
 export function setKeystrokeTimeout(minutes: number): void {
   keystrokeTimeout = minutes;
