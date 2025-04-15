@@ -62,6 +62,16 @@
             :min="1"
             :max="60"
             @update:modelValue="updateKeystrokeTimeout" />
+
+          <p v-if="timeoutChanged">
+            In order to work correctly, summaries need to be regenerated after
+            changing the keystroke timeout.
+          </p>
+          <UiButton
+            v-if="timeoutChanged"
+            text="Regenerate Summaries"
+            keyName="Alt+R"
+            @click="regenerateSummaries" />
         </div>
       </section>
 
@@ -157,6 +167,8 @@ const origin = url.origin;
 const toast = useToast();
 const route = useRoute();
 const keystrokeTimeout = ref(15);
+const originalKeystrokeTimeout = ref(15);
+const timeoutChanged = ref(false);
 const hasGithubAccount = computed(() => !!user.value?.githubId);
 const WAKATIME = "wakatime" as const;
 const WAKAPI = "wakapi" as const;
@@ -195,6 +207,7 @@ onMounted(async () => {
 
   if (user.value) {
     keystrokeTimeout.value = user.value.keystrokeTimeout;
+    originalKeystrokeTimeout.value = user.value.keystrokeTimeout;
   }
 
   if (route.query.error) {
@@ -279,10 +292,27 @@ async function updateKeystrokeTimeout() {
 
     toast.success("Keystroke timeout updated");
 
+    if (originalKeystrokeTimeout.value !== keystrokeTimeout.value) {
+      timeoutChanged.value = true;
+    }
+
     await statsLib.refreshStats();
   } catch (error) {
     console.error("Error updating keystroke timeout:", error);
     toast.error("Failed to update keystroke timeout");
+  }
+}
+
+async function regenerateSummaries() {
+  try {
+    const response = await $fetch("/api/user/regenerateSummaries");
+    toast.success((response as any).message || "Summaries regenerated successfully");
+    timeoutChanged.value = false;
+    originalKeystrokeTimeout.value = keystrokeTimeout.value;
+    await statsLib.refreshStats();
+  } catch (error) {
+    console.error("Error regenerating summaries:", error);
+    toast.error("Failed to regenerate summaries");
   }
 }
 
