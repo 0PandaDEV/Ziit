@@ -18,8 +18,7 @@
                   (project.seconds / stats.totalSeconds) *
                   100
                 ).toFixed(1)}%`,
-              }"
-            >
+              }">
               <div class="name">{{ project.name }}</div>
               <div class="time">{{ formatTime(project.seconds) }}</div>
               <div class="percentage">
@@ -41,8 +40,7 @@
                   (language.seconds / stats.totalSeconds) *
                   100
                 ).toFixed(1)}%`,
-              }"
-            >
+              }">
               <div class="name">{{ language.name || "Unknown" }}</div>
               <div class="time">
                 {{ formatTime(language.seconds) }}
@@ -68,8 +66,7 @@
                   (editor.seconds / stats.totalSeconds) *
                   100
                 ).toFixed(1)}%`,
-              }"
-            >
+              }">
               <div class="name">{{ editor.name || "Unknown" }}</div>
               <div class="time">
                 {{ formatTime(editor.seconds) }}
@@ -93,8 +90,7 @@
                   (os.seconds / stats.totalSeconds) *
                   100
                 ).toFixed(1)}%`,
-              }"
-            >
+              }">
               <div class="name">{{ os.name || "Unknown" }}</div>
               <div class="time">
                 {{ formatTime(os.seconds) }}
@@ -113,8 +109,7 @@
 <script setup lang="ts">
 import type { User } from "@prisma/client";
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import Key from "~/components/Ui/Key.vue";
-import { keyboard } from "wrdu-keyboard";
+import { Key, keyboard } from "wrdu-keyboard";
 import * as statsLib from "~/lib/stats";
 import type { Heartbeat } from "~/lib/stats";
 
@@ -151,7 +146,7 @@ watch(
       updateChart();
     }
   },
-  { immediate: true, deep: true },
+  { immediate: true, deep: true }
 );
 
 const sortedProjects = computed(() => {
@@ -161,7 +156,7 @@ const sortedProjects = computed(() => {
     ([name, seconds]) => ({
       name,
       seconds: seconds as number,
-    }),
+    })
   );
 
   if (projectSort.value === "time") {
@@ -178,7 +173,7 @@ const languageBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    }),
+    })
   );
 
   return languages.sort((a, b) => b.seconds - a.seconds);
@@ -191,7 +186,7 @@ const editorBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    }),
+    })
   );
 
   return editors.sort((a, b) => b.seconds - a.seconds);
@@ -204,7 +199,7 @@ const osBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    }),
+    })
   );
 
   return osArray.sort((a, b) => b.seconds - a.seconds);
@@ -222,7 +217,7 @@ async function fetchUserData() {
     if (data?.keystrokeTimeout) {
       statsLib.setKeystrokeTimeout(data.keystrokeTimeout);
     }
-    
+
     return data;
   } catch (error) {
     console.error("Error fetching user data:", error);
@@ -232,15 +227,41 @@ async function fetchUserData() {
 
 onMounted(async () => {
   await fetchUserData();
-  keyboard.prevent.down([Key.D], () => statsLib.setTimeRange("today"));
-  keyboard.prevent.down([Key.E], () => statsLib.setTimeRange("yesterday"));
-  keyboard.prevent.down([Key.W], () => statsLib.setTimeRange("week"));
-  keyboard.prevent.down([Key.T], () => statsLib.setTimeRange("month"));
-  keyboard.prevent.down([Key.N], () => statsLib.setTimeRange("last-month"));
-  keyboard.prevent.down([Key.Y], () => statsLib.setTimeRange("year-to-date"));
-  keyboard.prevent.down([Key.L], () => statsLib.setTimeRange("last-12-months"));
-  keyboard.prevent.down([Key.A], () => statsLib.setTimeRange("all-time"));
-  keyboard.prevent.down([Key.C], () => statsLib.setTimeRange("custom-range"));
+  keyboard.prevent.down([Key.D], async () => {
+    statsLib.setTimeRange("today");
+  });
+
+  keyboard.prevent.down([Key.E], async () => {
+    statsLib.setTimeRange("yesterday");
+  });
+
+  keyboard.prevent.down([Key.W], async () => {
+    statsLib.setTimeRange("week");
+  });
+
+  keyboard.prevent.down([Key.T], async () => {
+    statsLib.setTimeRange("month");
+  });
+
+  keyboard.prevent.down([Key.N], async () => {
+    statsLib.setTimeRange("last-month");
+  });
+
+  keyboard.prevent.down([Key.Y], async () => {
+    statsLib.setTimeRange("year-to-date");
+  });
+
+  keyboard.prevent.down([Key.L], async () => {
+    statsLib.setTimeRange("last-12-months");
+  });
+
+  keyboard.prevent.down([Key.A], async () => {
+    statsLib.setTimeRange("all-time");
+  });
+
+  keyboard.prevent.down([Key.C], async () => {
+    statsLib.setTimeRange("custom-range");
+  });
 
   if (chartContainer.value) {
     renderChart();
@@ -278,7 +299,7 @@ function renderChart() {
       PointElement,
       LineController,
       Tooltip,
-      Filler,
+      Filler
     );
 
     const ctx = document.createElement("canvas");
@@ -440,8 +461,18 @@ function updateChart() {
 function getChartLabels(): string[] {
   const labels = [];
   const months = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ];
 
   if (timeRange.value === "today" || timeRange.value === "yesterday") {
@@ -450,7 +481,7 @@ function getChartLabels(): string[] {
     }
   } else if (timeRange.value === "week") {
     const today = new Date();
-    
+
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
@@ -495,26 +526,36 @@ function getChartLabels(): string[] {
       labels.push(months[monthIndex]);
     }
   } else if (timeRange.value === "all-time") {
-    if (stats.value && stats.value.dailySummaries && stats.value.dailySummaries.length > 0) {
-      const dates = stats.value.dailySummaries.map(summary => new Date(summary.date));
-      const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
-      const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
-      
+    if (
+      stats.value &&
+      stats.value.dailySummaries &&
+      stats.value.dailySummaries.length > 0
+    ) {
+      const dates = stats.value.dailySummaries.map(
+        (summary) => new Date(summary.date)
+      );
+      const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
+      const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
+
       if (maxDate.getFullYear() - minDate.getFullYear() > 0) {
         const monthsWithYears = [];
-        let currentDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-        
+        let currentDate = new Date(
+          minDate.getFullYear(),
+          minDate.getMonth(),
+          1
+        );
+
         while (currentDate <= maxDate) {
           monthsWithYears.push(new Date(currentDate));
           currentDate.setMonth(currentDate.getMonth() + 1);
         }
-        
-        return monthsWithYears.map(date => 
-          `${months[date.getMonth()]} ${date.getFullYear()}`
+
+        return monthsWithYears.map(
+          (date) => `${months[date.getMonth()]} ${date.getFullYear()}`
         );
       }
     }
-    
+
     const today = new Date();
     for (let i = 11; i >= 0; i--) {
       const date = new Date(today);
@@ -539,11 +580,14 @@ function getChartData(): number[] {
   const labels = getChartLabels();
   const result = Array(labels.length).fill(0);
 
-  if (timeRange.value === statsLib.TimeRangeEnum.TODAY || timeRange.value === statsLib.TimeRangeEnum.YESTERDAY) {
+  if (
+    timeRange.value === statsLib.TimeRangeEnum.TODAY ||
+    timeRange.value === statsLib.TimeRangeEnum.YESTERDAY
+  ) {
     const relevantHeartbeats = stats.value.heartbeats;
-    
+
     if (!relevantHeartbeats || relevantHeartbeats.length === 0) return result;
-    
+
     const localNow = new Date();
     let localStartDate = new Date(localNow);
     let localEndDate = new Date(localNow);
@@ -578,7 +622,7 @@ function getChartData(): number[] {
         const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
         const durationSeconds = calculateInlinedDuration(
           currentBeat,
-          previousBeat,
+          previousBeat
         );
         const localHour = (currentBeat.timestamp as Date).getHours();
         if (localHour >= 0 && localHour < 24) {
@@ -586,34 +630,45 @@ function getChartData(): number[] {
         }
       }
     }
-    
+
     return result;
   }
-  
+
   if (!stats.value.dailySummaries || stats.value.dailySummaries.length === 0) {
     return result;
   }
-  
+
   const dailySummaries = stats.value.dailySummaries;
-  
+
   if (timeRange.value === statsLib.TimeRangeEnum.WEEK) {
     const dateStringToIndex = new Map<string, number>();
     const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
-    
+
     for (let i = 0; i < labels.length; i++) {
       dateStringToIndex.set(labels[i], i);
     }
-    
+
     for (const summary of dailySummaries) {
       const date = new Date(summary.date);
       const dateString = `${date.getDate()} ${months[date.getMonth()]}`;
       const labelIndex = dateStringToIndex.get(dateString);
-      
+
       if (labelIndex !== undefined) {
-        result[labelIndex] = (result[labelIndex] || 0) + summary.totalSeconds / 3600;
+        result[labelIndex] =
+          (result[labelIndex] || 0) + summary.totalSeconds / 3600;
       }
     }
   } else if (
@@ -624,21 +679,32 @@ function getChartData(): number[] {
   ) {
     const dateStringToIndex = new Map<string, number>();
     const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
-    
+
     for (let i = 0; i < labels.length; i++) {
       dateStringToIndex.set(labels[i], i);
     }
-    
+
     for (const summary of dailySummaries) {
       const date = new Date(summary.date);
       const dateString = `${date.getDate()} ${months[date.getMonth()]}`;
       const labelIndex = dateStringToIndex.get(dateString);
-      
+
       if (labelIndex !== undefined) {
-        result[labelIndex] = (result[labelIndex] || 0) + summary.totalSeconds / 3600;
+        result[labelIndex] =
+          (result[labelIndex] || 0) + summary.totalSeconds / 3600;
       }
     }
   } else if (
@@ -646,28 +712,38 @@ function getChartData(): number[] {
     timeRange.value === statsLib.TimeRangeEnum.LAST_12_MONTHS
   ) {
     const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
     const monthNameToIndex = new Map<string, number>();
-    
+
     for (let i = 0; i < labels.length; i++) {
       const monthName = labels[i];
       monthNameToIndex.set(monthName, i);
     }
-    
+
     const monthlyTotals = new Map<string, number>();
-    
+
     for (const summary of dailySummaries) {
       const date = new Date(summary.date);
       const monthName = months[date.getMonth()];
-      
+
       monthlyTotals.set(
-        monthName, 
+        monthName,
         (monthlyTotals.get(monthName) || 0) + summary.totalSeconds / 3600
       );
     }
-    
+
     for (const [monthName, totalHours] of monthlyTotals.entries()) {
       const labelIndex = monthNameToIndex.get(monthName);
       if (labelIndex !== undefined) {
@@ -675,41 +751,53 @@ function getChartData(): number[] {
       }
     }
   }
-  
+
   if (timeRange.value === statsLib.TimeRangeEnum.ALL_TIME) {
     const labelMap = new Map<string, number>();
     const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
-    
+
     for (let i = 0; i < labels.length; i++) {
       labelMap.set(labels[i], i);
     }
-    
+
     for (const summary of dailySummaries) {
       const date = new Date(summary.date);
-      
-      if (labels[0].includes(' 20')) {
+
+      if (labels[0].includes(" 20")) {
         const labelKey = `${months[date.getMonth()]} ${date.getFullYear()}`;
         const labelIndex = labelMap.get(labelKey);
-        
+
         if (labelIndex !== undefined) {
-          result[labelIndex] = (result[labelIndex] || 0) + summary.totalSeconds / 3600;
+          result[labelIndex] =
+            (result[labelIndex] || 0) + summary.totalSeconds / 3600;
         }
       } else {
         const labelKey = months[date.getMonth()];
         const labelIndex = labelMap.get(labelKey);
-        
+
         if (labelIndex !== undefined) {
-          result[labelIndex] = (result[labelIndex] || 0) + summary.totalSeconds / 3600;
+          result[labelIndex] =
+            (result[labelIndex] || 0) + summary.totalSeconds / 3600;
         }
       }
     }
-    
+
     return result;
   }
-  
+
   return result;
 }
 
@@ -718,15 +806,15 @@ function calculateInlinedDuration(
   previous?: Heartbeat
 ): number {
   const keystrokeTimeoutSecs = statsLib.getKeystrokeTimeout() * 60;
-  
+
   if (!previous) {
     return HEARTBEAT_INTERVAL_SECONDS;
   }
-  
+
   const currentTs = (current.timestamp as Date).getTime();
   const previousTs = (previous.timestamp as Date).getTime();
   const diffSeconds = Math.round((currentTs - previousTs) / 1000);
-  
+
   if (diffSeconds < keystrokeTimeoutSecs) {
     return diffSeconds;
   } else {
