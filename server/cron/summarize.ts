@@ -8,17 +8,8 @@ export default defineCronHandler(
   "daily",
   async () => {
     try {
-      const now = new Date();
-      const randomOffset = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 4294967295) * 24 * 60 * 60 * 1000);
-      const yesterday = new Date(now.getTime() - randomOffset);
-      yesterday.setHours(0, 0, 0, 0);
-
-      const today = new Date(now.getTime() - randomOffset + 24 * 60 * 60 * 1000);
-      today.setHours(0, 0, 0, 0);
-
       const heartbeatsToSummarize = await prisma.heartbeats.findMany({
         where: {
-          timestamp: { lt: today },
           summariesId: null,
         },
         orderBy: {
