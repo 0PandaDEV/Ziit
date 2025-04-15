@@ -21,7 +21,7 @@ export default defineEventHandler(async (event: H3Event) => {
         githubId: true,
         githubUsername: true,
         apiKey: true,
-        keystrokeTimeoutMinutes: true,
+        keystrokeTimeout: true,
       },
     });
 

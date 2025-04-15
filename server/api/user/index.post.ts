@@ -14,8 +14,8 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     const body = await readBody(event);
     
-    if (body.keystrokeTimeoutMinutes !== undefined) {
-      const timeout = Number(body.keystrokeTimeoutMinutes);
+    if (body.keystrokeTimeout !== undefined) {
+      const timeout = Number(body.keystrokeTimeout);
       
       if (isNaN(timeout) || timeout < 1 || timeout > 60) {
         throw createError({
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event: H3Event) => {
           id: event.context.user.id,
         },
         data: {
-          keystrokeTimeoutMinutes: timeout,
+          keystrokeTimeout: timeout,
         },
       });
       
