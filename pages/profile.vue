@@ -69,18 +69,16 @@
         <h2 class="title">Time Tracking Data Import</h2>
         <div class="setting-group">
           <div class="radio-group">
-            <input
-              type="radio"
-              v-model="importType"
-              value="wakatime"
-              id="wakatime-radio" />
-            <span>WakaTime</span>
-            <input
-              type="radio"
-              v-model="importType"
-              value="wakapi"
-              id="wakapi-radio" />
-            <span>WakAPI</span>
+            <UiRadioButton
+              :text="'WakaTime'"
+              :selected="importType === 'wakatime'"
+              :value="'wakatime'"
+              @update="importType = $event" />
+            <UiRadioButton
+              :text="'WakAPI'"
+              :selected="importType === 'wakapi'"
+              :value="'wakapi'"
+              @update="importType = $event" />
           </div>
 
           <UiInput

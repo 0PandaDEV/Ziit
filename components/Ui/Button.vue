@@ -16,12 +16,8 @@
 
 <script setup lang="ts">
 defineProps({
-  text: {
-    type: String,
-  },
-  keyName: {
-    type: String,
-  },
+  text: String,
+  keyName: String,
 });
 
 defineEmits(["click"]);

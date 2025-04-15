@@ -1,20 +1,59 @@
 <template>
   <div class="number-input">
-    <button class="minus" @mousedown="startDecrement" @mouseup="stopRepeat" @mouseleave="stopRepeat" :disabled="disabled || modelValue <= min">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <button
+      class="minus"
+      @mousedown="startDecrement"
+      @mouseup="stopRepeat"
+      @mouseleave="stopRepeat"
+      :disabled="disabled || modelValue <= min">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg">
         <g>
-          <path d="M0 0L9.33333 0" fill="none" stroke-width="2" stroke="#191919" stroke-linecap="round"
-            stroke-linejoin="round" transform="translate(3.333 8)" />
+          <path
+            d="M0 0L9.33333 0"
+            fill="none"
+            stroke-width="2"
+            stroke="#191919"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            transform="translate(3.333 8)" />
         </g>
       </svg>
     </button>
-    <input type="text" class="number-field" :value="modelValue" @input="handleInput" @blur="validateInput" 
-      @keydown.enter.prevent="validateInput" :tabindex="disabled ? -1 : 0" :style="{ width: inputWidth + 'px' }" />
-    <button class="plus" @mousedown="startIncrement" @mouseup="stopRepeat" @mouseleave="stopRepeat" :disabled="disabled || modelValue >= max">
-      <svg width="15.333" height="15.333" viewBox="0 0 15.333 15.333" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <input
+      type="text"
+      class="number-field"
+      :value="modelValue"
+      @input="handleInput"
+      @blur="validateInput"
+      @keydown.enter.prevent="validateInput"
+      :tabindex="disabled ? -1 : 0"
+      :style="{ width: inputWidth + 'px' }" />
+    <button
+      class="plus"
+      @mousedown="startIncrement"
+      @mouseup="stopRepeat"
+      @mouseleave="stopRepeat"
+      :disabled="disabled || modelValue >= max">
+      <svg
+        width="15.333"
+        height="15.333"
+        viewBox="0 0 15.333 15.333"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg">
         <g transform="translate(-0 0)">
-          <path d="M0 4.66667L9.33333 4.66667M4.66667 0L4.66667 9.33333" fill="none" stroke-width="2" stroke="#191919"
-            stroke-linecap="round" stroke-linejoin="round" transform="translate(3 3)" />
+          <path
+            d="M0 4.66667L9.33333 4.66667M4.66667 0L4.66667 9.33333"
+            fill="none"
+            stroke-width="2"
+            stroke="#191919"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            transform="translate(3 3)" />
         </g>
       </svg>
     </button>
@@ -22,28 +61,16 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref } from "vue";
 
 const props = defineProps({
-  modelValue: {
-    type: Number,
-    default: 0
-  },
-  disabled: {
-    type: Boolean,
-    default: false
-  },
-  min: {
-    type: Number,
-    default: 0
-  },
-  max: {
-    type: Number,
-    default: Infinity
-  }
+  modelValue: Number,
+  disabled: Boolean,
+  min: Number,
+  max: Number,
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(["update:modelValue"]);
 const repeatInterval = ref(null);
 const repeatDelay = 100;
 
@@ -57,7 +84,7 @@ const inputWidth = computed(() => {
 
 const updateValue = (value) => {
   const boundedValue = Math.max(props.min, Math.min(props.max, value));
-  emit('update:modelValue', boundedValue);
+  emit("update:modelValue", boundedValue);
 };
 
 const startIncrement = () => {
@@ -83,7 +110,7 @@ const stopRepeat = () => {
 
 const handleInput = (e) => {
   const value = e.target.value.trim();
-  if (value === '') {
+  if (value === "") {
     e.target.value = String(props.min);
     updateValue(props.min);
     return;

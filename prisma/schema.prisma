@@ -18,7 +18,7 @@ model User {
   githubUsername          String?
   githubAccessToken       String?
   apiKey                  String       @unique @default(cuid())
-  keystrokeTimeoutMinutes Int          @default(15)
+  keystrokeTimeoutMinutes Int          @default(10)
   createdAt               DateTime     @default(now())
   heartbeats              Heartbeats[]
   summaries               Summaries[]
