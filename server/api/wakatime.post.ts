@@ -3,6 +3,37 @@ import { H3Event } from "h3";
 
 const prisma = new PrismaClient();
 
+function calculateTotalMinutesFromHeartbeats(
+  heartbeats: any[],
+  idleThresholdMinutes: number
+): number {
+  if (heartbeats.length === 0) return 0;
+
+  const sortedHeartbeats = [...heartbeats].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  let totalMinutes = 0;
+  let lastTimestamp: Date | null = null;
+  const IDLE_THRESHOLD_MS = idleThresholdMinutes * 60 * 1000;
+
+  for (const heartbeat of sortedHeartbeats) {
+    const currentTimestamp = new Date(heartbeat.timestamp);
+
+    if (lastTimestamp) {
+      const timeDiff = currentTimestamp.getTime() - lastTimestamp.getTime();
+
+      if (timeDiff < IDLE_THRESHOLD_MS) {
+        totalMinutes += timeDiff / (60 * 1000);
+      }
+    }
+
+    lastTimestamp = currentTimestamp;
+  }
+
+  return Math.round(totalMinutes);
+}
+
 interface WakApiUser {
   data: {
     username: string;
@@ -30,6 +61,45 @@ interface WakApiHeartbeat {
   created_at: string;
 }
 
+interface WakaTimeHeartbeat {
+  branch: string;
+  category: string;
+  created_at: string;
+  cursorpos: number;
+  dependencies: any[];
+  entity: string;
+  id: string;
+  is_write: boolean;
+  language: string;
+  line_additions: number | null;
+  line_deletions: number | null;
+  lineno: number;
+  lines: number;
+  machine_name_id: string;
+  project: string;
+  project_root_count: number;
+  time: number;
+  type: string;
+  user_agent_id: string;
+  user_id: string;
+}
+
+interface WakaTimeExport {
+  user: {
+    username: string;
+    display_name: string;
+    [key: string]: any;
+  };
+  range: {
+    start: number;
+    end: number;
+  };
+  days: {
+    date: string;
+    heartbeats: WakaTimeHeartbeat[];
+  }[];
+}
+
 export default defineEventHandler(async (event: H3Event) => {
   console.log("Starting WakaTime/WakAPI import process...");
 
@@ -44,46 +114,56 @@ export default defineEventHandler(async (event: H3Event) => {
   const userId = event.context.user.id;
   console.log("Processing for user ID:", userId);
 
-  const { apiKey, instanceType, instanceUrl } = await readBody(event);
-  console.log("Received request with:", {
-    instanceType,
-    instanceUrl: instanceUrl ? "provided" : "not provided",
-  });
+  const formData = await readMultipartFormData(event);
+  if (!formData || formData.length === 0) {
+    const body = await readBody(event);
 
-  if (!apiKey) {
-    console.error("No API key provided");
-    throw createError({ statusCode: 400, message: "API key is required" });
-  }
-
-  if (!instanceType || !["wakatime", "wakapi"].includes(instanceType)) {
-    console.error("Invalid instance type:", instanceType);
-    throw createError({
-      statusCode: 400,
-      message: "Instance type must be either wakatime or wakapi",
+    const { apiKey, instanceType, instanceUrl } = body;
+    console.log("Received request with:", {
+      instanceType,
+      instanceUrl: instanceUrl ? "provided" : "not provided",
     });
-  }
 
-  if (instanceType === "wakapi" && !instanceUrl) {
-    console.error("No instance URL provided for WakAPI");
-    throw createError({
-      statusCode: 400,
-      message: "Instance URL is required for WakAPI",
+    if (instanceType === "wakatime") {
+      throw createError({
+        statusCode: 400,
+        message:
+          "For WakaTime import, please export your data from WakaTime dashboard and upload the file",
+      });
+    }
+
+    if (!apiKey) {
+      console.error("No API key provided");
+      throw createError({ statusCode: 400, message: "API key is required" });
+    }
+
+    if (!instanceType || !["wakapi"].includes(instanceType)) {
+      console.error("Invalid instance type:", instanceType);
+      throw createError({
+        statusCode: 400,
+        message:
+          "Instance type must be wakapi or upload a WakaTime export file",
+      });
+    }
+
+    if (instanceType === "wakapi" && !instanceUrl) {
+      console.error("No instance URL provided for WakAPI");
+      throw createError({
+        statusCode: 400,
+        message: "Instance URL is required for WakAPI",
+      });
+    }
+
+    const headers = {
+      Authorization: `Basic ${Buffer.from(apiKey).toString("base64")}`,
+    };
+    console.log("Using headers:", {
+      ...headers,
+      Authorization: "Basic [REDACTED]",
     });
-  }
 
-  const headers = {
-    Authorization: `Basic ${Buffer.from(apiKey).toString("base64")}`,
-  };
-  console.log("Using headers:", {
-    ...headers,
-    Authorization: "Basic [REDACTED]",
-  });
-
-  let username = "current";
-  let baseUrl = "https://wakatime.com/api/v1";
-
-  if (instanceType === "wakapi") {
-    baseUrl = instanceUrl.endsWith("/")
+    let username = "current";
+    let baseUrl = instanceUrl.endsWith("/")
       ? instanceUrl.slice(0, -1)
       : instanceUrl;
     baseUrl = `${baseUrl}/api/compat/wakatime/v1`;
@@ -281,6 +361,18 @@ export default defineEventHandler(async (event: H3Event) => {
         try {
           const formattedDate = dateStr.split("T")[0];
 
+          const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { keystrokeTimeout: true },
+          });
+
+          const idleThresholdMinutes = user?.keystrokeTimeout || 5;
+
+          const totalMinutes = calculateTotalMinutesFromHeartbeats(
+            heartbeats,
+            idleThresholdMinutes
+          );
+
           const summary = await prisma.summaries.upsert({
             where: {
               userId_date: {
@@ -292,6 +384,7 @@ export default defineEventHandler(async (event: H3Event) => {
             create: {
               userId,
               date: new Date(formattedDate),
+              totalMinutes,
             },
           });
 
@@ -325,8 +418,165 @@ export default defineEventHandler(async (event: H3Event) => {
         message: "Import process failed",
       });
     }
+
+    return { success: true };
   }
 
-  console.log("Database update complete");
-  return { success: true };
+  console.log("Processing WakaTime exported file upload");
+  const fileData = formData.find(
+    (item) => item.name === "file" && item.filename
+  );
+
+  if (!fileData || !fileData.data) {
+    throw createError({
+      statusCode: 400,
+      message: "No file uploaded or file content is missing",
+    });
+  }
+
+  try {
+    const fileContent = new TextDecoder().decode(fileData.data);
+    const wakaData = JSON.parse(fileContent) as WakaTimeExport;
+
+    if (!wakaData.days || !Array.isArray(wakaData.days)) {
+      throw createError({
+        statusCode: 400,
+        message: "Invalid file format: missing days data",
+      });
+    }
+
+    console.log(
+      `Parsing WakaTime export with ${wakaData.days.length} days of data`
+    );
+
+    let totalHeartbeats = 0;
+
+    for (const day of wakaData.days) {
+      if (!day.heartbeats || day.heartbeats.length === 0) continue;
+
+      console.log(
+        `Processing ${day.heartbeats.length} heartbeats for ${day.date}`
+      );
+      totalHeartbeats += day.heartbeats.length;
+
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { keystrokeTimeout: true },
+        });
+
+        const idleThresholdMinutes = user?.keystrokeTimeout || 5;
+
+        const processedHeartbeats = day.heartbeats.map((h) => {
+          let editor = null;
+          let os = null;
+
+          if (h.user_agent_id) {
+            const userAgent = h.user_agent_id;
+
+            const editorMatch = userAgent.match(
+              /vscode-wakatime\/(\d+\.\d+\.\d+)|cursor\/(\d+\.\d+\.\d+)/
+            );
+            if (editorMatch) {
+              const editorName = editorMatch[0].split("/")[0];
+              editor = editorName.charAt(0).toUpperCase() + editorName.slice(1);
+            }
+
+            if (userAgent.includes("darwin")) {
+              os = "macOS";
+            } else if (userAgent.includes("win")) {
+              os = "Windows";
+            } else if (
+              userAgent.includes("linux") ||
+              userAgent.includes("ubuntu") ||
+              userAgent.includes("debian")
+            ) {
+              os = "Linux";
+            } else {
+              const osMatch = userAgent.match(/\((.*?)\)/);
+              if (osMatch && osMatch[1]) {
+                const osPart = osMatch[1].toLowerCase();
+                if (osPart.includes("win")) {
+                  os = "Windows";
+                } else if (
+                  osPart.includes("mac") ||
+                  osPart.includes("darwin")
+                ) {
+                  os = "macOS";
+                } else if (
+                  osPart.includes("linux") ||
+                  osPart.includes("ubuntu") ||
+                  osPart.includes("debian")
+                ) {
+                  os = "Linux";
+                }
+              }
+            }
+          }
+
+          return {
+            userId,
+            timestamp: new Date(h.time * 1000),
+            project: h.project || null,
+            editor,
+            language: h.language || null,
+            os,
+            file: h.entity || null,
+            branch: h.branch || null,
+          };
+        });
+
+        const totalMinutes = calculateTotalMinutesFromHeartbeats(
+          processedHeartbeats,
+          idleThresholdMinutes
+        );
+
+        const summary = await prisma.summaries.upsert({
+          where: {
+            userId_date: {
+              userId,
+              date: new Date(day.date),
+            },
+          },
+          update: {},
+          create: {
+            userId,
+            date: new Date(day.date),
+            totalMinutes,
+          },
+        });
+
+        console.log(
+          `Created/updated summary for ${day.date} with ID ${summary.id}`
+        );
+
+        const heartbeats = processedHeartbeats.map((h) => ({
+          ...h,
+          summariesId: summary.id,
+        }));
+
+        const BATCH_SIZE = 1000;
+        for (let i = 0; i < heartbeats.length; i += BATCH_SIZE) {
+          const batch = heartbeats.slice(i, i + BATCH_SIZE);
+          await prisma.heartbeats.createMany({
+            data: batch,
+          });
+          console.log(
+            `Imported heartbeats ${i} to ${i + batch.length} for ${day.date}`
+          );
+        }
+      } catch (error) {
+        console.error(`Error saving data for ${day.date}:`, error);
+      }
+    }
+
+    console.log("Database update complete");
+    return { success: true, imported: totalHeartbeats };
+  } catch (error) {
+    console.error("Error processing uploaded file:", error);
+    throw createError({
+      statusCode: 500,
+      message: "Failed to process uploaded file",
+    });
+  }
 });

@@ -18,7 +18,7 @@ model User {
   githubUsername          String?
   githubAccessToken       String?
   apiKey                  String       @unique @default(cuid())
-  keystrokeTimeoutMinutes Int          @default(10)
+  keystrokeTimeout Int          @default(5)
   createdAt               DateTime     @default(now())
   heartbeats              Heartbeats[]
   summaries               Summaries[]
@@ -47,12 +47,13 @@ model Heartbeats {
 }
 
 model Summaries {
-  id         String       @id @default(cuid())
-  userId     String
-  user       User         @relation(fields: [userId], references: [id])
-  date       DateTime     @db.Date
-  heartbeats Heartbeats[]
-  createdAt  DateTime     @default(now())
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id])
+  date         DateTime     @db.Date
+  totalMinutes Int
+  heartbeats   Heartbeats[]
+  createdAt    DateTime     @default(now())
 
   @@unique([userId, date])
 }

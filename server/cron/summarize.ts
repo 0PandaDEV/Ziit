@@ -57,6 +57,18 @@ export default defineCronHandler(
               new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
 
+          const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { keystrokeTimeout: true },
+          });
+
+          const idleThresholdMinutes = user?.keystrokeTimeout || 5;
+
+          const totalMinutes = calculateTotalMinutesFromHeartbeats(
+            dateHeartbeats,
+            idleThresholdMinutes
+          );
+
           const summary = await prisma.summaries.upsert({
             where: {
               userId_date: {
@@ -68,6 +80,7 @@ export default defineCronHandler(
             create: {
               userId,
               date: new Date(dateKey),
+              totalMinutes,
             },
           });
 
@@ -94,3 +107,34 @@ export default defineCronHandler(
     runOnInit: true,
   }
 );
+
+function calculateTotalMinutesFromHeartbeats(
+  heartbeats: Heartbeats[],
+  idleThresholdMinutes: number
+): number {
+  if (heartbeats.length === 0) return 0;
+
+  const sortedHeartbeats = [...heartbeats].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  let totalMinutes = 0;
+  let lastTimestamp: Date | null = null;
+  const IDLE_THRESHOLD_MS = idleThresholdMinutes * 60 * 1000;
+
+  for (const heartbeat of sortedHeartbeats) {
+    const currentTimestamp = new Date(heartbeat.timestamp);
+
+    if (lastTimestamp) {
+      const timeDiff = currentTimestamp.getTime() - lastTimestamp.getTime();
+
+      if (timeDiff < IDLE_THRESHOLD_MS) {
+        totalMinutes += timeDiff / (60 * 1000);
+      }
+    }
+
+    lastTimestamp = currentTimestamp;
+  }
+
+  return Math.round(totalMinutes);
+}
