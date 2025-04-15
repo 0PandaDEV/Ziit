@@ -60,3 +60,20 @@ kbd {
   display: flex;
   gap: 16px;
 }
+
+a {
+  text-decoration: underline;
+}
+
+#wakaTimeFileUpload::file-selector-button {
+  background-color: var(--text);
+  color: var(--background);
+  font-family: Outfit;
+  font-weight: 500;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  margin-right: 8px;
+}

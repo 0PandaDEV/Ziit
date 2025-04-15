@@ -73,35 +73,52 @@
               :text="'WakaTime'"
               :selected="importType === 'wakatime'"
               :value="'wakatime'"
-              @update="importType = $event" />
+              @update="(val) => (importType = val as ImportType)" />
             <UiRadioButton
               :text="'WakAPI'"
               :selected="importType === 'wakapi'"
               :value="'wakapi'"
-              @update="importType = $event" />
+              @update="(val) => (importType = val as ImportType)" />
           </div>
 
           <UiInput
             :id="importType + 'ApiKey'"
             type="password"
             v-model="importApiKey"
-            :placeholder="`Enter your ${importType === 'wakatime' ? 'WakaTime' : 'WakAPI'} API Key`" />
+            :placeholder="apiKeyPlaceholder"
+            v-if="importType === 'wakapi'" />
 
-          <template v-if="importType === 'wakapi'">
-            <UiInput
-              id="wakapiInstanceUrl"
-              type="text"
-              v-model="wakapiInstanceUrl"
-              placeholder="Enter your WakAPI instance URL (e.g. https://wakapi.dev)" />
-          </template>
+          <UiInput
+            id="wakapiInstanceUrl"
+            type="text"
+            v-model="wakapiInstanceUrl"
+            placeholder="Enter your WakAPI instance URL (e.g. https://wakapi.dev)"
+            v-if="importType === 'wakapi'" />
 
-          <div class="buttons">
-            <UiButton
-              text="Import Data"
-              keyName="I"
-              @click="importTrackingData" />
+          <div v-if="importType === 'wakatime'" class="steps">
+            <p>
+              1. Go to
+              <a href="https://wakatime.com/settings/account" target="_blank"
+                >WakaTime Settings</a
+              >
+            </p>
+            <p>
+              2. Click on <kbd>Export my code stats...</kbd> and select
+              Heartbeats
+            </p>
+            <p>3. Wait and then download your data</p>
           </div>
+
+          <input
+            type="file"
+            id="wakaTimeFileUpload"
+            ref="wakaTimeFileInput"
+            accept=".json"
+            @change="handleFileChange"
+            v-if="importType === 'wakatime'" />
         </div>
+
+        <UiButton text="Import Data" keyName="I" @click="importTrackingData" />
       </section>
 
       <section class="vscode-setup">
@@ -141,9 +158,19 @@ const toast = useToast();
 const route = useRoute();
 const keystrokeTimeout = ref(15);
 const hasGithubAccount = computed(() => !!user.value?.githubId);
-const importType = ref("wakatime");
+const WAKATIME = "wakatime" as const;
+const WAKAPI = "wakapi" as const;
+type ImportType = typeof WAKATIME | typeof WAKAPI;
+const importType = ref<ImportType>(WAKATIME);
 const importApiKey = ref("");
 const wakapiInstanceUrl = ref("");
+const wakaTimeFileInput = ref<HTMLInputElement | null>(null);
+const selectedFile = ref<File | null>(null);
+const selectedFileName = ref<string | null>(null);
+
+const apiKeyPlaceholder = computed(() => {
+  return `Enter your ${importType.value === "wakatime" ? "WakaTime" : "WakAPI"} API Key`;
+});
 
 async function fetchUserData() {
   if (userState.value) return userState.value;
@@ -152,10 +179,10 @@ async function fetchUserData() {
     const data = await $fetch("/api/user");
     userState.value = data as User;
 
-    if (data?.keystrokeTimeoutMinutes) {
-      statsLib.setKeystrokeTimeout(data.keystrokeTimeoutMinutes);
+    if (data?.keystrokeTimeout) {
+      statsLib.setKeystrokeTimeout(data.keystrokeTimeout);
     }
-    
+
     return data;
   } catch (error) {
     console.error("Error fetching user data:", error);
@@ -165,9 +192,9 @@ async function fetchUserData() {
 
 onMounted(async () => {
   await fetchUserData();
-  
+
   if (user.value) {
-    keystrokeTimeout.value = user.value.keystrokeTimeoutMinutes;
+    keystrokeTimeout.value = user.value.keystrokeTimeout;
   }
 
   if (route.query.error) {
@@ -176,7 +203,7 @@ onMounted(async () => {
       invalid_state: "Invalid state parameter",
       no_code: "No code provided",
       no_email: "No email found",
-      github_auth_failed: "GitHub authentication failed"
+      github_auth_failed: "GitHub authentication failed",
     };
 
     const message = errorMessages[route.query.error as string] || "Error";
@@ -187,7 +214,7 @@ onMounted(async () => {
     const successMessages: Record<string, string> = {
       github_linked: "GitHub account successfully linked",
       github_updated: "GitHub credentials updated",
-      accounts_merged: "Accounts successfully merged"
+      accounts_merged: "Accounts successfully merged",
     };
 
     const message = successMessages[route.query.success as string] || "Success";
@@ -240,12 +267,12 @@ async function updateKeystrokeTimeout() {
     await $fetch("/api/user", {
       method: "POST",
       body: {
-        keystrokeTimeoutMinutes: keystrokeTimeout.value,
+        keystrokeTimeout: keystrokeTimeout.value,
       },
     });
 
     if (userState.value) {
-      userState.value.keystrokeTimeoutMinutes = keystrokeTimeout.value;
+      userState.value.keystrokeTimeout = keystrokeTimeout.value;
     }
 
     statsLib.setKeystrokeTimeout(keystrokeTimeout.value);
@@ -315,43 +342,73 @@ async function linkGithub() {
   window.location.href = "/api/auth/github/link";
 }
 
+function handleFileChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  if (input.files && input.files.length > 0) {
+    selectedFile.value = input.files[0];
+    selectedFileName.value = input.files[0].name;
+  } else {
+    selectedFile.value = null;
+    selectedFileName.value = null;
+  }
+}
+
 async function importTrackingData() {
-  if (!importApiKey.value) {
-    toast.error("Please enter your API Key");
-    return;
-  }
-
-  if (importType.value === "wakapi" && !wakapiInstanceUrl.value) {
-    toast.error("Please enter your WakAPI instance URL");
-    return;
-  }
-
-  try {
-    const payload: {
-      apiKey: string;
-      instanceType: string;
-      instanceUrl?: string;
-    } = {
-      apiKey: importApiKey.value,
-      instanceType: importType.value,
-    };
-
-    if (importType.value === "wakapi") {
-      payload.instanceUrl = wakapiInstanceUrl.value;
+  if (importType.value === "wakatime") {
+    if (!selectedFile.value) {
+      toast.error("Please select a WakaTime export file");
+      return;
     }
 
-    await $fetch("/api/wakatime", {
-      method: "POST",
-      body: payload,
-    });
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile.value);
 
-    toast.success(
-      `${importType.value === "wakatime" ? "WakaTime" : "WakAPI"} data import started`
-    );
-    importApiKey.value = "";
-  } catch (error) {
-    console.error(`Error importing ${importType.value} data:`, error);
-    toast.error(`Failed to import ${importType.value} data`);
+      await $fetch("/api/wakatime", {
+        method: "POST",
+        body: formData,
+      });
+
+      toast.success("WakaTime data import started");
+      selectedFile.value = null;
+      selectedFileName.value = null;
+      if (wakaTimeFileInput.value) {
+        wakaTimeFileInput.value.value = "";
+      }
+    } catch (error: any) {
+      console.error("Error importing WakaTime data:", error);
+      toast.error(error?.data?.message || "Failed to import WakaTime data");
+    }
+  } else {
+    if (!importApiKey.value) {
+      toast.error("Please enter your WakAPI API Key");
+      return;
+    }
+
+    if (!wakapiInstanceUrl.value) {
+      toast.error("Please enter your WakAPI instance URL");
+      return;
+    }
+
+    try {
+      const payload = {
+        apiKey: importApiKey.value,
+        instanceType: importType.value,
+        instanceUrl: wakapiInstanceUrl.value,
+      };
+
+      await $fetch("/api/wakatime", {
+        method: "POST",
+        body: payload,
+      });
+
+      toast.success("WakAPI data import started");
+      importApiKey.value = "";
+      wakapiInstanceUrl.value = "";
+    } catch (error: any) {
+      console.error("Error importing WakAPI data:", error);
+      toast.error(error?.data?.message || "Failed to import WakAPI data");
+    }
   }
 }
 
