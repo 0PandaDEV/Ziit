@@ -37,7 +37,6 @@ export default defineEventHandler(async (event: H3Event) => {
           ? (error as any).statusCode
           : 500,
       message: "Failed to fetch statistics",
-      message: "Failed to fetch statistics",
     });
   }
 });
