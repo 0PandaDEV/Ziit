@@ -19,7 +19,9 @@ section {
   gap: 24px;
 }
 
-.account-information .items .keys {
+.account-information .items .keys,
+.steps,
+.setting-description {
   color: var(--text-secondary);
 }
 
@@ -31,12 +33,14 @@ section {
 .buttons,
 .keys,
 .values,
-.steps {
+.steps,
+.setting-group {
   display: flex;
   flex-direction: column;
 }
 
-.buttons {
+.buttons,
+.setting-group {
   gap: 8px;
 }
 
@@ -46,12 +50,30 @@ section {
   gap: 4px;
 }
 
-.steps {
-  color: var(--text-secondary);
-}
-
 kbd {
   font-family: ChivoMono;
   background-color: var(--element);
   padding: 2px 6px;
+}
+
+.radio-group {
+  display: flex;
+  gap: 16px;
+}
+
+a {
+  text-decoration: underline;
+}
+
+#wakaTimeFileUpload::file-selector-button {
+  background-color: var(--text);
+  color: var(--background);
+  font-family: Outfit;
+  font-weight: 500;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  margin-right: 8px;
 }

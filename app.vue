@@ -1,14 +1,14 @@
 <template>
   <div>
+    <UiToast />
     <NuxtPage />
-    <Toast />
   </div>
 </template>
 
 <script setup lang="ts">
 import { Key, keyboard } from "wrdu-keyboard";
 
-onMounted(() => {
+onMounted(async () => {
   keyboard.init();
 
   keyboard.prevent.down([Key.F], async () => {

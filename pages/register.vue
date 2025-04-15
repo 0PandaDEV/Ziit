@@ -23,7 +23,7 @@
       </h1>
       <p class="description">
         Please create your account or
-        <NuxtLink to="/login"><u>Sign In</u></NuxtLink>
+        <NuxtLink to="/login"><u>Login</u></NuxtLink>
       </p>
     </div>
     <form
@@ -32,23 +32,22 @@
       autocomplete="on"
       data-form-type="register"
     >
-      <Input
+      <UiInput
         v-model="email"
         placeholder="Email"
         type="text"
         :icon="IconsMail"
       />
-      <Input
+      <UiInput
         v-model="password"
         placeholder="Password"
         type="password"
         :icon="IconsKey"
       />
-      <Message v-if="error" :message="error" />
     </form>
     <div class="buttons">
-      <Button text="Register" keyName="enter" @click="register" />
-      <Button text="Register with Github" keyName="g" @click="githubAuth" />
+      <UiButton text="Register" keyName="enter" @click="register" />
+      <UiButton text="Register with Github" keyName="g" @click="githubAuth" />
     </div>
   </main>
 </template>

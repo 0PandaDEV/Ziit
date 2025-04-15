@@ -21,6 +21,7 @@ export default defineEventHandler(async (event: H3Event) => {
         githubId: true,
         githubUsername: true,
         apiKey: true,
+        keystrokeTimeout: true,
       },
     });
 
@@ -32,16 +33,7 @@ export default defineEventHandler(async (event: H3Event) => {
       });
     }
 
-    const hasGithub = !!user.githubId;
-    const userName = hasGithub ? user.githubUsername : user.email.split("@")[0];
-
-    const enrichedUser = {
-      ...user,
-      name: userName,
-      hasGithubAccount: hasGithub,
-    };
-
-    return enrichedUser;
+    return user;
   } catch (error: any) {
     console.error("User error:", error instanceof Error ? error.message : "Unknown error");
     throw createError({

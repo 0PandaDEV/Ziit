@@ -4,7 +4,7 @@
     "": {
       "name": "nuxt-app",
       "dependencies": {
-        "@nuxtjs/sitemap": "^7.2.10",
+        "@nuxtjs/sitemap": "7.2.10",
         "@prisma/client": "6.6.0",
         "@types/bcrypt": "5.0.2",
         "@types/jsonwebtoken": "9.0.9",
@@ -12,7 +12,7 @@
         "chart.js": "4.4.8",
         "jsonwebtoken": "9.0.2",
         "nuxt": "3.16.2",
-        "nuxt-cron": "^1.8.0",
+        "nuxt-cron": "1.8.0",
         "pg": "8.14.1",
         "prisma": "6.6.0",
         "sass-embedded": "1.86.3",

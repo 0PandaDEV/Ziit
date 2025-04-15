@@ -12,49 +12,113 @@
           <div class="values">
             <p>{{ user?.id }}</p>
             <p>{{ user?.email }}</p>
-            <p>{{ user?.hasGithubAccount ? "yes" : "no" }}</p>
+            <p>{{ hasGithubAccount ? "yes" : "no" }}</p>
           </div>
         </div>
         <div class="buttons">
-          <Button
-            v-if="!user?.hasGithubAccount"
+          <UiButton
+            v-if="!hasGithubAccount"
             text="Link Github"
             keyName="L"
-            @click="linkGithub"
-          />
-          <Button text="Change Email" keyName="E" />
-          <Button text="Change Password" keyName="P" />
-          <Button text="Logout" keyName="Alt+L" @click="logout" />
+            @click="linkGithub" />
+          <UiButton text="Change Email" keyName="E" />
+          <UiButton text="Change Password" keyName="P" />
+          <UiButton text="Logout" keyName="Alt+L" @click="logout" />
         </div>
       </section>
 
       <section class="api-key">
         <h2 class="title">API Key</h2>
-        <Input
+        <UiInput
           :locked="true"
           :type="showApiKey ? 'text' : 'password'"
-          :modelValue="user?.apiKey"
-        />
+          :modelValue="user?.apiKey" />
         <div class="buttons">
-          <Button
+          <UiButton
             v-if="showApiKey"
             text="Hide API Key"
             keyName="S"
-            @click="toggleApiKey"
-          />
-          <Button
+            @click="toggleApiKey" />
+          <UiButton
             v-else
             text="Show API Key"
             keyName="S"
-            @click="toggleApiKey"
-          />
-          <Button text="Copy API Key" keyName="c" @click="copyApiKey" />
-          <Button
+            @click="toggleApiKey" />
+          <UiButton text="Copy API Key" keyName="c" @click="copyApiKey" />
+          <UiButton
             text="Regenerate API Key"
             keyName="r"
-            @click="regenerateApiKey"
-          />
+            @click="regenerateApiKey" />
         </div>
+      </section>
+
+      <section class="tracking-settings">
+        <h2 class="title">Tracking Settings</h2>
+        <div class="setting-group">
+          <p class="setting-description">Keystroke Timeout (minutes):</p>
+          <UiNumberInput
+            id="keystrokeTimeout"
+            v-model="keystrokeTimeout"
+            :min="1"
+            :max="60"
+            @update:modelValue="updateKeystrokeTimeout" />
+        </div>
+      </section>
+
+      <section class="wakatime-import">
+        <h2 class="title">Time Tracking Data Import</h2>
+        <div class="setting-group">
+          <div class="radio-group">
+            <UiRadioButton
+              :text="'WakaTime'"
+              :selected="importType === 'wakatime'"
+              :value="'wakatime'"
+              @update="(val) => (importType = val as ImportType)" />
+            <UiRadioButton
+              :text="'WakAPI'"
+              :selected="importType === 'wakapi'"
+              :value="'wakapi'"
+              @update="(val) => (importType = val as ImportType)" />
+          </div>
+
+          <UiInput
+            :id="importType + 'ApiKey'"
+            type="password"
+            v-model="importApiKey"
+            :placeholder="apiKeyPlaceholder"
+            v-if="importType === 'wakapi'" />
+
+          <UiInput
+            id="wakapiInstanceUrl"
+            type="text"
+            v-model="wakapiInstanceUrl"
+            placeholder="Enter your WakAPI instance URL (e.g. https://wakapi.dev)"
+            v-if="importType === 'wakapi'" />
+
+          <div v-if="importType === 'wakatime'" class="steps">
+            <p>
+              1. Go to
+              <a href="https://wakatime.com/settings/account" target="_blank"
+                >WakaTime Settings</a
+              >
+            </p>
+            <p>
+              2. Click on <kbd>Export my code stats...</kbd> and select
+              Heartbeats
+            </p>
+            <p>3. Wait and then download your data</p>
+          </div>
+
+          <input
+            type="file"
+            id="wakaTimeFileUpload"
+            ref="wakaTimeFileInput"
+            accept=".json"
+            @change="handleFileChange"
+            v-if="importType === 'wakatime'" />
+        </div>
+
+        <UiButton text="Import Data" keyName="I" @click="importTrackingData" />
       </section>
 
       <section class="vscode-setup">
@@ -83,23 +147,270 @@
 import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
 import { Key, keyboard } from "wrdu-keyboard";
+import * as statsLib from "~/lib/stats";
 
-interface ExtendedUser
-  extends Omit<
-    User,
-    "passwordHash" | "githubAccessToken" | "githubRefreshToken" | "createdAt"
-  > {
-  hasGithubAccount?: boolean;
-  name?: string;
-}
-
-const userState = useState<ExtendedUser | null>("user", () => null);
+const userState = useState<User | null>("user");
 const user = computed(() => userState.value);
 const showApiKey = ref(false);
 const url = useRequestURL();
 const origin = url.origin;
 const toast = useToast();
 const route = useRoute();
+const keystrokeTimeout = ref(15);
+const hasGithubAccount = computed(() => !!user.value?.githubId);
+const WAKATIME = "wakatime" as const;
+const WAKAPI = "wakapi" as const;
+type ImportType = typeof WAKATIME | typeof WAKAPI;
+const importType = ref<ImportType>(WAKATIME);
+const importApiKey = ref("");
+const wakapiInstanceUrl = ref("");
+const wakaTimeFileInput = ref<HTMLInputElement | null>(null);
+const selectedFile = ref<File | null>(null);
+const selectedFileName = ref<string | null>(null);
+
+const apiKeyPlaceholder = computed(() => {
+  return `Enter your ${importType.value === "wakatime" ? "WakaTime" : "WakAPI"} API Key`;
+});
+
+async function fetchUserData() {
+  if (userState.value) return userState.value;
+
+  try {
+    const data = await $fetch("/api/user");
+    userState.value = data as User;
+
+    if (data?.keystrokeTimeout) {
+      statsLib.setKeystrokeTimeout(data.keystrokeTimeout);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching user data:", error);
+    return null;
+  }
+}
+
+onMounted(async () => {
+  await fetchUserData();
+
+  if (user.value) {
+    keystrokeTimeout.value = user.value.keystrokeTimeout;
+  }
+
+  if (route.query.error) {
+    const errorMessages: Record<string, string> = {
+      link_failed: "Failed to link GitHub account",
+      invalid_state: "Invalid state parameter",
+      no_code: "No code provided",
+      no_email: "No email found",
+      github_auth_failed: "GitHub authentication failed",
+    };
+
+    const message = errorMessages[route.query.error as string] || "Error";
+    toast.error(message);
+  }
+
+  if (route.query.success) {
+    const successMessages: Record<string, string> = {
+      github_linked: "GitHub account successfully linked",
+      github_updated: "GitHub credentials updated",
+      accounts_merged: "Accounts successfully merged",
+    };
+
+    const message = successMessages[route.query.success as string] || "Success";
+    toast.success(message);
+  }
+
+  keyboard.prevent.down([Key.L], async () => {
+    if (hasGithubAccount) {
+      await linkGithub();
+    }
+  });
+
+  keyboard.prevent.down([Key.E], async () => {
+    // change email
+  });
+
+  keyboard.prevent.down([Key.P], async () => {
+    // change password
+  });
+
+  keyboard.prevent.down([Key.AltLeft, Key.L], async () => {
+    await logout();
+  });
+
+  keyboard.prevent.down([Key.S], async () => {
+    toggleApiKey();
+  });
+
+  keyboard.prevent.down([Key.C], async () => {
+    await copyApiKey();
+  });
+
+  keyboard.prevent.down([Key.R], async () => {
+    await regenerateApiKey();
+  });
+
+  keyboard.prevent.down([Key.I], async () => {
+    await importTrackingData();
+  });
+});
+
+onUnmounted(() => {
+  keyboard.clear();
+});
+
+async function updateKeystrokeTimeout() {
+  if (!user.value) return;
+
+  try {
+    await $fetch("/api/user", {
+      method: "POST",
+      body: {
+        keystrokeTimeout: keystrokeTimeout.value,
+      },
+    });
+
+    if (userState.value) {
+      userState.value.keystrokeTimeout = keystrokeTimeout.value;
+    }
+
+    statsLib.setKeystrokeTimeout(keystrokeTimeout.value);
+
+    toast.success("Keystroke timeout updated");
+
+    await statsLib.refreshStats();
+  } catch (error) {
+    console.error("Error updating keystroke timeout:", error);
+    toast.error("Failed to update keystroke timeout");
+  }
+}
+
+function toggleApiKey() {
+  showApiKey.value = !showApiKey.value;
+}
+
+async function copyApiKey() {
+  if (!user.value?.apiKey) return;
+
+  try {
+    await navigator.clipboard.writeText(user.value.apiKey);
+    toast.success("API Key copied to clipboard");
+  } catch (error) {
+    console.error("Failed to copy API key:", error);
+    toast.error("Failed to copy API key");
+  }
+}
+
+async function regenerateApiKey() {
+  if (
+    !confirm(
+      "Are you sure you want to regenerate your API key? Your existing VS Code extension setup will stop working until you update it."
+    )
+  ) {
+    return;
+  }
+
+  try {
+    const data = await $fetch("/api/user/apikey", {
+      method: "POST",
+    });
+
+    if (userState.value) {
+      userState.value = {
+        ...userState.value,
+        apiKey: data.apiKey,
+      };
+      showApiKey.value = true;
+      toast.success("API key regenerated successfully");
+    }
+  } catch (error) {
+    console.error("Error regenerating API key:", error);
+    toast.error("Failed to regenerate API key");
+  }
+}
+
+async function logout() {
+  try {
+    window.location.href = "/api/auth/logout";
+  } catch (e: any) {
+    toast.error(e.data?.message || "Logout failed");
+  }
+}
+
+async function linkGithub() {
+  window.location.href = "/api/auth/github/link";
+}
+
+function handleFileChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  if (input.files && input.files.length > 0) {
+    selectedFile.value = input.files[0];
+    selectedFileName.value = input.files[0].name;
+  } else {
+    selectedFile.value = null;
+    selectedFileName.value = null;
+  }
+}
+
+async function importTrackingData() {
+  if (importType.value === "wakatime") {
+    if (!selectedFile.value) {
+      toast.error("Please select a WakaTime export file");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile.value);
+
+      await $fetch("/api/wakatime", {
+        method: "POST",
+        body: formData,
+      });
+
+      toast.success("WakaTime data import started");
+      selectedFile.value = null;
+      selectedFileName.value = null;
+      if (wakaTimeFileInput.value) {
+        wakaTimeFileInput.value.value = "";
+      }
+    } catch (error: any) {
+      console.error("Error importing WakaTime data:", error);
+      toast.error(error?.data?.message || "Failed to import WakaTime data");
+    }
+  } else {
+    if (!importApiKey.value) {
+      toast.error("Please enter your WakAPI API Key");
+      return;
+    }
+
+    if (!wakapiInstanceUrl.value) {
+      toast.error("Please enter your WakAPI instance URL");
+      return;
+    }
+
+    try {
+      const payload = {
+        apiKey: importApiKey.value,
+        instanceType: importType.value,
+        instanceUrl: wakapiInstanceUrl.value,
+      };
+
+      await $fetch("/api/wakatime", {
+        method: "POST",
+        body: payload,
+      });
+
+      toast.success("WakAPI data import started");
+      importApiKey.value = "";
+      wakapiInstanceUrl.value = "";
+    } catch (error: any) {
+      console.error("Error importing WakAPI data:", error);
+      toast.error(error?.data?.message || "Failed to import WakAPI data");
+    }
+  }
+}
 
 useSeoMeta({
   title: "Profile - Ziit",
@@ -143,142 +454,6 @@ useHead({
     },
   ],
 });
-
-onMounted(async () => {
-  await fetchUserData();
-
-  if (route.query.error) {
-    const errorMessages: Record<string, string> = {
-      link_failed: "Failed to link GitHub account",
-      invalid_state: "Invalid state parameter",
-      no_code: "No code provided",
-      no_email: "No email found",
-      github_auth_failed: "GitHub authentication failed"
-    };
-
-    const message = errorMessages[route.query.error as string] || "Error";
-    toast.error(message);
-  }
-
-  if (route.query.success) {
-    const successMessages: Record<string, string> = {
-      github_linked: "GitHub account successfully linked",
-      github_updated: "GitHub credentials updated",
-      accounts_merged: "Accounts successfully merged"
-    };
-
-    const message = successMessages[route.query.success as string] || "Success";
-    toast.success(message);
-  }
-
-  keyboard.prevent.down([Key.L], async () => {
-    if (!user.value?.hasGithubAccount) {
-      await linkGithub();
-    }
-  });
-
-  keyboard.prevent.down([Key.E], async () => {
-    // change email
-  });
-
-  keyboard.prevent.down([Key.P], async () => {
-    // change password
-  });
-
-  keyboard.prevent.down([Key.AltLeft, Key.L], async () => {
-    await logout();
-  });
-
-  keyboard.prevent.down([Key.S], async () => {
-    toggleApiKey();
-  });
-
-  keyboard.prevent.down([Key.C], async () => {
-    await copyApiKey();
-  });
-
-  keyboard.prevent.down([Key.R], async () => {
-    await regenerateApiKey();
-  });
-});
-
-onUnmounted(() => {
-  keyboard.clear();
-});
-
-async function fetchUserData() {
-  if (userState.value) return;
-
-  try {
-    const data = await $fetch("/api/auth/user");
-
-    const userData = {
-      ...data,
-      hasGithubAccount: !!data.githubId,
-      name: data.githubUsername || data.email?.split("@")[0] || "User",
-    };
-    userState.value = userData;
-  } catch (error) {
-    console.error("Error fetching user data:", error);
-    toast.error("Failed to load user data");
-  }
-}
-
-function toggleApiKey() {
-  showApiKey.value = !showApiKey.value;
-}
-
-async function copyApiKey() {
-  if (!user.value?.apiKey) return;
-
-  try {
-    await navigator.clipboard.writeText(user.value.apiKey);
-    toast.success("API Key copied to clipboard");
-  } catch (error) {
-    console.error("Failed to copy API key:", error);
-    toast.error("Failed to copy API key");
-  }
-}
-
-async function regenerateApiKey() {
-  if (
-    !confirm(
-      "Are you sure you want to regenerate your API key? Your existing VS Code extension setup will stop working until you update it.",
-    )
-  ) {
-    return;
-  }
-
-  try {
-    const data = await $fetch("/api/auth/apikey", {
-      method: "POST",
-    });
-
-    if (userState.value) {
-      userState.value = {
-        ...userState.value,
-        apiKey: data.apiKey,
-      };
-      showApiKey.value = true;
-      toast.success("API key regenerated successfully");
-    }
-  } catch (error) {
-    console.error("Error regenerating API key:", error);
-    toast.error("Failed to regenerate API key");
-  }
-}
-
-async function logout() {
-  try {
-    window.location.href = "/api/auth/logout";
-  } catch (e: any) {
-    toast.error(e.data?.message || "Logout failed");
-  }
-}
-
-async function linkGithub() {
-  window.location.href = "/api/auth/github/link";
-}
 </script>
 
 <style scoped lang="scss">

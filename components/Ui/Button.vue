@@ -3,11 +3,11 @@
     <div class="key-container">
       <template v-if="keyName && keyName.includes('+')">
         <template v-for="(part, index) in keyName.split('+')" :key="index">
-          <Key :keyName="part" />
+          <UiKey :keyName="part" />
         </template>
       </template>
       <template v-else>
-        <Key :keyName="keyName" />
+        <UiKey :keyName="keyName" />
       </template>
     </div>
     <p class="text">{{ text }}</p>
@@ -16,12 +16,8 @@
 
 <script setup lang="ts">
 defineProps({
-  text: {
-    type: String,
-  },
-  keyName: {
-    type: String,
-  },
+  text: String,
+  keyName: String,
 });
 
 defineEmits(["click"]);

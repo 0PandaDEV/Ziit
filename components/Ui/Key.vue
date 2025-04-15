@@ -4,9 +4,7 @@
 
 <script setup lang="ts">
 defineProps({
-  keyName: {
-    type: String,
-  },
+  keyName: String
 });
 </script>
 

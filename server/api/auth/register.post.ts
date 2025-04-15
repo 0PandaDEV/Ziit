@@ -75,7 +75,7 @@ export default defineEventHandler(async (event) => {
       { expiresIn: "7d" },
     );
 
-    setCookie(event, "session", token, {
+    setCookie(event, "ziit_session", token, {
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       path: "/",
       httpOnly: true,

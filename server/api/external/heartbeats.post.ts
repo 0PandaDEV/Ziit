@@ -53,7 +53,7 @@ export default defineEventHandler(async (event: H3Event) => {
     const body = await readBody(event);
     const validatedData = heartbeatSchema.parse(body);
 
-    const heartbeat = await prisma.heartbeat.create({
+    const heartbeat = await prisma.heartbeats.create({
       data: {
         userId: user.id,
         timestamp: new Date(validatedData.timestamp),

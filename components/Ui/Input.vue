@@ -8,31 +8,17 @@
       @input="
         $emit('update:modelValue', ($event.target as HTMLInputElement).value)
       "
-      :readonly="locked"
-    />
+      :readonly="locked" />
   </div>
 </template>
 
 <script setup lang="ts">
-const props = defineProps({
-  placeholder: {
-    type: String,
-  },
-  type: {
-    type: String,
-    default: "text",
-  },
-  icon: {
-    type: Object,
-  },
-  modelValue: {
-    type: String,
-    default: "",
-  },
-  locked: {
-    type: Boolean,
-    default: false,
-  },
+defineProps({
+  placeholder: String,
+  type: String,
+  icon: Object,
+  modelValue: String,
+  locked: Boolean,
 });
 
 defineEmits(["update:modelValue"]);

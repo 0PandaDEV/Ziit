@@ -62,11 +62,10 @@ export default defineEventHandler(async (event) => {
           code,
           redirect_uri: config.githubRedirectUri,
         }),
-      },
+      }
     );
 
     const accessToken = tokenResponse.access_token;
-    const refreshToken = tokenResponse.refresh_token || "";
 
     const githubUser = await $fetch<GithubUser>("https://api.github.com/user", {
       headers: {
@@ -82,7 +81,7 @@ export default defineEventHandler(async (event) => {
           Authorization: `Bearer ${accessToken}`,
           Accept: "application/vnd.github.v3+json",
         },
-      },
+      }
     );
 
     const primaryEmail =
@@ -116,11 +115,11 @@ export default defineEventHandler(async (event) => {
 
             if (existingGithubUser && existingGithubUser.id !== userId) {
               await Promise.all([
-                tx.heartbeat.updateMany({
+                tx.heartbeats.updateMany({
                   where: { userId: existingGithubUser.id },
                   data: { userId: userId },
                 }),
-                tx.dailyProjectSummary.updateMany({
+                tx.summaries.updateMany({
                   where: { userId: existingGithubUser.id },
                   data: { userId: userId },
                 }),
@@ -133,7 +132,6 @@ export default defineEventHandler(async (event) => {
                     githubId: githubUser.id.toString(),
                     githubUsername: githubUser.login,
                     githubAccessToken: accessToken,
-                    githubRefreshToken: refreshToken,
                   },
                 }),
               ]);
@@ -144,7 +142,6 @@ export default defineEventHandler(async (event) => {
                 where: { id: userId },
                 data: {
                   githubAccessToken: accessToken,
-                  githubRefreshToken: refreshToken,
                 },
               });
               redirectUrl = "/profile?success=github_updated";
@@ -155,7 +152,6 @@ export default defineEventHandler(async (event) => {
                   githubId: githubUser.id.toString(),
                   githubUsername: githubUser.login,
                   githubAccessToken: accessToken,
-                  githubRefreshToken: refreshToken,
                 },
               });
             }
@@ -185,7 +181,6 @@ export default defineEventHandler(async (event) => {
               githubId: githubUser.id.toString(),
               githubUsername: githubUser.login,
               githubAccessToken: accessToken,
-              githubRefreshToken: refreshToken,
             },
           });
         } else {
@@ -196,7 +191,6 @@ export default defineEventHandler(async (event) => {
               githubId: githubUser.id.toString(),
               githubUsername: githubUser.login,
               githubAccessToken: accessToken,
-              githubRefreshToken: refreshToken,
             },
           });
         }
@@ -205,7 +199,6 @@ export default defineEventHandler(async (event) => {
           where: { id: user.id },
           data: {
             githubAccessToken: accessToken,
-            githubRefreshToken: refreshToken,
           },
         });
       }
@@ -214,7 +207,7 @@ export default defineEventHandler(async (event) => {
         expiresIn: "7d",
       });
 
-      setCookie(event, "session", token, {
+      setCookie(event, "ziit_session", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60 * 24 * 7,

@@ -5,40 +5,27 @@ const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event) => {
   const path = getRequestURL(event).pathname;
-  const sessionCookie = getCookie(event, "session");
+  const sessionCookie = getCookie(event, "ziit_session");
 
-  const publicPaths = [
-    "/login",
-    "/register",
-    "login",
-    "register",
-    "/api/auth/github",
-    "sitemap.xml",
-    "robots.txt"
-  ];
-
-  if (path === "/login" || path === "/register") {
-    if (sessionCookie) {
-      return sendRedirect(event, "/");
-    }
+  if (
+    path.startsWith("/api/external/") ||
+    path.startsWith("/api/auth/") ||
+    path === "/login" ||
+    path === "/register"
+  ) {
     return;
   }
 
-  if (path.startsWith("/api/external/")) {
-    return;
-  }
-
-  if (publicPaths.some(p => path.includes(p))) {
-    return;
-  }
-
-  if (!sessionCookie) {
-    if (path.startsWith("/api/")) {
+  if (path.startsWith("/api/")) {
+    if (!sessionCookie) {
       throw createError({
         statusCode: 401,
         message: "Unauthorized",
       });
     }
+  }
+
+  if (!sessionCookie) {
     return sendRedirect(event, "/login");
   }
 
@@ -64,14 +51,9 @@ export default defineEventHandler(async (event) => {
 
     event.context.user = user;
     return;
-  } catch {
-    deleteCookie(event, "session");
-    if (path.startsWith("/api/")) {
-      throw createError({
-        statusCode: 401,
-        message: "Unauthorized",
-      });
-    }
+  } catch (error) {
+    console.error(error);
+    deleteCookie(event, "ziit_session");
     return sendRedirect(event, "/login");
   }
 });
