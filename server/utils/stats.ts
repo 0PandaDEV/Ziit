@@ -78,6 +78,11 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
 
     fetchStartDate = firstDayOfLastUTCMonth;
     fetchEndDate = lastDayOfLastUTCMonth;
+  } else if (timeRange === TimeRangeEnum.LAST_90_DAYS) {
+    fetchStartDate = new Date(utcTodayEnd);
+    fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 90);
+    fetchStartDate.setUTCHours(0, 0, 0, 0);
+    fetchEndDate = utcTodayEnd;
   } else if (timeRange === TimeRangeEnum.YEAR_TO_DATE) {
     fetchStartDate = new Date(utcTodayEnd);
     fetchStartDate.setUTCMonth(0, 1);

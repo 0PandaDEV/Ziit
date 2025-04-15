@@ -5,6 +5,7 @@ export const TimeRangeEnum = {
   MONTH: "month",
   MONTH_TO_DATE: "month-to-date",
   LAST_MONTH: "last-month",
+  LAST_90_DAYS: "last-90-days",
   YEAR_TO_DATE: "year-to-date",
   LAST_12_MONTHS: "last-12-months",
   ALL_TIME: "all-time",

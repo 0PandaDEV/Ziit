@@ -243,8 +243,12 @@ onMounted(async () => {
     statsLib.setTimeRange("month");
   });
 
-  keyboard.prevent.down([Key.N], async () => {
+  keyboard.prevent.down([Key.P], async () => {
     statsLib.setTimeRange("last-month");
+  });
+
+  keyboard.prevent.down([Key.N], async () => {
+    statsLib.setTimeRange("last-90-days");
   });
 
   keyboard.prevent.down([Key.Y], async () => {
@@ -259,9 +263,9 @@ onMounted(async () => {
     statsLib.setTimeRange("all-time");
   });
 
-  keyboard.prevent.down([Key.C], async () => {
-    statsLib.setTimeRange("custom-range");
-  });
+  // keyboard.prevent.down([Key.C], async () => {
+  //   statsLib.setTimeRange("custom-range");
+  // });
 
   if (chartContainer.value) {
     renderChart();
@@ -490,7 +494,8 @@ function getChartLabels(): string[] {
   } else if (
     timeRange.value === "month" ||
     timeRange.value === "month-to-date" ||
-    timeRange.value === "last-month"
+    timeRange.value === "last-month" ||
+    timeRange.value === "last-90-days"
   ) {
     const today = new Date();
     let startDate = new Date();
@@ -502,6 +507,8 @@ function getChartLabels(): string[] {
     } else if (timeRange.value === "last-month") {
       startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
       today.setDate(0);
+    } else if (timeRange.value === "last-90-days") {
+      startDate.setDate(today.getDate() - 90);
     }
 
     const days = [];
@@ -675,6 +682,7 @@ function getChartData(): number[] {
     timeRange.value === statsLib.TimeRangeEnum.MONTH ||
     timeRange.value === statsLib.TimeRangeEnum.MONTH_TO_DATE ||
     timeRange.value === statsLib.TimeRangeEnum.LAST_MONTH ||
+    timeRange.value === statsLib.TimeRangeEnum.LAST_90_DAYS ||
     timeRange.value === statsLib.TimeRangeEnum.ALL_TIME
   ) {
     const dateStringToIndex = new Map<string, number>();

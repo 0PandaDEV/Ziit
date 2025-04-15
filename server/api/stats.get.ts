@@ -11,7 +11,6 @@ export default defineEventHandler(async (event: H3Event) => {
 
     if (!timeRange || !Object.values(TimeRangeEnum).includes(timeRange)) {
       console.error(`Stats error: Invalid timeRange value ${timeRange}`);
-      console.error(`Stats error: Invalid timeRange value ${timeRange}`);
       throw createError({
         statusCode: 400,
         message: "Invalid timeRange value",
@@ -20,7 +19,6 @@ export default defineEventHandler(async (event: H3Event) => {
 
     return await calculateStats(userId, timeRange);
   } catch (error: unknown) {
-    console.error("Stats error occurred");
     console.error("Stats error occurred");
     throw createError({
       statusCode:
