@@ -6,7 +6,7 @@ const rateLimits = {
   default: { limit: 50, window: 60000 },
   auth: { limit: 5, window: 1800000 },
   external: { limit: 100, window: 30000 },
-  stats: { limit: 10, window: 60000 }
+  stats: { limit: 50, window: 60000 }
 };
 
 export default defineEventHandler(async (event) => {
