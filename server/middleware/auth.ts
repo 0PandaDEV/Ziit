@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
     "/register",
     "login",
     "register",
-    "github",
+    "/api/auth/github",
     "sitemap.xml",
     "robots.txt"
   ];
@@ -28,11 +28,17 @@ export default defineEventHandler(async (event) => {
     return;
   }
 
-  if (publicPaths.some(p => path.includes(p) && !(p === "github" && path.includes("link")))) {
+  if (publicPaths.some(p => path.includes(p))) {
     return;
   }
 
   if (!sessionCookie) {
+    if (path.startsWith("/api/")) {
+      throw createError({
+        statusCode: 401,
+        message: "Unauthorized",
+      });
+    }
     return sendRedirect(event, "/login");
   }
 
@@ -61,6 +67,12 @@ export default defineEventHandler(async (event) => {
   } catch (error) {
     console.error(error);
     deleteCookie(event, "ziit_session");
+    if (path.startsWith("/api/")) {
+      throw createError({
+        statusCode: 401,
+        message: "Unauthorized",
+      });
+    }
     return sendRedirect(event, "/login");
   }
 });

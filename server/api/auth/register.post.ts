@@ -1,10 +1,26 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { prisma } from "~~/prisma/prisma";
+import { z } from "zod";
+
+const passwordSchema = z.string()
+  .min(12, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/[0-9]/, "Password must contain at least one number")
+  .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character");
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event);
   const config = useRuntimeConfig();
+  
+  if (config.disableRegistering === "true") {
+    throw createError({
+      statusCode: 403,
+      message: "Registration is currently disabled",
+    });
+  }
+
+  const body = await readBody(event);
 
   if (
     !body.email ||
@@ -12,6 +28,7 @@ export default defineEventHandler(async (event) => {
     typeof body.email !== "string" ||
     typeof body.password !== "string"
   ) {
+    console.error("Registration error: missing credentials");
     throw createError({
       statusCode: 400,
       message: "Email and Password are required",
@@ -19,13 +36,22 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    const passwordValidation = passwordSchema.safeParse(body.password);
+    if (!passwordValidation.success) {
+      throw createError({
+        statusCode: 400,
+        message: passwordValidation.error.errors[0].message,
+      });
+    }
+
     const existingUser = await prisma.user.findUnique({
       where: { email: body.email },
     });
 
     if (existingUser) {
+      console.error("Registration error: email already in use");
       throw createError({
-        statusCode: 400,
+        statusCode: 409,
         message: "Email already in use",
       });
     }
@@ -59,12 +85,10 @@ export default defineEventHandler(async (event) => {
 
     return sendRedirect(event, "/");
   } catch (error) {
+    console.error("Registration error:", error instanceof Error ? error.message : "Unknown error");
     throw createError({
-      statusCode: 400,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Registration failed. Please try again.",
+      statusCode: 500,
+      message: "Registration failed",
     });
   }
 });

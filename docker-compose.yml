@@ -1,17 +1,16 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: 0pandadev/ziit:nightly
     ports:
       - "3000:3000"
     environment:
-      NUXT_DATABASE_URL: "postgresql://postgres:root@postgres:5432/ziit" # KEEP AS IS
+      NUXT_DATABASE_URL: "postgresql://postgres:root@postgres:5432/ziit" # change the password for production use
       NUXT_JWT_SECRET: ${NUXT_JWT_SECRET} # Random string best to generate one using openssl rand --hex 64
       NUXT_GITHUB_CLIENT_ID: ${NUXT_GITHUB_CLIENT_ID} # Github client id
       NUXT_GITHUB_CLIENT_SECRET: ${NUXT_GITHUB_CLIENT_SECRET} # Github client secret
       NUXT_GITHUB_REDIRECT_URI: ${NUXT_GITHUB_REDIRECT_URI} # Your redirect url for the github auth e.g. https://ziit.example.com/api/auth/github/callback
       NUXT_HOST: ${NUXT_HOST} # The domain where ziit will be hosted e.g. ziit.example.com
+      NUXT_DISABLE_REGISTRATION: false # By default users are allowed to register a new account
     restart: unless-stopped
     volumes:
       - ./files:/anders/files
