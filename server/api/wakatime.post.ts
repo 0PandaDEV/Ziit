@@ -281,36 +281,16 @@ export default defineEventHandler(async (event: H3Event) => {
                   editor =
                     editorName.charAt(0).toUpperCase() + editorName.slice(1);
                 }
-
-                if (userAgent.includes("darwin")) {
-                  os = "macOS";
-                } else if (userAgent.includes("win")) {
+              }
+              
+              if (h.entity) {
+                const filePath = h.entity;
+                if (filePath.match(/^[A-Z]:\\/) || filePath.match(/^\\\\/)) {
                   os = "Windows";
-                } else if (
-                  userAgent.includes("linux") ||
-                  userAgent.includes("ubuntu") ||
-                  userAgent.includes("debian")
-                ) {
+                } else if (filePath.startsWith("/Users/")) {
+                  os = "macOS";
+                } else if (filePath.startsWith("/home/")) {
                   os = "Linux";
-                } else {
-                  const osMatch = userAgent.match(/\((.*?)\)/);
-                  if (osMatch && osMatch[1]) {
-                    const osPart = osMatch[1].toLowerCase();
-                    if (osPart.includes("win")) {
-                      os = "Windows";
-                    } else if (
-                      osPart.includes("mac") ||
-                      osPart.includes("darwin")
-                    ) {
-                      os = "macOS";
-                    } else if (
-                      osPart.includes("linux") ||
-                      osPart.includes("ubuntu") ||
-                      osPart.includes("debian")
-                    ) {
-                      os = "Linux";
-                    }
-                  }
                 }
               }
 
@@ -481,36 +461,16 @@ export default defineEventHandler(async (event: H3Event) => {
               const editorName = editorMatch[0].split("/")[0];
               editor = editorName.charAt(0).toUpperCase() + editorName.slice(1);
             }
-
-            if (userAgent.includes("darwin")) {
-              os = "macOS";
-            } else if (userAgent.includes("win")) {
+          }
+          
+          if (h.entity) {
+            const filePath = h.entity;
+            if (filePath.match(/^[A-Z]:\\/) || filePath.match(/^\\\\/)) {
               os = "Windows";
-            } else if (
-              userAgent.includes("linux") ||
-              userAgent.includes("ubuntu") ||
-              userAgent.includes("debian")
-            ) {
+            } else if (filePath.startsWith("/Users/")) {
+              os = "macOS";
+            } else if (filePath.startsWith("/home/")) {
               os = "Linux";
-            } else {
-              const osMatch = userAgent.match(/\((.*?)\)/);
-              if (osMatch && osMatch[1]) {
-                const osPart = osMatch[1].toLowerCase();
-                if (osPart.includes("win")) {
-                  os = "Windows";
-                } else if (
-                  osPart.includes("mac") ||
-                  osPart.includes("darwin")
-                ) {
-                  os = "macOS";
-                } else if (
-                  osPart.includes("linux") ||
-                  osPart.includes("ubuntu") ||
-                  osPart.includes("debian")
-                ) {
-                  os = "Linux";
-                }
-              }
             }
           }
 
