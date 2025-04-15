@@ -10,7 +10,7 @@ export default defineCronHandler(
   async () => {
     try {
       const now = new Date();
-      const randomOffset = Math.floor(Math.random() * 24 * 60 * 60 * 1000);
+      const randomOffset = Math.floor(crypto.getRandomValues(new Float64Array(1))[0] * 24 * 60 * 60 * 1000);
       const yesterday = new Date(now.getTime() - randomOffset);
       yesterday.setHours(0, 0, 0, 0);
 
