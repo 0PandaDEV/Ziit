@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
+import { z } from "zod";
 
 const prisma = new PrismaClient();
 
@@ -61,44 +62,33 @@ interface WakApiHeartbeat {
   created_at: string;
 }
 
-interface WakaTimeHeartbeat {
-  branch: string;
-  category: string;
-  created_at: string;
-  cursorpos: number;
-  dependencies: any[];
-  entity: string;
-  id: string;
-  is_write: boolean;
-  language: string;
-  line_additions: number | null;
-  line_deletions: number | null;
-  lineno: number;
-  lines: number;
-  machine_name_id: string;
-  project: string;
-  project_root_count: number;
-  time: number;
-  type: string;
-  user_agent_id: string;
-  user_id: string;
-}
+const wakaApiRequestSchema = z.object({
+  apiKey: z.string().min(1, "API key is required"),
+  instanceType: z.enum(["wakapi", "wakatime"]),
+  instanceUrl: z.string().url().optional()
+});
 
-interface WakaTimeExport {
-  user: {
-    username: string;
-    display_name: string;
-    [key: string]: any;
-  };
-  range: {
-    start: number;
-    end: number;
-  };
-  days: {
-    date: string;
-    heartbeats: WakaTimeHeartbeat[];
-  }[];
-}
+const wakaTimeExportSchema = z.object({
+  user: z.object({
+    username: z.string(),
+    display_name: z.string(),
+  }).passthrough(),
+  range: z.object({
+    start: z.number(),
+    end: z.number()
+  }),
+  days: z.array(z.object({
+    date: z.string(),
+    heartbeats: z.array(z.object({
+      branch: z.string().optional().nullable(),
+      entity: z.string().optional().nullable(),
+      time: z.number(),
+      language: z.string().optional().nullable(),
+      project: z.string().optional().nullable(),
+      user_agent_id: z.string().optional().nullable()
+    }).passthrough())
+  }))
+});
 
 export default defineEventHandler(async (event: H3Event) => {
   const userId = event.context.user.id;
@@ -108,7 +98,15 @@ export default defineEventHandler(async (event: H3Event) => {
   if (!formData || formData.length === 0) {
     const body = await readBody(event);
 
-    const { apiKey, instanceType, instanceUrl } = body;
+    const validationResult = wakaApiRequestSchema.safeParse(body);
+    if (!validationResult.success) {
+      throw createError({
+        statusCode: 400,
+        message: `Invalid request data: ${validationResult.error.message}`
+      });
+    }
+
+    const { apiKey, instanceType, instanceUrl } = validationResult.data;
     console.log("Received request with:", {
       instanceType,
       instanceUrl: instanceUrl ? "provided" : "not provided",
@@ -119,20 +117,6 @@ export default defineEventHandler(async (event: H3Event) => {
         statusCode: 400,
         message:
           "For WakaTime import, please export your data from WakaTime dashboard and upload the file",
-      });
-    }
-
-    if (!apiKey) {
-      console.error("No API key provided");
-      throw createError({ statusCode: 400, message: "API key is required" });
-    }
-
-    if (!instanceType || !["wakapi"].includes(instanceType)) {
-      console.error("Invalid instance type:", instanceType);
-      throw createError({
-        statusCode: 400,
-        message:
-          "Instance type must be wakapi or upload a WakaTime export file",
       });
     }
 
@@ -153,9 +137,9 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     let username = "current";
-    let baseUrl = instanceUrl.endsWith("/")
-      ? instanceUrl.slice(0, -1)
-      : instanceUrl;
+    let baseUrl = instanceUrl!.endsWith("/")
+      ? instanceUrl!.slice(0, -1)
+      : instanceUrl!;
     baseUrl = `${baseUrl}/api/compat/wakatime/v1`;
 
     console.log("Fetching WakAPI user info from:", baseUrl);
@@ -406,14 +390,17 @@ export default defineEventHandler(async (event: H3Event) => {
 
   try {
     const fileContent = new TextDecoder().decode(fileData.data);
-    const wakaData = JSON.parse(fileContent) as WakaTimeExport;
-
-    if (!wakaData.days || !Array.isArray(wakaData.days)) {
+    const parsedData = JSON.parse(fileContent);
+    
+    const validationResult = wakaTimeExportSchema.safeParse(parsedData);
+    if (!validationResult.success) {
       throw createError({
         statusCode: 400,
-        message: "Invalid file format: missing days data",
+        message: `Invalid WakaTime export format: ${validationResult.error.message}`,
       });
     }
+    
+    const wakaData = validationResult.data;
 
     console.log(
       `Parsing WakaTime export with ${wakaData.days.length} days of data`

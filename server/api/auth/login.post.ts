@@ -1,27 +1,32 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { prisma } from "~~/prisma/prisma";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(1, "Password is required")
+});
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
   const config = useRuntimeConfig();
 
-  if (
-    !body.email ||
-    !body.password ||
-    typeof body.email !== "string" ||
-    typeof body.password !== "string"
-  ) {
-    console.error("Login error: missing credentials");
+  const validation = loginSchema.safeParse(body);
+  
+  if (!validation.success) {
+    console.error("Login error: invalid input", validation.error.errors);
     throw createError({
       statusCode: 400,
-      message: "Email and password are required",
+      message: validation.error.errors[0].message || "Email and password are required",
     });
   }
 
   try {
+    const { email, password } = validation.data;
+    
     const user = await prisma.user.findUnique({
-      where: { email: body.email },
+      where: { email },
     });
 
     if (!user || !user.passwordHash) {
@@ -32,7 +37,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    const isPasswordValid = await bcrypt.compare(body.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
       console.error("Login error: invalid credentials");

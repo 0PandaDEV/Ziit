@@ -1,21 +1,28 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
+import { z } from "zod";
 
 const prisma = new PrismaClient();
+
+const userSettingsSchema = z.object({
+  keystrokeTimeout: z.number().min(1).max(60).optional()
+});
 
 export default defineEventHandler(async (event: H3Event) => {
   try {
     const body = await readBody(event);
     
-    if (body.keystrokeTimeout !== undefined) {
-      const timeout = Number(body.keystrokeTimeout);
-      
-      if (isNaN(timeout) || timeout < 1 || timeout > 60) {
-        throw createError({
-          statusCode: 400,
-          message: "Keystroke timeout must be between 1 and 60 minutes",
-        });
-      }
+    const validatedData = userSettingsSchema.safeParse(body);
+    
+    if (!validatedData.success) {
+      throw createError({
+        statusCode: 400,
+        message: "Invalid user settings data"
+      });
+    }
+    
+    if (validatedData.data.keystrokeTimeout !== undefined) {
+      const timeout = validatedData.data.keystrokeTimeout;
       
       await prisma.user.update({
         where: {

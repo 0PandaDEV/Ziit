@@ -342,9 +342,7 @@ async function regenerateApiKey() {
   }
 
   try {
-    const data = await $fetch("/api/user/apikey", {
-      method: "POST",
-    });
+    const data = await $fetch("/api/user/apikey");
 
     if (userState.value) {
       userState.value = {
