@@ -272,10 +272,10 @@ export default defineEventHandler(async (event: H3Event) => {
                     editorName.charAt(0).toUpperCase() + editorName.slice(1);
                 }
               }
-              
+
               if (h.entity) {
                 const filePath = h.entity;
-                if (filePath.match(/^[A-Z]:\\/) || filePath.match(/^\\\\/)) {
+                if (filePath.match(/^[A-Za-z]:[\\/]/) || filePath.match(/^\\\\/)) {
                   os = "Windows";
                 } else if (filePath.startsWith("/Users/")) {
                   os = "macOS";
@@ -452,10 +452,10 @@ export default defineEventHandler(async (event: H3Event) => {
               editor = editorName.charAt(0).toUpperCase() + editorName.slice(1);
             }
           }
-          
+
           if (h.entity) {
             const filePath = h.entity;
-            if (filePath.match(/^[A-Z]:\\/) || filePath.match(/^\\\\/)) {
+            if (filePath.match(/^[A-Za-z]:[\\/]/) || filePath.match(/^\\\\/)) {
               os = "Windows";
             } else if (filePath.startsWith("/Users/")) {
               os = "macOS";
