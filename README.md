@@ -7,7 +7,6 @@
 </h3>
 
 <div align="center">
-  <h3>
     <a href="https://ziit.app">Website</a>
     <span> • </span>
     <a href="https://github.com/0PandaDEV/Ziit/wiki/Deploy">Deploy</a>
@@ -17,7 +16,6 @@
     <a href="https://github.com/0pandadev/ziit/issues">Issues</a>
     <span> • </span>
     <a href="https://discord.gg/Y7SbYphVw9">Discord</a>
-  </h3>
 </div>
 
 > [!CAUTION]
