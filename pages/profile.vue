@@ -21,11 +21,62 @@
             text="Link Github"
             keyName="L"
             @click="linkGithub" />
-          <UiButton text="Change Email" keyName="E" />
-          <UiButton text="Change Password" keyName="P" />
+          <UiButton
+            text="Change Email"
+            keyName="E"
+            @click="showEmailModal = true" />
+          <UiButton
+            text="Change Password"
+            keyName="P"
+            @click="showPasswordModal = true" />
           <UiButton text="Logout" keyName="Alt+L" @click="logout" />
         </div>
       </section>
+
+      <dialog :open="showEmailModal" class="modal">
+        <h2 class="title">Change Email</h2>
+        <form @submit.prevent="changeEmail">
+          <UiInput
+            type="email"
+            v-model="newEmail"
+            placeholder="New Email Address"
+            required />
+        </form>
+        <div class="modal-buttons">
+          <UiButton
+            type="button"
+            text="Cancel"
+            @click="showEmailModal = false" />
+          <UiButton type="submit" text="Save" :disabled="isLoading" @click="changeEmail" />
+        </div>
+      </dialog>
+
+      <dialog :open="showPasswordModal" class="modal">
+        <h2 class="title">Change Password</h2>
+        <form @submit.prevent="changePassword">
+          <p class="password-requirements">
+            Password must be at least 12 characters and include uppercase,
+            lowercase, numbers, and special characters
+          </p>
+          <UiInput
+            type="password"
+            v-model="newPassword"
+            placeholder="New Password"
+            required />
+          <UiInput
+            type="password"
+            v-model="confirmPassword"
+            placeholder="Confirm Password"
+            required />
+        </form>
+        <div class="modal-buttons">
+          <UiButton
+            type="button"
+            text="Cancel"
+            @click="showPasswordModal = false" />
+          <UiButton type="submit" text="Save" :disabled="isLoading" @click="changePassword" />
+        </div>
+      </dialog>
 
       <section class="api-key">
         <h2 class="title">API Key</h2>
@@ -180,6 +231,13 @@ const wakaTimeFileInput = ref<HTMLInputElement | null>(null);
 const selectedFile = ref<File | null>(null);
 const selectedFileName = ref<string | null>(null);
 
+const showEmailModal = ref(false);
+const showPasswordModal = ref(false);
+const newEmail = ref("");
+const newPassword = ref("");
+const confirmPassword = ref("");
+const isLoading = ref(false);
+
 const apiKeyPlaceholder = computed(() => {
   return `Enter your ${importType.value === "wakatime" ? "WakaTime" : "WakAPI"} API Key`;
 });
@@ -241,11 +299,14 @@ onMounted(async () => {
   });
 
   keyboard.prevent.down([Key.E], async () => {
-    // change email
+    showEmailModal.value = true;
+    newEmail.value = user.value?.email || "";
   });
 
   keyboard.prevent.down([Key.P], async () => {
-    // change password
+    showPasswordModal.value = true;
+    newPassword.value = "";
+    confirmPassword.value = "";
   });
 
   keyboard.prevent.down([Key.AltLeft, Key.L], async () => {
@@ -266,6 +327,12 @@ onMounted(async () => {
 
   keyboard.prevent.down([Key.I], async () => {
     await importTrackingData();
+  });
+
+  keyboard.prevent.down([Key.AltLeft, Key.R], async () => {
+    if (timeoutChanged) {
+      await regenerateSummaries();
+    }
   });
 });
 
@@ -303,10 +370,71 @@ async function updateKeystrokeTimeout() {
   }
 }
 
+async function changeEmail() {
+  if (!newEmail.value || newEmail.value === user.value?.email) {
+    showEmailModal.value = false;
+    return;
+  }
+
+  isLoading.value = true;
+
+  try {
+    await $fetch("/api/user", {
+      method: "POST",
+      body: {
+        email: newEmail.value,
+      },
+    });
+
+    if (userState.value) {
+      userState.value.email = newEmail.value;
+    }
+
+    toast.success("Email updated successfully");
+    showEmailModal.value = false;
+    newEmail.value = "";
+  } catch (error: any) {
+    console.error("Error updating email:", error);
+    toast.error(error?.data?.message || "Failed to update email");
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+async function changePassword() {
+  if (!newPassword.value || newPassword.value !== confirmPassword.value) {
+    toast.error("Passwords do not match");
+    return;
+  }
+
+  isLoading.value = true;
+
+  try {
+    await $fetch("/api/user", {
+      method: "POST",
+      body: {
+        password: newPassword.value,
+      },
+    });
+
+    toast.success("Password updated successfully");
+    showPasswordModal.value = false;
+    newPassword.value = "";
+    confirmPassword.value = "";
+  } catch (error: any) {
+    console.error("Error updating password:", error);
+    toast.error(error?.data?.message || "Failed to update password");
+  } finally {
+    isLoading.value = false;
+  }
+}
+
 async function regenerateSummaries() {
   try {
     const response = await $fetch("/api/user/regenerateSummaries");
-    toast.success((response as any).message || "Summaries regenerated successfully");
+    toast.success(
+      (response as any).message || "Summaries regenerated successfully"
+    );
     timeoutChanged.value = false;
     originalKeystrokeTimeout.value = keystrokeTimeout.value;
     await statsLib.refreshStats();

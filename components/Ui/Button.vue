@@ -1,6 +1,6 @@
 <template>
-  <button @click="$emit('click')">
-    <div class="key-container">
+  <button @click="$emit('click')" :type="type" :disabled="disabled">
+    <div class="key-container" v-if="keyName">
       <template v-if="keyName && keyName.includes('+')">
         <template v-for="(part, index) in keyName.split('+')" :key="index">
           <UiKey :keyName="part" />
@@ -18,6 +18,14 @@
 defineProps({
   text: String,
   keyName: String,
+  type: {
+    type: String as () => 'button' | 'submit' | 'reset',
+    default: 'button'
+  },
+  disabled: {
+    type: Boolean,
+    default: false
+  }
 });
 
 defineEmits(["click"]);

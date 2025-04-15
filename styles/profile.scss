@@ -77,3 +77,42 @@ a {
   font-family: inherit;
   margin-right: 8px;
 }
+
+.modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1000;
+  transform: translate(-50%, -50%);
+  border: none;
+  padding: 0;
+  max-width: 500px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow:  0px 4px 16px 0px rgba(0, 0, 0, 0.251);
+
+  &:not([open]) {
+    display: none;
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .password-requirements {
+    color: var(--text-secondary);
+  }
+
+  .modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 24px;
+  }
+}
