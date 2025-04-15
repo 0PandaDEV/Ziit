@@ -1,8 +1,7 @@
-# Ziit
+![Twitter Header](https://github.com/user-attachments/assets/bc6a1efd-2a7a-473a-8f09-ae75cafeba84)
 
-> [!IMPORTANT]
-> /tsiːt/  
-> the point or period when something occurs. swiss german word for "time"
+> [!CAUTION]
+> This project is in a early developement state and not production ready at the moment that is also why signups are currently disabeld on [ziit.app](https://ziit.app).
 
 Ziit or also pronounecd "tseet" is an open source and self-hostable alternative to wakatime with the goal of having better UI and UX design as well as privacy of your data as its on your own server instead of the nasty cloud.
 
