@@ -16,36 +16,36 @@
           </div>
         </div>
         <div class="buttons">
-          <Button
+          <UiButton
             v-if="!hasGithubAccount"
             text="Link Github"
             keyName="L"
             @click="linkGithub" />
-          <Button text="Change Email" keyName="E" />
-          <Button text="Change Password" keyName="P" />
-          <Button text="Logout" keyName="Alt+L" @click="logout" />
+          <UiButton text="Change Email" keyName="E" />
+          <UiButton text="Change Password" keyName="P" />
+          <UiButton text="Logout" keyName="Alt+L" @click="logout" />
         </div>
       </section>
 
       <section class="api-key">
         <h2 class="title">API Key</h2>
-        <Input
+        <UiInput
           :locked="true"
           :type="showApiKey ? 'text' : 'password'"
           :modelValue="user?.apiKey" />
         <div class="buttons">
-          <Button
+          <UiButton
             v-if="showApiKey"
             text="Hide API Key"
             keyName="S"
             @click="toggleApiKey" />
-          <Button
+          <UiButton
             v-else
             text="Show API Key"
             keyName="S"
             @click="toggleApiKey" />
-          <Button text="Copy API Key" keyName="c" @click="copyApiKey" />
-          <Button
+          <UiButton text="Copy API Key" keyName="c" @click="copyApiKey" />
+          <UiButton
             text="Regenerate API Key"
             keyName="r"
             @click="regenerateApiKey" />
@@ -55,18 +55,54 @@
       <section class="tracking-settings">
         <h2 class="title">Tracking Settings</h2>
         <div class="setting-group">
-          <label for="keystrokeTimeout">Keystroke Timeout (minutes):</label>
-          <input
+          <p class="setting-description">Keystroke Timeout (minutes):</p>
+          <UiNumberInput
             id="keystrokeTimeout"
-            type="number"
-            min="1"
-            max="60"
             v-model="keystrokeTimeout"
-            @change="updateKeystrokeTimeout" />
-          <p class="setting-description">
-            Coding activity with gaps less than this duration will be counted
-            continuously.
-          </p>
+            :min="1"
+            :max="60"
+            @update:modelValue="updateKeystrokeTimeout" />
+        </div>
+      </section>
+
+      <section class="wakatime-import">
+        <h2 class="title">Time Tracking Data Import</h2>
+        <div class="setting-group">
+          <div class="radio-group">
+            <input
+              type="radio"
+              v-model="importType"
+              value="wakatime"
+              id="wakatime-radio" />
+            <span>WakaTime</span>
+            <input
+              type="radio"
+              v-model="importType"
+              value="wakapi"
+              id="wakapi-radio" />
+            <span>WakAPI</span>
+          </div>
+
+          <UiInput
+            :id="importType + 'ApiKey'"
+            type="password"
+            v-model="importApiKey"
+            :placeholder="`Enter your ${importType === 'wakatime' ? 'WakaTime' : 'WakAPI'} API Key`" />
+
+          <template v-if="importType === 'wakapi'">
+            <UiInput
+              id="wakapiInstanceUrl"
+              type="text"
+              v-model="wakapiInstanceUrl"
+              placeholder="Enter your WakAPI instance URL (e.g. https://wakapi.dev)" />
+          </template>
+
+          <div class="buttons">
+            <UiButton
+              text="Import Data"
+              keyName="I"
+              @click="importTrackingData" />
+          </div>
         </div>
       </section>
 
@@ -107,6 +143,9 @@ const toast = useToast();
 const route = useRoute();
 const keystrokeTimeout = ref(15);
 const hasGithubAccount = computed(() => !!user.value?.githubId);
+const importType = ref("wakatime");
+const importApiKey = ref("");
+const wakapiInstanceUrl = ref("");
 
 useSeoMeta({
   title: "Profile - Ziit",
@@ -205,6 +244,10 @@ onMounted(async () => {
   keyboard.prevent.down([Key.R], async () => {
     await regenerateApiKey();
   });
+
+  keyboard.prevent.down([Key.I], async () => {
+    await importTrackingData();
+  });
 });
 
 onUnmounted(() => {
@@ -229,7 +272,7 @@ async function updateKeystrokeTimeout() {
     statsLib.setKeystrokeTimeout(keystrokeTimeout.value);
 
     toast.success("Keystroke timeout updated");
-    
+
     await statsLib.refreshStats();
   } catch (error) {
     console.error("Error updating keystroke timeout:", error);
@@ -291,6 +334,46 @@ async function logout() {
 
 async function linkGithub() {
   window.location.href = "/api/auth/github/link";
+}
+
+async function importTrackingData() {
+  if (!importApiKey.value) {
+    toast.error("Please enter your API Key");
+    return;
+  }
+
+  if (importType.value === "wakapi" && !wakapiInstanceUrl.value) {
+    toast.error("Please enter your WakAPI instance URL");
+    return;
+  }
+
+  try {
+    const payload: {
+      apiKey: string;
+      instanceType: string;
+      instanceUrl?: string;
+    } = {
+      apiKey: importApiKey.value,
+      instanceType: importType.value,
+    };
+
+    if (importType.value === "wakapi") {
+      payload.instanceUrl = wakapiInstanceUrl.value;
+    }
+
+    await $fetch("/api/wakatime", {
+      method: "POST",
+      body: payload,
+    });
+
+    toast.success(
+      `${importType.value === "wakatime" ? "WakaTime" : "WakAPI"} data import started`
+    );
+    importApiKey.value = "";
+  } catch (error) {
+    console.error(`Error importing ${importType.value} data:`, error);
+    toast.error(`Failed to import ${importType.value} data`);
+  }
 }
 </script>
 

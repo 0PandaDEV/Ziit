@@ -19,7 +19,9 @@ section {
   gap: 24px;
 }
 
-.account-information .items .keys {
+.account-information .items .keys,
+.steps,
+.setting-description {
   color: var(--text-secondary);
 }
 
@@ -31,12 +33,14 @@ section {
 .buttons,
 .keys,
 .values,
-.steps {
+.steps,
+.setting-group {
   display: flex;
   flex-direction: column;
 }
 
-.buttons {
+.buttons,
+.setting-group {
   gap: 8px;
 }
 
@@ -44,10 +48,6 @@ section {
 .values,
 .steps {
   gap: 4px;
-}
-
-.steps {
-  color: var(--text-secondary);
 }
 
 kbd {
