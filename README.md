@@ -12,7 +12,7 @@
     <span> • </span>
     <a href="https://github.com/0PandaDEV/Ziit/wiki/Deploy">Deploy</a>
     <span> • </span>
-    <a href="#-features">Features</a>
+    <a href="#features">Features</a>
     <span> • </span>
     <a href="https://github.com/0pandadev/ziit/issues">Issues</a>
     <span> • </span>
@@ -45,6 +45,10 @@ Ziit (pronounced "tseet") is an open source, self-hostable alternative to WakaTi
 - Import Data from Wakatime or a Wakapi Instance.
 - Saves data about your current project, os, editor and git branch.
 - More to come...
+
+## Preview
+
+![Screenshot 2025-04-15 at 20-40-18 Ziit - Coding Statistics](https://github.com/user-attachments/assets/1c8c713e-ee61-4653-aaba-04e67dc6f8fa)
 
 ## Development
 
