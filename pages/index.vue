@@ -219,8 +219,8 @@ async function fetchUserData() {
     const data = await $fetch("/api/user");
     userState.value = data as User;
 
-    if (data?.keystrokeTimeoutMinutes) {
-      statsLib.setKeystrokeTimeout(data.keystrokeTimeoutMinutes);
+    if (data?.keystrokeTimeout) {
+      statsLib.setKeystrokeTimeout(data.keystrokeTimeout);
     }
     
     return data;
@@ -384,7 +384,7 @@ function renderChart() {
                 ) {
                   return `Time: ${label}`;
                 } else if (timeRange.value === "week") {
-                  return `Day: ${label}`;
+                  return `Date: ${label}`;
                 } else if (
                   timeRange.value === "month" ||
                   timeRange.value === "month-to-date" ||
@@ -439,18 +439,22 @@ function updateChart() {
 
 function getChartLabels(): string[] {
   const labels = [];
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  ];
 
   if (timeRange.value === "today" || timeRange.value === "yesterday") {
     for (let i = 0; i < 24; i++) {
       labels.push(`${i}:00`);
     }
   } else if (timeRange.value === "week") {
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const today = new Date().getDay();
-
+    const today = new Date();
+    
     for (let i = 6; i >= 0; i--) {
-      const day = (today - i + 7) % 7;
-      labels.push(days[day]);
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      labels.push(`${date.getDate()} ${months[date.getMonth()]}`);
     }
   } else if (
     timeRange.value === "month" ||
@@ -477,25 +481,11 @@ function getChartLabels(): string[] {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    return days.map((date) => `${date.getDate()}/${date.getMonth() + 1}`);
+    return days.map((date) => `${date.getDate()} ${months[date.getMonth()]}`);
   } else if (
     timeRange.value === "year-to-date" ||
     timeRange.value === "last-12-months"
   ) {
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
     const today = new Date();
     let numMonths =
       timeRange.value === "year-to-date" ? today.getMonth() + 1 : 12;
@@ -504,12 +494,39 @@ function getChartLabels(): string[] {
       let monthIndex = (today.getMonth() - i + 12) % 12;
       labels.push(months[monthIndex]);
     }
+  } else if (timeRange.value === "all-time") {
+    if (stats.value && stats.value.dailySummaries && stats.value.dailySummaries.length > 0) {
+      const dates = stats.value.dailySummaries.map(summary => new Date(summary.date));
+      const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+      const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+      
+      if (maxDate.getFullYear() - minDate.getFullYear() > 0) {
+        const monthsWithYears = [];
+        let currentDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+        
+        while (currentDate <= maxDate) {
+          monthsWithYears.push(new Date(currentDate));
+          currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+        
+        return monthsWithYears.map(date => 
+          `${months[date.getMonth()]} ${date.getFullYear()}`
+        );
+      }
+    }
+    
+    const today = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(today);
+      date.setMonth(date.getMonth() - i);
+      labels.push(`${months[date.getMonth()]}`);
+    }
   } else {
     const today = new Date();
     for (let i = 29; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      labels.push(`${date.getDate()}/${date.getMonth() + 1}`);
+      labels.push(`${date.getDate()} ${months[date.getMonth()]}`);
     }
   }
 
@@ -517,110 +534,43 @@ function getChartLabels(): string[] {
 }
 
 function getChartData(): number[] {
-  if (!stats.value || !stats.value.heartbeats) return [];
+  if (!stats.value) return [];
 
-  const relevantHeartbeats = stats.value.heartbeats;
   const labels = getChartLabels();
   const result = Array(labels.length).fill(0);
 
-  const localNow = new Date();
-  let localStartDate = new Date(localNow);
-  let localEndDate = new Date(localNow);
+  if (timeRange.value === statsLib.TimeRangeEnum.TODAY || timeRange.value === statsLib.TimeRangeEnum.YESTERDAY) {
+    const relevantHeartbeats = stats.value.heartbeats;
+    
+    if (!relevantHeartbeats || relevantHeartbeats.length === 0) return result;
+    
+    const localNow = new Date();
+    let localStartDate = new Date(localNow);
+    let localEndDate = new Date(localNow);
 
-  switch (timeRange.value) {
-    case statsLib.TimeRangeEnum.TODAY:
+    if (timeRange.value === statsLib.TimeRangeEnum.TODAY) {
       localStartDate.setHours(0, 0, 0, 0);
       localEndDate.setHours(23, 59, 59, 999);
-      break;
-    case statsLib.TimeRangeEnum.YESTERDAY:
+    } else if (timeRange.value === statsLib.TimeRangeEnum.YESTERDAY) {
       localStartDate.setDate(localStartDate.getDate() - 1);
       localStartDate.setHours(0, 0, 0, 0);
       localEndDate.setDate(localEndDate.getDate() - 1);
       localEndDate.setHours(23, 59, 59, 999);
-      break;
-    case statsLib.TimeRangeEnum.WEEK:
-      localStartDate.setDate(
-        localStartDate.getDate() - localStartDate.getDay(),
-      );
-      localStartDate.setHours(0, 0, 0, 0);
-      localEndDate = new Date(localStartDate);
-      localEndDate.setDate(localEndDate.getDate() + 6);
-      localEndDate.setHours(23, 59, 59, 999);
-      break;
-    case statsLib.TimeRangeEnum.MONTH_TO_DATE:
-      localStartDate.setDate(1);
-      localStartDate.setHours(0, 0, 0, 0);
-      localEndDate.setHours(23, 59, 59, 999);
-      break;
-    case statsLib.TimeRangeEnum.MONTH:
-      localStartDate.setDate(localStartDate.getDate() - 30);
-      localStartDate.setHours(0, 0, 0, 0);
-      localEndDate.setHours(23, 59, 59, 999);
-      break;
-    case statsLib.TimeRangeEnum.LAST_MONTH:
-      localStartDate = new Date(
-        localNow.getFullYear(),
-        localNow.getMonth() - 1,
-        1,
-        0,
-        0,
-        0,
-        0,
-      );
-      localEndDate = new Date(
-        localNow.getFullYear(),
-        localNow.getMonth(),
-        0,
-        23,
-        59,
-        59,
-        999,
-      );
-      break;
-    case statsLib.TimeRangeEnum.YEAR_TO_DATE:
-      localStartDate = new Date(localNow.getFullYear(), 0, 1, 0, 0, 0, 0);
-      localEndDate.setHours(23, 59, 59, 999);
-      break;
-    case statsLib.TimeRangeEnum.LAST_12_MONTHS:
-      localStartDate = new Date(localNow);
-      localStartDate.setFullYear(localStartDate.getFullYear() - 1);
-      localStartDate.setHours(0, 0, 0, 0);
-      localEndDate.setHours(23, 59, 59, 999);
-      break;
-    case statsLib.TimeRangeEnum.ALL_TIME:
-      if (relevantHeartbeats.length > 0) {
-        localStartDate = new Date(relevantHeartbeats[0].timestamp as Date);
-        localStartDate.setHours(0, 0, 0, 0);
-      } else {
-        localStartDate.setHours(0, 0, 0, 0);
+    }
+
+    const heartbeatsByProject: Record<string, Heartbeat[]> = {};
+    relevantHeartbeats.forEach((hb) => {
+      const projectKey = hb.project || "unknown";
+      if (!heartbeatsByProject[projectKey]) {
+        heartbeatsByProject[projectKey] = [];
       }
-      localEndDate.setHours(23, 59, 59, 999);
 
-      break;
-    default:
-      localStartDate.setDate(localStartDate.getDate() - 30);
-      localStartDate.setHours(0, 0, 0, 0);
-      localEndDate.setHours(23, 59, 59, 999);
-      break;
-  }
+      const ts = hb.timestamp as Date;
+      if (ts >= localStartDate && ts <= localEndDate) {
+        heartbeatsByProject[projectKey].push(hb);
+      }
+    });
 
-  const heartbeatsByProject: Record<string, Heartbeat[]> = {};
-  relevantHeartbeats.forEach((hb) => {
-    const projectKey = hb.project || "unknown";
-    if (!heartbeatsByProject[projectKey]) {
-      heartbeatsByProject[projectKey] = [];
-    }
-
-    const ts = hb.timestamp as Date;
-    if (ts >= localStartDate && ts <= localEndDate) {
-      heartbeatsByProject[projectKey].push(hb);
-    }
-  });
-
-  if (
-    timeRange.value === statsLib.TimeRangeEnum.TODAY ||
-    timeRange.value === statsLib.TimeRangeEnum.YESTERDAY
-  ) {
     for (const projectKey in heartbeatsByProject) {
       const projectBeats = heartbeatsByProject[projectKey];
       for (let i = 0; i < projectBeats.length; i++) {
@@ -636,23 +586,34 @@ function getChartData(): number[] {
         }
       }
     }
-  } else if (timeRange.value === statsLib.TimeRangeEnum.WEEK) {
-    for (const projectKey in heartbeatsByProject) {
-      const projectBeats = heartbeatsByProject[projectKey];
-      for (let i = 0; i < projectBeats.length; i++) {
-        const currentBeat = projectBeats[i];
-        const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
-        const durationSeconds = calculateInlinedDuration(
-          currentBeat,
-          previousBeat,
-        );
-        const localDayOfWeek = (currentBeat.timestamp as Date).getDay();
-
-        const labelIndex = localDayOfWeek;
-        if (labelIndex >= 0 && labelIndex < 7) {
-          result[labelIndex] =
-            (result[labelIndex] || 0) + durationSeconds / 3600;
-        }
+    
+    return result;
+  }
+  
+  if (!stats.value.dailySummaries || stats.value.dailySummaries.length === 0) {
+    return result;
+  }
+  
+  const dailySummaries = stats.value.dailySummaries;
+  
+  if (timeRange.value === statsLib.TimeRangeEnum.WEEK) {
+    const dateStringToIndex = new Map<string, number>();
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    
+    for (let i = 0; i < labels.length; i++) {
+      dateStringToIndex.set(labels[i], i);
+    }
+    
+    for (const summary of dailySummaries) {
+      const date = new Date(summary.date);
+      const dateString = `${date.getDate()} ${months[date.getMonth()]}`;
+      const labelIndex = dateStringToIndex.get(dateString);
+      
+      if (labelIndex !== undefined) {
+        result[labelIndex] = (result[labelIndex] || 0) + summary.totalSeconds / 3600;
       }
     }
   } else if (
@@ -661,71 +622,94 @@ function getChartData(): number[] {
     timeRange.value === statsLib.TimeRangeEnum.LAST_MONTH ||
     timeRange.value === statsLib.TimeRangeEnum.ALL_TIME
   ) {
-    const dateStrToChartIndex = new Map<string, number>();
-    let currentDate = new Date(localStartDate);
-    let idx = 0;
-    while (currentDate <= localEndDate && idx < labels.length) {
-      const dateStr = `${currentDate.getFullYear()}-${String(
-        currentDate.getMonth() + 1,
-      ).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
-      dateStrToChartIndex.set(dateStr, idx);
-      currentDate.setDate(currentDate.getDate() + 1);
-      idx++;
+    const dateStringToIndex = new Map<string, number>();
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    
+    for (let i = 0; i < labels.length; i++) {
+      dateStringToIndex.set(labels[i], i);
     }
-
-    for (const projectKey in heartbeatsByProject) {
-      const projectBeats = heartbeatsByProject[projectKey];
-      for (let i = 0; i < projectBeats.length; i++) {
-        const currentBeat = projectBeats[i];
-        const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
-        const durationSeconds = calculateInlinedDuration(
-          currentBeat,
-          previousBeat,
-        );
-        const ts = currentBeat.timestamp as Date;
-        const localDateStr = `${ts.getFullYear()}-${String(
-          ts.getMonth() + 1,
-        ).padStart(2, "0")}-${String(ts.getDate()).padStart(2, "0")}`;
-        const index = dateStrToChartIndex.get(localDateStr);
-        if (index !== undefined) {
-          result[index] = (result[index] || 0) + durationSeconds / 3600;
-        }
+    
+    for (const summary of dailySummaries) {
+      const date = new Date(summary.date);
+      const dateString = `${date.getDate()} ${months[date.getMonth()]}`;
+      const labelIndex = dateStringToIndex.get(dateString);
+      
+      if (labelIndex !== undefined) {
+        result[labelIndex] = (result[labelIndex] || 0) + summary.totalSeconds / 3600;
       }
     }
   } else if (
     timeRange.value === statsLib.TimeRangeEnum.YEAR_TO_DATE ||
     timeRange.value === statsLib.TimeRangeEnum.LAST_12_MONTHS
   ) {
-    const yearMonthToChartIndex = new Map<string, number>();
-    let currentMonthDate = new Date(localStartDate);
-    currentMonthDate.setDate(1);
-    let monthIdx = 0;
-    while (currentMonthDate <= localEndDate && monthIdx < labels.length) {
-      const yearMonthKey = `${currentMonthDate.getFullYear()}-${currentMonthDate.getMonth()}`;
-      yearMonthToChartIndex.set(yearMonthKey, monthIdx);
-      currentMonthDate.setMonth(currentMonthDate.getMonth() + 1);
-      monthIdx++;
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    const monthNameToIndex = new Map<string, number>();
+    
+    for (let i = 0; i < labels.length; i++) {
+      const monthName = labels[i];
+      monthNameToIndex.set(monthName, i);
     }
-
-    for (const projectKey in heartbeatsByProject) {
-      const projectBeats = heartbeatsByProject[projectKey];
-      for (let i = 0; i < projectBeats.length; i++) {
-        const currentBeat = projectBeats[i];
-        const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
-        const durationSeconds = calculateInlinedDuration(
-          currentBeat,
-          previousBeat,
-        );
-        const ts = currentBeat.timestamp as Date;
-        const localYearMonthKey = `${ts.getFullYear()}-${ts.getMonth()}`;
-        const index = yearMonthToChartIndex.get(localYearMonthKey);
-        if (index !== undefined) {
-          result[index] = (result[index] || 0) + durationSeconds / 3600;
-        }
+    
+    const monthlyTotals = new Map<string, number>();
+    
+    for (const summary of dailySummaries) {
+      const date = new Date(summary.date);
+      const monthName = months[date.getMonth()];
+      
+      monthlyTotals.set(
+        monthName, 
+        (monthlyTotals.get(monthName) || 0) + summary.totalSeconds / 3600
+      );
+    }
+    
+    for (const [monthName, totalHours] of monthlyTotals.entries()) {
+      const labelIndex = monthNameToIndex.get(monthName);
+      if (labelIndex !== undefined) {
+        result[labelIndex] = totalHours;
       }
     }
   }
-
+  
+  if (timeRange.value === statsLib.TimeRangeEnum.ALL_TIME) {
+    const labelMap = new Map<string, number>();
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    
+    for (let i = 0; i < labels.length; i++) {
+      labelMap.set(labels[i], i);
+    }
+    
+    for (const summary of dailySummaries) {
+      const date = new Date(summary.date);
+      
+      if (labels[0].includes(' 20')) {
+        const labelKey = `${months[date.getMonth()]} ${date.getFullYear()}`;
+        const labelIndex = labelMap.get(labelKey);
+        
+        if (labelIndex !== undefined) {
+          result[labelIndex] = (result[labelIndex] || 0) + summary.totalSeconds / 3600;
+        }
+      } else {
+        const labelKey = months[date.getMonth()];
+        const labelIndex = labelMap.get(labelKey);
+        
+        if (labelIndex !== undefined) {
+          result[labelIndex] = (result[labelIndex] || 0) + summary.totalSeconds / 3600;
+        }
+      }
+    }
+    
+    return result;
+  }
+  
   return result;
 }
 
