@@ -4,13 +4,6 @@ import { H3Event } from "h3";
 const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event: H3Event) => {
-  if (!event.context.user) {
-    throw createError({
-      statusCode: 401,
-      message: "Unauthorized",
-    });
-  }
-
   try {
     const body = await readBody(event);
     

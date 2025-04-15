@@ -4,14 +4,6 @@ import { H3Event } from "h3";
 const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event: H3Event) => {
-  if (!event.context.user) {
-    console.error("User error: Unauthorized access attempt");
-    throw createError({
-      statusCode: 401,
-      message: "Unauthorized",
-    });
-  }
-
   try {
     const user = await prisma.user.findUnique({
       where: { id: event.context.user.id },

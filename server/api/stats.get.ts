@@ -3,15 +3,6 @@ import { TimeRangeEnum } from "~/lib/stats";
 import type { TimeRange } from "~/lib/stats";
 
 export default defineEventHandler(async (event: H3Event) => {
-  if (!event.context.user) {
-    console.error("Stats error: Unauthorized access attempt");
-    console.error("Stats error: Unauthorized access attempt");
-    throw createError({
-      statusCode: 401,
-      message: "Unauthorized",
-    });
-  }
-
   const userId = event.context.user.id;
 
   try {

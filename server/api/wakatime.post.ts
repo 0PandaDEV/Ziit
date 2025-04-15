@@ -101,16 +101,6 @@ interface WakaTimeExport {
 }
 
 export default defineEventHandler(async (event: H3Event) => {
-  console.log("Starting WakaTime/WakAPI import process...");
-
-  if (!event.context.user) {
-    console.error("No authenticated user found");
-    throw createError({
-      statusCode: 401,
-      message: "Unauthorized",
-    });
-  }
-
   const userId = event.context.user.id;
   console.log("Processing for user ID:", userId);
 
