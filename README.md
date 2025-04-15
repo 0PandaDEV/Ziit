@@ -20,7 +20,6 @@
   </h3>
 </div>
 
-
 > [!CAUTION]
 > This project is in a early developement state and not production ready at the moment that is also why signups are currently disabeld on [ziit.app](https://ziit.app).
 
@@ -35,29 +34,30 @@
 
 ## What is Ziit?
 
-Ziit or also pronounecd "tseet" is an open source and self-hostable alternative to wakatime with the goal of having better UI and UX design as well as privacy of your data as its on your own server instead of the nasty cloud.
+Ziit (pronounced "tseet") is an open source, self-hostable alternative to WakaTime that provides a clean, minimal dashboard for viewing coding statistics while ensuring privacy by keeping your data on your own server. It tracks coding activity through editor integrations, collecting data about projects, languages, os, editor and time spent coding, with an intuitive dashboard similar to Plausible Analytics.
 
 ## Features
 
 - Time tracking directly from VSCode to your ziit instance of choise.
 - Advanced time filtering using differnt time ranges.
 - Clean & Minimal dashboard showing only the information needed.
-- Login with Github or Email+Password.
+- Login with Github or Email and Password.
 - Import Data from Wakatime or a Wakapi Instance.
+- Saves data about your current project, os, editor and git branch.
 - More to come...
 
 ## Development
 
-1. **Run the development server:**
-   The server will start on `http://localhost:3000`.
-
-   ```bash
-   bun run dev
-   ```
-
-2. **Database Migrations (Development):**
+1. **Database Migrations (Development):**
    Apply database schema changes during development.
 
    ```bash
    bunx prisma migrate dev
+   ```
+
+2. **Run the development server:**
+   The server will start on `http://localhost:3000`.
+
+   ```bash
+   bun run dev
    ```
