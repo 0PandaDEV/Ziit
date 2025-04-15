@@ -1,4 +1,4 @@
 export default defineEventHandler(async (event) => {
-  deleteCookie(event, "session");
+  deleteCookie(event, "ziit_session");
   await sendRedirect(event, "/");
 });

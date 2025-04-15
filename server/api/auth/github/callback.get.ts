@@ -198,7 +198,7 @@ export default defineEventHandler(async (event) => {
       expiresIn: "7d",
     });
 
-    setCookie(event, "session", token, {
+    setCookie(event, "ziit_session", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 7,

@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event) => {
   const path = getRequestURL(event).pathname;
-  const sessionCookie = getCookie(event, "session");
+  const sessionCookie = getCookie(event, "ziit_session");
 
   const publicPaths = [
     "/login",
@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
     return;
   } catch (error) {
     console.error(error);
-    deleteCookie(event, "session");
+    deleteCookie(event, "ziit_session");
     return sendRedirect(event, "/login");
   }
 });
