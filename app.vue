@@ -6,29 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import type { User } from "@prisma/client";
 import { Key, keyboard } from "wrdu-keyboard";
-import * as statsLib from "~/lib/stats";
-
-const userState = useState<User | null>("user", () => null);
-
-async function fetchUserData() {
-  if (userState.value) return userState.value;
-
-  try {
-    const data = await $fetch("/api/user");
-    userState.value = data as User;
-
-    if (data?.keystrokeTimeoutMinutes) {
-      statsLib.setKeystrokeTimeout(data.keystrokeTimeoutMinutes);
-    }
-    
-    return data;
-  } catch (error) {
-    console.error("Error fetching user data:", error);
-    return null;
-  }
-}
 
 onMounted(async () => {
   keyboard.init();
@@ -36,8 +14,6 @@ onMounted(async () => {
   keyboard.prevent.down([Key.F], async () => {
     useToast().success("You payed respect to the easter egg");
   });
-  
-  await fetchUserData();
 });
 </script>
 

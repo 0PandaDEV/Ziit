@@ -147,50 +147,27 @@ const importType = ref("wakatime");
 const importApiKey = ref("");
 const wakapiInstanceUrl = ref("");
 
-useSeoMeta({
-  title: "Profile - Ziit",
-  description: "Manage your Ziit account settings and API keys",
-  ogTitle: "Profile - Ziit",
-  ogDescription: "Manage your Ziit account settings and API keys",
-  ogImage: "https://ziit.app/logo.webp",
-  ogUrl: "https://ziit.app/profile",
-  ogSiteName: "Ziit",
-  twitterTitle: "Profile - Ziit",
-  twitterDescription: "Manage your Ziit account settings and API keys",
-  twitterImage: "https://ziit.app/logo.webp",
-  twitterCard: "summary",
-  twitterCreator: "@pandadev_",
-  twitterSite: "@pandadev_",
-  author: "PandaDEV",
-});
+async function fetchUserData() {
+  if (userState.value) return userState.value;
 
-useHead({
-  htmlAttrs: { lang: "en" },
-  link: [
-    {
-      rel: "canonical",
-      href: "https://ziit.app/profile",
-    },
-    {
-      rel: "icon",
-      type: "image/ico",
-      href: "/favicon.ico",
-    },
-  ],
-  script: [
-    {
-      type: "application/ld+json",
-      innerHTML: JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "WebPage",
-        name: "Profile - Ziit",
-        url: "https://ziit.app/profile",
-      }),
-    },
-  ],
-});
+  try {
+    const data = await $fetch("/api/user");
+    userState.value = data as User;
+
+    if (data?.keystrokeTimeoutMinutes) {
+      statsLib.setKeystrokeTimeout(data.keystrokeTimeoutMinutes);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error fetching user data:", error);
+    return null;
+  }
+}
 
 onMounted(async () => {
+  await fetchUserData();
+  
   if (user.value) {
     keystrokeTimeout.value = user.value.keystrokeTimeoutMinutes;
   }
@@ -310,7 +287,7 @@ async function regenerateApiKey() {
   }
 
   try {
-    const data = await $fetch("/api/auth/apikey", {
+    const data = await $fetch("/api/user/apikey", {
       method: "POST",
     });
 
@@ -379,6 +356,49 @@ async function importTrackingData() {
     toast.error(`Failed to import ${importType.value} data`);
   }
 }
+
+useSeoMeta({
+  title: "Profile - Ziit",
+  description: "Manage your Ziit account settings and API keys",
+  ogTitle: "Profile - Ziit",
+  ogDescription: "Manage your Ziit account settings and API keys",
+  ogImage: "https://ziit.app/logo.webp",
+  ogUrl: "https://ziit.app/profile",
+  ogSiteName: "Ziit",
+  twitterTitle: "Profile - Ziit",
+  twitterDescription: "Manage your Ziit account settings and API keys",
+  twitterImage: "https://ziit.app/logo.webp",
+  twitterCard: "summary",
+  twitterCreator: "@pandadev_",
+  twitterSite: "@pandadev_",
+  author: "PandaDEV",
+});
+
+useHead({
+  htmlAttrs: { lang: "en" },
+  link: [
+    {
+      rel: "canonical",
+      href: "https://ziit.app/profile",
+    },
+    {
+      rel: "icon",
+      type: "image/ico",
+      href: "/favicon.ico",
+    },
+  ],
+  script: [
+    {
+      type: "application/ld+json",
+      innerHTML: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: "Profile - Ziit",
+        url: "https://ziit.app/profile",
+      }),
+    },
+  ],
+});
 </script>
 
 <style scoped lang="scss">

@@ -111,60 +111,19 @@
 </template>
 
 <script setup lang="ts">
+import type { User } from "@prisma/client";
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import Key from "~/components/Ui/Key.vue";
 import { keyboard } from "wrdu-keyboard";
 import * as statsLib from "~/lib/stats";
 import type { Heartbeat } from "~/lib/stats";
 
-useSeoMeta({
-  title: "Ziit - Coding Statistics",
-  description: "Track your coding time and productivity with Ziit",
-  ogTitle: "Ziit - Coding Statistics",
-  ogDescription: "Track your coding time and productivity with Ziit",
-  ogImage: "https://ziit.app/logo.webp",
-  ogUrl: "https://ziit.app",
-  ogSiteName: "Ziit",
-  twitterTitle: "Ziit - Coding Statistics",
-  twitterDescription: "Track your coding time and productivity with Ziit",
-  twitterImage: "https://ziit.app/logo.webp",
-  twitterCard: "summary",
-  twitterCreator: "@pandadev_",
-  twitterSite: "@pandadev_",
-  author: "PandaDEV",
-});
-
-useHead({
-  htmlAttrs: { lang: "en" },
-  link: [
-    {
-      rel: "canonical",
-      href: "https://ziit.app",
-    },
-    {
-      rel: "icon",
-      type: "image/ico",
-      href: "/favicon.ico",
-    },
-  ],
-  script: [
-    {
-      type: "application/ld+json",
-      innerHTML: JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        name: "Ziit",
-        url: "https://ziit.app",
-      }),
-    },
-  ],
-});
-
 type ItemWithTime = {
   name: string;
   seconds: number;
 };
 
+const userState = useState<User | null>("user");
 const chartContainer = ref<HTMLElement | null>(null);
 const projectSort = ref<"time" | "name">("time");
 const uniqueLanguages = ref(0);
@@ -253,7 +212,26 @@ const osBreakdown = computed(() => {
 
 const HEARTBEAT_INTERVAL_SECONDS = 30;
 
-onMounted(() => {
+async function fetchUserData() {
+  if (userState.value) return userState.value;
+
+  try {
+    const data = await $fetch("/api/user");
+    userState.value = data as User;
+
+    if (data?.keystrokeTimeoutMinutes) {
+      statsLib.setKeystrokeTimeout(data.keystrokeTimeoutMinutes);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error fetching user data:", error);
+    return null;
+  }
+}
+
+onMounted(async () => {
+  await fetchUserData();
   keyboard.prevent.down([Key.D], () => statsLib.setTimeRange("today"));
   keyboard.prevent.down([Key.E], () => statsLib.setTimeRange("yesterday"));
   keyboard.prevent.down([Key.W], () => statsLib.setTimeRange("week"));
@@ -771,6 +749,49 @@ function calculateInlinedDuration(
     return HEARTBEAT_INTERVAL_SECONDS;
   }
 }
+
+useSeoMeta({
+  title: "Ziit - Coding Statistics",
+  description: "Track your coding time and productivity with Ziit",
+  ogTitle: "Ziit - Coding Statistics",
+  ogDescription: "Track your coding time and productivity with Ziit",
+  ogImage: "https://ziit.app/logo.webp",
+  ogUrl: "https://ziit.app",
+  ogSiteName: "Ziit",
+  twitterTitle: "Ziit - Coding Statistics",
+  twitterDescription: "Track your coding time and productivity with Ziit",
+  twitterImage: "https://ziit.app/logo.webp",
+  twitterCard: "summary",
+  twitterCreator: "@pandadev_",
+  twitterSite: "@pandadev_",
+  author: "PandaDEV",
+});
+
+useHead({
+  htmlAttrs: { lang: "en" },
+  link: [
+    {
+      rel: "canonical",
+      href: "https://ziit.app",
+    },
+    {
+      rel: "icon",
+      type: "image/ico",
+      href: "/favicon.ico",
+    },
+  ],
+  script: [
+    {
+      type: "application/ld+json",
+      innerHTML: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: "Ziit",
+        url: "https://ziit.app",
+      }),
+    },
+  ],
+});
 </script>
 
 <style lang="scss">
