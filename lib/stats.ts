@@ -162,7 +162,6 @@ export async function fetchStats(): Promise<void> {
     const apiResponse = await response.json();
     state.isAuthenticated = true;
 
-    // Convert UTC timestamps to local time for display
     const localData = convertUtcToLocal(apiResponse);
     
     state.cache[cacheKey] = localData;
@@ -191,36 +190,29 @@ function convertUtcToLocal(apiResponse: any): StatsResult {
     timestamp: new Date(hb.timestamp),
   })) as Heartbeat[];
 
-  // Calculate totals from the server-provided data
   let calculatedTotalSeconds = 0;
   const calculatedProjects: StatRecord = {};
   const calculatedLanguages: StatRecord = {};
   const calculatedEditors: StatRecord = {};
   const calculatedOs: StatRecord = {};
 
-  // Process daily data from server
   const dailyData = apiResponse.summaries || [];
   
-  // Calculate totals from daily data
   dailyData.forEach((day: DailyData) => {
     calculatedTotalSeconds += day.totalSeconds;
     
-    // Aggregate project data
     Object.entries(day.projects).forEach(([project, seconds]) => {
       calculatedProjects[project] = (calculatedProjects[project] || 0) + seconds;
     });
     
-    // Aggregate language data
     Object.entries(day.languages).forEach(([language, seconds]) => {
       calculatedLanguages[language] = (calculatedLanguages[language] || 0) + seconds;
     });
     
-    // Aggregate editor data
     Object.entries(day.editors).forEach(([editor, seconds]) => {
       calculatedEditors[editor] = (calculatedEditors[editor] || 0) + seconds;
     });
     
-    // Aggregate OS data
     Object.entries(day.os).forEach(([os, seconds]) => {
       calculatedOs[os] = (calculatedOs[os] || 0) + seconds;
     });

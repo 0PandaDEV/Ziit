@@ -3,7 +3,7 @@ import { createError } from "h3";
 const storage = useStorage();
 
 const rateLimits = {
-  default: { limit: 100, window: 60000 },
+  default: { limit: 50, window: 60000 },
   auth: { limit: 5, window: 1800000 },
   external: { limit: 100, window: 30000 },
   stats: { limit: 10, window: 60000 }
