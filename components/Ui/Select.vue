@@ -17,11 +17,11 @@
         <div class="key-container" v-if="item.key">
           <template v-if="item.key.includes('+')">
             <span v-for="(part, index) in item.key.split('+')" :key="index">
-              <Key :keyName="part" />
+              <UiKey :keyName="part" />
             </span>
           </template>
           <template v-else>
-            <Key :keyName="item.key" />
+            <UiKey :keyName="item.key" />
           </template>
         </div>
       </div>
@@ -37,8 +37,6 @@
 <script setup lang="ts" generic="T">
 import { ref, computed } from "vue";
 import Key from "./Key.vue";
-import IconsDownUp from "./Icons/DownUp.vue";
-import IconsUpDown from "./Icons/UpDown.vue";
 
 interface SelectItem<V> {
   label: string;
