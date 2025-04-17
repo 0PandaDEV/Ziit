@@ -59,6 +59,10 @@ model Summaries {
   user         User         @relation(fields: [userId], references: [id])
   date         DateTime     @db.Date
   totalMinutes Int
+  projects     Json?
+  languages    Json?
+  editors      Json?
+  os           Json?
   heartbeats   Heartbeats[]
   createdAt    DateTime     @default(now())
 
