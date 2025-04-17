@@ -121,6 +121,7 @@ import {
   Tooltip,
   Filler,
 } from "chart.js";
+import { useTimeRangeOptions } from "~/composables/useTimeRangeOptions";
 
 Chart.register(
   CategoryScale,
@@ -146,6 +147,15 @@ let chart: Chart | null = null;
 const stats = ref(statsLib.getStats());
 const timeRange = ref(statsLib.getTimeRange());
 const { formatTime } = statsLib;
+const { timeRangeOptions } = useTimeRangeOptions();
+
+watch(
+  [() => statsLib.getStats(), () => statsLib.getTimeRange()],
+  ([newStats, newTimeRange]) => {
+    stats.value = newStats;
+    timeRange.value = newTimeRange;
+  }
+);
 
 const months = [
   "Jan",
@@ -253,45 +263,18 @@ async function fetchUserData() {
 
 onMounted(async () => {
   await fetchUserData();
-  keyboard.prevent.down([Key.D], async () => {
-    statsLib.setTimeRange("today");
-  });
-
-  keyboard.prevent.down([Key.E], async () => {
-    statsLib.setTimeRange("yesterday");
-  });
-
-  keyboard.prevent.down([Key.W], async () => {
-    statsLib.setTimeRange("week");
-  });
-
-  keyboard.prevent.down([Key.T], async () => {
-    statsLib.setTimeRange("month");
-  });
-
-  keyboard.prevent.down([Key.P], async () => {
-    statsLib.setTimeRange("last-month");
-  });
-
-  keyboard.prevent.down([Key.N], async () => {
-    statsLib.setTimeRange("last-90-days");
-  });
-
-  keyboard.prevent.down([Key.Y], async () => {
-    statsLib.setTimeRange("year-to-date");
-  });
-
-  keyboard.prevent.down([Key.L], async () => {
-    statsLib.setTimeRange("last-12-months");
-  });
-
-  keyboard.prevent.down([Key.A], async () => {
-    statsLib.setTimeRange("all-time");
-  });
-
-  // keyboard.prevent.down([Key.C], async () => {
-  //   statsLib.setTimeRange("custom-range");
-  // });
+  timeRangeOptions.value.forEach(
+    (option: { key: string; value: statsLib.TimeRange }) => {
+      if (option.key && option.value) {
+        keyboard.prevent.down(
+          [Key[option.key as keyof typeof Key]],
+          async () => {
+            statsLib.setTimeRange(option.value);
+          }
+        );
+      }
+    }
+  );
 
   if (chartContainer.value) {
     renderChart();

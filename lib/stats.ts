@@ -1,3 +1,5 @@
+import { ref } from "vue";
+
 export const TimeRangeEnum = {
   TODAY: "today",
   YESTERDAY: "yesterday",
@@ -111,6 +113,9 @@ const state: State = {
   isAuthenticated: true,
 };
 
+const statsRef = ref<StatsResult>(initialStats);
+const timeRangeRef = ref<TimeRange>(TimeRangeEnum.TODAY);
+
 export async function fetchStats(): Promise<void> {
   if (typeof window === "undefined") {
     state.status = "idle";
@@ -122,6 +127,7 @@ export async function fetchStats(): Promise<void> {
   if (state.cache[cacheKey] && state.timeRange !== TimeRangeEnum.TODAY) {
     state.data = state.cache[cacheKey];
     state.status = "success";
+    statsRef.value = state.data;
     return;
   }
 
@@ -168,6 +174,8 @@ export async function fetchStats(): Promise<void> {
     state.cache[cacheKey] = localData;
     state.data = localData;
     state.status = "success";
+    // Update reactive refs
+    statsRef.value = state.data;
   } catch (err: unknown) {
     console.error("Error fetching stats:", err);
     state.error = err instanceof Error ? err : new Error(String(err));
@@ -180,6 +188,8 @@ export async function fetchStats(): Promise<void> {
         window.location.href = "/login";
       }
     }
+    // Update reactive refs with error state
+    statsRef.value = state.data;
   }
 }
 
@@ -238,6 +248,8 @@ function convertUtcToLocal(apiResponse: any): StatsResult {
 
 export function setTimeRange(range: TimeRange): void {
   state.timeRange = range;
+  // Update reactive ref
+  timeRangeRef.value = range;
   fetchStats();
 }
 
@@ -259,13 +271,16 @@ export function formatTime(seconds: number): string {
 }
 
 export function getStats(): StatsResult {
-  return state.data;
+  return statsRef.value || state.data;
 }
 
 export function getTimeRange(): TimeRange {
-  return state.timeRange;
+  return timeRangeRef.value || state.timeRange;
 }
 
 if (typeof window !== "undefined") {
+  // Initialize reactive refs
+  statsRef.value = state.data;
+  timeRangeRef.value = state.timeRange;
   fetchStats();
 }
