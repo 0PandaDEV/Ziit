@@ -360,7 +360,7 @@ function renderChart() {
               maxRotation: 0,
               autoSkip: true,
               font: {
-                size: 14,
+                size: 12,
                 family: "ChivoMono",
               },
               color: "#666666",
@@ -380,7 +380,7 @@ function renderChart() {
             },
             ticks: {
               font: {
-                size: 14,
+                size: 12,
                 family: "ChivoMono",
               },
               color: "#666666",
