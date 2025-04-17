@@ -240,54 +240,72 @@ async function fetchRangeHeartbeats(
   );
 
   const heartbeatsByDate = new Map<string, any[]>();
-  const BATCH_SIZE = 14;
+  const progressUpdateInterval = Math.max(
+    1,
+    Math.floor(allDateStrings.length / 10)
+  );
 
-  for (let i = 0; i < allDateStrings.length; i += BATCH_SIZE) {
-    const dateBatch = allDateStrings.slice(i, i + BATCH_SIZE);
-    console.log(
-      `Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(allDateStrings.length / BATCH_SIZE)}: ${dateBatch[0]} to ${dateBatch[dateBatch.length - 1]}`
-    );
+  for (let i = 0; i < allDateStrings.length; i++) {
+    const dateStr = allDateStrings[i];
 
-    for (const dateStr of dateBatch) {
-      try {
-        const heartbeatsUrl = `${baseUrl}/users/${username}/heartbeats`;
-        const heartbeatsResponse = await $fetch<{
-          data: WakApiHeartbeat[];
-        }>(heartbeatsUrl, {
-          params: {
-            date: dateStr,
-          },
-          headers,
-        });
+    if (i % progressUpdateInterval === 0 || i === allDateStrings.length - 1) {
+      console.log(
+        `Processing date ${i + 1}/${allDateStrings.length}: ${dateStr} (${Math.round(((i + 1) / allDateStrings.length) * 100)}% complete)`
+      );
+    }
 
-        if (!heartbeatsResponse?.data || heartbeatsResponse.data.length === 0) {
+    try {
+      const heartbeatsUrl = `${baseUrl}/users/${username}/heartbeats`;
+      const heartbeatsResponse = await $fetch<{
+        data: WakApiHeartbeat[];
+      }>(heartbeatsUrl, {
+        params: {
+          date: dateStr,
+        },
+        headers,
+      });
+
+      if (!heartbeatsResponse?.data || heartbeatsResponse.data.length === 0) {
+        if (i % progressUpdateInterval === 0) {
           console.log(`No heartbeats found for ${dateStr}`);
-          continue;
         }
+        continue;
+      }
 
+      if (i % progressUpdateInterval === 0) {
         console.log(
           `Found ${heartbeatsResponse.data.length} heartbeats for ${dateStr}`
         );
-
-        const heartbeats = heartbeatsResponse.data.map((h) =>
-          processHeartbeat(h, userId)
-        );
-
-        if (heartbeats.length > 0) {
-          heartbeatsByDate.set(dateStr, heartbeats);
-        }
-      } catch (error) {
-        console.error(`Error fetching heartbeats for ${dateStr}:`, error);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      const heartbeats = heartbeatsResponse.data.map((h) =>
+        processHeartbeat(h, userId)
+      );
+
+      if (heartbeats.length > 0) {
+        heartbeatsByDate.set(dateStr, heartbeats);
+
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { timezone: true },
+        });
+        const userTimezone = user?.timezone || "UTC";
+
+        await processHeartbeatsForDay(
+          dateStr,
+          heartbeats,
+          userId,
+          userTimezone
+        );
+      }
+    } catch (error) {
+      console.error(`Error fetching heartbeats for ${dateStr}:`, error);
     }
 
-    if (i + BATCH_SIZE < allDateStrings.length) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
 
+  console.log(`Completed processing all ${allDateStrings.length} dates`);
   return heartbeatsByDate;
 }
 
@@ -298,9 +316,13 @@ function processHeartbeat(heartbeat: WakApiHeartbeat | any, userId: string) {
       ? new Date(heartbeat.time * 1000)
       : new Date(heartbeat.timestamp),
     project: heartbeat.project || null,
-    editor: heartbeat.user_agent_id ? extractEditor(heartbeat.user_agent_id) : null,
+    editor: heartbeat.user_agent_id
+      ? extractEditor(heartbeat.user_agent_id)
+      : null,
     language: heartbeat.language || null,
-    os: heartbeat.user_agent_id ? extractOS(heartbeat.user_agent_id) : extractOS(heartbeat.entity || ""),
+    os: heartbeat.user_agent_id
+      ? extractOS(heartbeat.user_agent_id)
+      : extractOS(heartbeat.entity || ""),
     file: heartbeat.entity || null,
     branch: heartbeat.branch || null,
   };
@@ -423,21 +445,10 @@ export default defineEventHandler(async (event: H3Event) => {
         return { success: true, message: "No data to import" };
       }
 
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { timezone: true },
-      });
-      const userTimezone = user?.timezone || "UTC";
-
-      for (const [dateStr, heartbeats] of heartbeatsByDate.entries()) {
-        if (heartbeats.length === 0) continue;
-        await processHeartbeatsForDay(
-          dateStr,
-          heartbeats,
-          userId,
-          userTimezone
-        );
-      }
+      console.log(
+        `Successfully imported data from ${heartbeatsByDate.size} days with activity`
+      );
+      return { success: true, imported: heartbeatsByDate.size };
     } catch (error) {
       console.error("Error during import process:", error);
       throw createError({
@@ -445,8 +456,6 @@ export default defineEventHandler(async (event: H3Event) => {
         message: "Import process failed",
       });
     }
-
-    return { success: true };
   }
 
   console.log("Processing WakaTime exported file upload");
@@ -557,28 +566,37 @@ export default defineEventHandler(async (event: H3Event) => {
 
 function extractEditor(userAgent: string): string | null {
   if (!userAgent) return null;
-  
-  const editorRegex = /(GoLand|emacs|kate|chrome|Edge|neovim|Skype|Notepad\+\+|cursor|HBuilder X|vscode)/i;
+
+  const editorRegex =
+    /(GoLand|emacs|kate|chrome|Edge|neovim|Skype|Notepad\+\+|cursor|HBuilder X|vscode)/i;
   const editorMatch = userAgent.match(editorRegex);
-  
+
   if (editorMatch) {
-    return editorMatch[1].charAt(0).toUpperCase() + editorMatch[1].slice(1).toLowerCase();
+    return (
+      editorMatch[1].charAt(0).toUpperCase() +
+      editorMatch[1].slice(1).toLowerCase()
+    );
   }
-  
+
   return null;
 }
 
 function extractOS(path: string): string | null {
   if (!path) return null;
-  
+
   if (path.includes("linux") || path.includes("Linux")) {
     return "Linux";
-  } else if (path.includes("win_") || path.includes("windows") || path.includes("Windows") || path.includes("Windows_NT")) {
+  } else if (
+    path.includes("win_") ||
+    path.includes("windows") ||
+    path.includes("Windows") ||
+    path.includes("Windows_NT")
+  ) {
     return "Windows";
   } else if (path.includes("mac_") || path.includes("Mac")) {
     return "macOS";
   }
-  
+
   if (path.match(/^[A-Za-z]:[\\/]/) || path.match(/^\\\\/)) {
     return "Windows";
   } else if (path.startsWith("/Users/")) {
@@ -586,7 +604,7 @@ function extractOS(path: string): string | null {
   } else if (path.startsWith("/home/")) {
     return "Linux";
   }
-  
+
   return null;
 }
 
