@@ -101,15 +101,15 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
     fetchEndDate = utcYesterdayEnd;
     isSingleDayView = true;
   } else if (timeRange === TimeRangeEnum.WEEK) {
-    fetchStartDate = new Date(utcTodayEnd);
-    fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 7);
+    fetchStartDate = new Date(utcYesterdayEnd);
+    fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 6);
     fetchStartDate.setUTCHours(0, 0, 0, 0);
-    fetchEndDate = utcTodayEnd;
+    fetchEndDate = utcYesterdayEnd;
   } else if (timeRange === TimeRangeEnum.MONTH) {
-    fetchStartDate = new Date(utcTodayEnd);
-    fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 30);
+    fetchStartDate = new Date(utcYesterdayEnd);
+    fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 29);
     fetchStartDate.setUTCHours(0, 0, 0, 0);
-    fetchEndDate = utcTodayEnd;
+    fetchEndDate = utcYesterdayEnd;
   } else if (timeRange === TimeRangeEnum.MONTH_TO_DATE) {
     fetchStartDate = new Date(utcTodayEnd);
     fetchStartDate.setUTCDate(1);
@@ -127,10 +127,10 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
     fetchStartDate = firstDayOfLastUTCMonth;
     fetchEndDate = lastDayOfLastUTCMonth;
   } else if (timeRange === TimeRangeEnum.LAST_90_DAYS) {
-    fetchStartDate = new Date(utcTodayEnd);
-    fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 90);
+    fetchStartDate = new Date(utcYesterdayEnd);
+    fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 89);
     fetchStartDate.setUTCHours(0, 0, 0, 0);
-    fetchEndDate = utcTodayEnd;
+    fetchEndDate = utcYesterdayEnd;
   } else if (timeRange === TimeRangeEnum.YEAR_TO_DATE) {
     fetchStartDate = new Date(utcTodayEnd);
     fetchStartDate.setUTCMonth(0, 1);

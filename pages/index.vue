@@ -511,9 +511,11 @@ function getChartLabels(): string[] {
     }
   } else if (timeRange.value === "week") {
     const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
     for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
+      const date = new Date(yesterday);
       date.setDate(date.getDate() - i);
       labels.push(`${date.getDate()} ${months[date.getMonth()]}`);
     }
@@ -524,23 +526,25 @@ function getChartLabels(): string[] {
     timeRange.value === "last-90-days"
   ) {
     const today = new Date();
-    let startDate = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    let startDate = new Date(yesterday);
 
     if (timeRange.value === "month") {
-      startDate.setDate(today.getDate() - 30);
+      startDate.setDate(startDate.getDate() - 29);
     } else if (timeRange.value === "month-to-date") {
       startDate.setDate(1);
     } else if (timeRange.value === "last-month") {
       startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
       today.setDate(0);
     } else if (timeRange.value === "last-90-days") {
-      startDate.setDate(today.getDate() - 90);
+      startDate.setDate(startDate.getDate() - 89);
     }
 
     const days = [];
     let currentDate = new Date(startDate);
 
-    while (currentDate <= today) {
+    while (currentDate <= yesterday) {
       days.push(new Date(currentDate));
       currentDate.setDate(currentDate.getDate() + 1);
     }
