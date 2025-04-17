@@ -46,12 +46,14 @@ Ziit (pronounced "tseet") is an open source, self-hostable alternative to WakaTi
 
 ## How to use Ziit
 
-First [setup an instance](https://github.com/0PandaDEV/Ziit/wiki/Deploy) or sign up on the public one <https://ziit.app> then install the VS Code extension by searching for "Ziit" in the extensions store.
+First [setup an instance](https://github.com/0PandaDEV/Ziit/wiki/Deploy) or sign up on the public one <https://ziit.app> then install the extension by searching for "Ziit".
 
 The extension is available on:
 
 - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=pandadev.ziit)
 - [OpenVSX Registry](https://open-vsx.org/extension/pandadev/ziit)
+
+For an extension setup guide follow the one in your profile on your instance or https://ziit.app/profile at the bottom of the page.
 
 ## Preview
 
