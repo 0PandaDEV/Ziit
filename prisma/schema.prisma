@@ -2,12 +2,14 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("NUXT_DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("NUXT_DATABASE_URL")
+  extensions = [pg_stat_statements]
 }
 
 model User {
@@ -26,7 +28,7 @@ model User {
 }
 
 model Heartbeats {
-  id          String     @id @default(cuid())
+  id          String     @default(cuid())
   timestamp   DateTime   @db.Timestamptz(6)
   userId      String
   user        User       @relation(fields: [userId], references: [id])
@@ -40,11 +42,15 @@ model Heartbeats {
   summaries   Summaries? @relation(fields: [summariesId], references: [id])
   summariesId String?
 
-  @@index([userId, timestamp])
-  @@index([timestamp])
+  @@id([id, timestamp])
+  @@index([userId, timestamp(sort: Desc)])
+  @@index([timestamp(sort: Desc)])
+  @@index([userId, project, timestamp(sort: Desc)])
+  @@index([userId, language, timestamp(sort: Desc)])
+  @@index([userId, editor, timestamp(sort: Desc)])
+  @@index([userId, os, timestamp(sort: Desc)])
   @@index([branch])
   @@index([file])
-  @@index([id])
 }
 
 model Summaries {
@@ -57,4 +63,5 @@ model Summaries {
   createdAt    DateTime     @default(now())
 
   @@unique([userId, date])
+  @@index([userId, date(sort: Desc)])
 }
