@@ -64,11 +64,14 @@ const toast = useToast();
 async function register() {
   error.value = "";
   try {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
     await $fetch("/api/auth/register", {
       method: "POST",
       body: {
         email: email.value,
         password: password.value,
+        timezone,
       },
     });
     await navigateTo("/");

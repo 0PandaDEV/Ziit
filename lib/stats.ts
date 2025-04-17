@@ -79,6 +79,7 @@ type StatsResult = {
   dailyData: DailyData[];
   heartbeats: Heartbeat[];
   dailySummaries: DailySummary[];
+  timezone?: string;
 };
 
 type State = {
@@ -98,7 +99,7 @@ const initialStats: StatsResult = {
   os: {},
   dailyData: [],
   heartbeats: [],
-  dailySummaries: []
+  dailySummaries: [],
 };
 
 const state: State = {
@@ -134,7 +135,7 @@ export async function fetchStats(): Promise<void> {
 
   const cacheKey = state.timeRange;
 
-  if (state.cache[cacheKey]) {
+  if (state.cache[cacheKey] && state.timeRange !== TimeRangeEnum.TODAY) {
     state.data = state.cache[cacheKey];
     state.status = "success";
     notify();
@@ -149,6 +150,9 @@ export async function fetchStats(): Promise<void> {
     const baseUrl = window.location.origin;
     const url = new URL("/api/stats", baseUrl);
     url.searchParams.append("timeRange", state.timeRange);
+    if (state.timeRange === TimeRangeEnum.TODAY) {
+      url.searchParams.append("t", Date.now().toString());
+    }
 
     const response = await fetch(url.toString(), {
       method: "GET",
@@ -170,8 +174,15 @@ export async function fetchStats(): Promise<void> {
     const apiResponse = await response.json();
     state.isAuthenticated = true;
 
+    if (apiResponse.heartbeats) {
+      apiResponse.heartbeats = apiResponse.heartbeats.map((hb: any) => ({
+        ...hb,
+        timestamp: new Date(hb.timestamp),
+      }));
+    }
+
     const localData = convertUtcToLocal(apiResponse);
-    
+
     state.cache[cacheKey] = localData;
     state.data = localData;
     state.status = "success";
@@ -193,10 +204,14 @@ export async function fetchStats(): Promise<void> {
 }
 
 function convertUtcToLocal(apiResponse: any): StatsResult {
-  const allParsedHeartbeats = (apiResponse.heartbeats || []).map((hb: any) => ({
-    ...hb,
-    timestamp: new Date(hb.timestamp),
-  })) as Heartbeat[];
+  const allParsedHeartbeats = (apiResponse.heartbeats || []).map((hb: any) => {
+    const timestamp =
+      hb.timestamp instanceof Date ? hb.timestamp : new Date(hb.timestamp);
+    return {
+      ...hb,
+      timestamp,
+    };
+  }) as Heartbeat[];
 
   let calculatedTotalSeconds = 0;
   const calculatedProjects: StatRecord = {};
@@ -206,22 +221,24 @@ function convertUtcToLocal(apiResponse: any): StatsResult {
 
   const dailyData = apiResponse.summaries || [];
   const dailySummaries = apiResponse.dailySummaries || [];
-  
+
   dailyData.forEach((day: DailyData) => {
     calculatedTotalSeconds += day.totalSeconds;
-    
+
     Object.entries(day.projects).forEach(([project, seconds]) => {
-      calculatedProjects[project] = (calculatedProjects[project] || 0) + seconds;
+      calculatedProjects[project] =
+        (calculatedProjects[project] || 0) + seconds;
     });
-    
+
     Object.entries(day.languages).forEach(([language, seconds]) => {
-      calculatedLanguages[language] = (calculatedLanguages[language] || 0) + seconds;
+      calculatedLanguages[language] =
+        (calculatedLanguages[language] || 0) + seconds;
     });
-    
+
     Object.entries(day.editors).forEach(([editor, seconds]) => {
       calculatedEditors[editor] = (calculatedEditors[editor] || 0) + seconds;
     });
-    
+
     Object.entries(day.os).forEach(([os, seconds]) => {
       calculatedOs[os] = (calculatedOs[os] || 0) + seconds;
     });
@@ -235,7 +252,7 @@ function convertUtcToLocal(apiResponse: any): StatsResult {
     os: calculatedOs,
     dailyData,
     heartbeats: allParsedHeartbeats,
-    dailySummaries
+    dailySummaries,
   };
 }
 
