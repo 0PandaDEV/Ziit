@@ -27,6 +27,7 @@ onMounted(async () => {
 
   --text: #e6e6e6;
   --text-secondary: #a6a6a6;
+  --text-muted: #666666;
 }
 
 @font-face {

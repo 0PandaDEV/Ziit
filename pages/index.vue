@@ -360,8 +360,10 @@ function renderChart() {
               maxRotation: 0,
               autoSkip: true,
               font: {
-                size: 11,
+                size: 14,
+                family: "ChivoMono",
               },
+              color: "#666666",
             },
             border: {
               display: false,
@@ -378,14 +380,17 @@ function renderChart() {
             },
             ticks: {
               font: {
-                size: 11,
+                size: 14,
+                family: "ChivoMono",
               },
+              color: "#666666",
               padding: 8,
               callback: function (value) {
                 const numValue = Number(value);
-                if (numValue === 0) return "0h";
+                if (numValue === 0) return "0m";
                 const hours = Math.floor(numValue);
                 const minutes = Math.round((numValue - hours) * 60);
+                if (hours === 0) return minutes > 0 ? `${minutes}m` : "0h";
                 return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
               },
             },
@@ -405,41 +410,25 @@ function renderChart() {
             padding: 12,
             cornerRadius: 0,
             displayColors: false,
+            titleFont: {
+              family: "ChivoMono",
+              weight: 500,
+              size: 14
+            },
+            bodyFont: {
+              family: "ChivoMono",
+              size: 14
+            },
             callbacks: {
               title: function (tooltipItems) {
-                const index = tooltipItems[0].dataIndex;
-                const label = tooltipItems[0].label;
-
-                if (
-                  timeRange.value === "today" ||
-                  timeRange.value === "yesterday"
-                ) {
-                  return `Time: ${label}`;
-                } else if (timeRange.value === "week") {
-                  return `Date: ${label}`;
-                } else if (
-                  timeRange.value === "month" ||
-                  timeRange.value === "month-to-date" ||
-                  timeRange.value === "last-month"
-                ) {
-                  return `Date: ${label}`;
-                } else if (
-                  timeRange.value === "year-to-date" ||
-                  timeRange.value === "last-12-months"
-                ) {
-                  return `Month: ${label}`;
-                } else {
-                  return `Date: ${label}`;
-                }
+                return tooltipItems[0].label;
               },
               label: function (context) {
                 const value = context.parsed.y || 0;
                 const numValue = Number(value);
                 const hours = Math.floor(numValue);
                 const minutes = Math.round((numValue - hours) * 60);
-                return `${hours}h ${
-                  minutes > 0 ? `${minutes}m` : ""
-                } of coding`;
+                return `${hours}h ${minutes > 0 ? `${minutes}m` : ""}`;
               },
             },
           },
@@ -715,7 +704,7 @@ function getSingleDayChartData(
       now.toLocaleString("en-US", { timeZone: userTimezone })
     );
     yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    
+
     startDate = new Date(yesterdayDate);
     startDate.setHours(0, 0, 0, 0);
 
