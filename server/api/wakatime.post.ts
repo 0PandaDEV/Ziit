@@ -3,6 +3,9 @@ import { H3Event } from "h3";
 import { z } from "zod";
 
 const prisma = new PrismaClient();
+const userAgentCounts = new Map<string, number>();
+let totalHeartbeatsProcessed = 0;
+let heartbeatsWithoutUserAgent = 0;
 
 function calculateTotalMinutesFromHeartbeats(
   heartbeats: any[],
@@ -33,6 +36,91 @@ function calculateTotalMinutesFromHeartbeats(
   }
 
   return Math.round(totalMinutes);
+}
+
+function calculateCategoryTimes(
+  heartbeats: any[],
+  idleThresholdMinutes: number
+) {
+  const projectsTime: Record<string, number> = {};
+  const editorsTime: Record<string, number> = {};
+  const languagesTime: Record<string, number> = {};
+  const osTime: Record<string, number> = {};
+
+  if (heartbeats.length === 0) {
+    return { projectsTime, editorsTime, languagesTime, osTime };
+  }
+
+  const sortedHeartbeats = [...heartbeats].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  let lastTimestamp: Date | null = null;
+  let lastProject: string | null = null;
+  let lastEditor: string | null = null;
+  let lastLanguage: string | null = null;
+  let lastOs: string | null = null;
+
+  const IDLE_THRESHOLD_MS = idleThresholdMinutes * 60 * 1000;
+
+  for (const heartbeat of sortedHeartbeats) {
+    const currentTimestamp = new Date(heartbeat.timestamp);
+    const currentProject = heartbeat.project || null;
+    const currentEditor = heartbeat.editor || null;
+    const currentLanguage = heartbeat.language || null;
+    const currentOs = heartbeat.os || null;
+
+    if (lastTimestamp) {
+      const timeDiff = currentTimestamp.getTime() - lastTimestamp.getTime();
+
+      if (timeDiff < IDLE_THRESHOLD_MS) {
+        const secondsDiff = timeDiff / 1000;
+
+        if (lastProject) {
+          projectsTime[lastProject] =
+            (projectsTime[lastProject] || 0) + secondsDiff;
+        }
+
+        if (lastEditor) {
+          editorsTime[lastEditor] =
+            (editorsTime[lastEditor] || 0) + secondsDiff;
+        }
+
+        if (lastLanguage) {
+          languagesTime[lastLanguage] =
+            (languagesTime[lastLanguage] || 0) + secondsDiff;
+        }
+
+        if (lastOs) {
+          osTime[lastOs] = (osTime[lastOs] || 0) + secondsDiff;
+        }
+      }
+    }
+
+    lastTimestamp = currentTimestamp;
+    lastProject = currentProject;
+    lastEditor = currentEditor;
+    lastLanguage = currentLanguage;
+    lastOs = currentOs;
+  }
+
+  Object.keys(projectsTime).forEach((key) => {
+    projectsTime[key] = Math.round(projectsTime[key]);
+  });
+
+  Object.keys(editorsTime).forEach((key) => {
+    editorsTime[key] = Math.round(editorsTime[key]);
+  });
+
+  Object.keys(languagesTime).forEach((key) => {
+    languagesTime[key] = Math.round(languagesTime[key]);
+  });
+
+  Object.keys(osTime).forEach((key) => {
+    osTime[key] = Math.round(osTime[key]);
+  });
+
+  return { projectsTime, editorsTime, languagesTime, osTime };
 }
 
 interface WakApiUser {
@@ -159,6 +247,9 @@ async function processHeartbeatsForDay(
         idleThresholdMinutes
       );
 
+      const { projectsTime, editorsTime, languagesTime, osTime } =
+        calculateCategoryTimes(dateHeartbeats, idleThresholdMinutes);
+
       const summary = await prisma.summaries.upsert({
         where: {
           userId_date: {
@@ -166,11 +257,21 @@ async function processHeartbeatsForDay(
             date: new Date(localDateStr),
           },
         },
-        update: {},
+        update: {
+          totalMinutes,
+          projects: projectsTime,
+          editors: editorsTime,
+          languages: languagesTime,
+          os: osTime,
+        },
         create: {
           userId,
           date: new Date(localDateStr),
           totalMinutes,
+          projects: projectsTime,
+          editors: editorsTime,
+          languages: languagesTime,
+          os: osTime,
         },
       });
 
@@ -310,6 +411,12 @@ async function fetchRangeHeartbeats(
 }
 
 function processHeartbeat(heartbeat: WakApiHeartbeat | any, userId: string) {
+  totalHeartbeatsProcessed++;
+  
+  if (!heartbeat.user_agent_id) {
+    heartbeatsWithoutUserAgent++;
+  }
+  
   return {
     userId: userId,
     timestamp: heartbeat.time
@@ -331,6 +438,10 @@ function processHeartbeat(heartbeat: WakApiHeartbeat | any, userId: string) {
 export default defineEventHandler(async (event: H3Event) => {
   const userId = event.context.user.id;
   console.log("Processing for user ID:", userId);
+  
+  userAgentCounts.clear();
+  totalHeartbeatsProcessed = 0;
+  heartbeatsWithoutUserAgent = 0;
 
   const formData = await readMultipartFormData(event);
   if (!formData || formData.length === 0) {
@@ -442,12 +553,14 @@ export default defineEventHandler(async (event: H3Event) => {
 
       if (heartbeatsByDate.size === 0) {
         console.log("No days with activity found");
+        logUserAgentStats();
         return { success: true, message: "No data to import" };
       }
 
       console.log(
         `Successfully imported data from ${heartbeatsByDate.size} days with activity`
       );
+      logUserAgentStats();
       return { success: true, imported: heartbeatsByDate.size };
     } catch (error) {
       console.error("Error during import process:", error);
@@ -554,6 +667,7 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     console.log("Database update complete");
+    logUserAgentStats();
     return { success: true, imported: totalHeartbeats };
   } catch (error) {
     console.error("Error processing uploaded file:", error);
@@ -564,45 +678,145 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 });
 
-function extractEditor(userAgent: string): string | null {
-  if (!userAgent) return null;
+function logUserAgentStats() {
+  console.log(
+    "USER AGENTS ENCOUNTERED:",
+    Array.from(userAgentCounts.entries())
+      .sort((a, b) => b[1] - a[1]) // Sort by count (descending)
+      .map(([agent, count]) => `${agent} (${count} times)`)
+  );
+  console.log(`HEARTBEATS WITHOUT USER AGENT: ${heartbeatsWithoutUserAgent}`);
+  console.log(`TOTAL HEARTBEATS PROCESSED: ${totalHeartbeatsProcessed}`);
+  const percentageMissing = (heartbeatsWithoutUserAgent / totalHeartbeatsProcessed * 100).toFixed(2);
+  console.log(`PERCENTAGE WITHOUT USER AGENT: ${percentageMissing}%`);
+}
 
-  const editorRegex =
-    /(GoLand|emacs|kate|chrome|Edge|neovim|Skype|Notepad\+\+|cursor|HBuilder X|vscode)/i;
-  const editorMatch = userAgent.match(editorRegex);
-
-  if (editorMatch) {
-    return (
-      editorMatch[1].charAt(0).toUpperCase() +
-      editorMatch[1].slice(1).toLowerCase()
-    );
+function extractEditor(userAgent: string) {
+  if (!userAgent) {
+    heartbeatsWithoutUserAgent++;
+    return "No user Agent";
   }
 
+  userAgentCounts.set(userAgent, (userAgentCounts.get(userAgent) || 0) + 1);
+
+  if (userAgent.includes("cursor/")) return "Cursor";
+  if (userAgent.includes("vscode/") && !userAgent.includes("cursor/"))
+    return "VS Code";
+  if (userAgent.includes("intellijidea/")) return "IntelliJ IDEA";
+  if (
+    userAgent.includes("Zed/") ||
+    userAgent.includes("Zed Preview/") ||
+    userAgent.includes("Zed Dev/")
+  )
+    return "Zed";
+  if (userAgent.includes("pearai/")) return "Pear AI";
+  if (userAgent.includes("trae/")) return "Trae";
+
+  const lowerUserAgent = userAgent.toLowerCase();
+  if (lowerUserAgent.includes("goland")) return "GoLand";
+  if (lowerUserAgent.includes("emacs")) return "emacs";
+  if (lowerUserAgent.includes("kate")) return "kate";
+  if (lowerUserAgent.includes("neovim")) return "neovim";
+  if (lowerUserAgent.includes("skype")) return "Skype";
+  if (lowerUserAgent.includes("notepad++")) return "Notepad++";
+  if (lowerUserAgent.includes("hbuilder x")) return "HBuilder X";
+
+  if (userAgent.includes("vscode-wakatime")) return "VS Code";
+  if (userAgent.includes("intellijidea-wakatime")) return "IntelliJ IDEA";
+  if (userAgent.includes("Zed-wakatime")) return "Zed";
+
+  if (userAgent.includes("Unknown/")) return "Unknown";
+
+  console.log("Failed to parse editor from:", userAgent);
   return null;
 }
 
 function extractOS(path: string): string | null {
   if (!path) return null;
 
-  if (path.includes("linux") || path.includes("Linux")) {
+  const osRegex = /\(([a-z]+(?:-[a-z]+)?)-[\d.]+(?:-[a-z0-9_]+)?\)/i;
+  const osMatch = path.match(osRegex);
+
+  if (osMatch && osMatch[1]) {
+    const os = osMatch[1].toLowerCase();
+    if (os === "darwin" || os.startsWith("darwin-")) return "macOS";
+    if (os === "windows" || os.startsWith("windows-")) return "Windows";
+    if (os === "linux" || os.startsWith("linux-")) return "Linux";
+  }
+
+  const lowerPath = path.toLowerCase();
+
+  if (
+    lowerPath.includes("linux") ||
+    lowerPath.includes("wsl") ||
+    lowerPath.match(/linux-[\d.]+/) ||
+    lowerPath.includes("-x86_64") ||
+    lowerPath.includes("ubuntu") ||
+    lowerPath.includes("debian") ||
+    lowerPath.includes("fedora") ||
+    lowerPath.includes("arch") ||
+    lowerPath.includes("centos") ||
+    lowerPath.includes("redhat") ||
+    lowerPath.includes("mint") ||
+    lowerPath.includes("kali") ||
+    (lowerPath.includes("gnu") && !lowerPath.includes("darwin"))
+  ) {
     return "Linux";
-  } else if (
-    path.includes("win_") ||
-    path.includes("windows") ||
-    path.includes("Windows") ||
-    path.includes("Windows_NT")
+  }
+
+  if (
+    lowerPath.includes("win_") ||
+    lowerPath.includes("windows") ||
+    lowerPath.includes("windows_nt") ||
+    lowerPath.match(/windows-[\d.]+/) ||
+    lowerPath.includes("win32") ||
+    lowerPath.includes("win64") ||
+    lowerPath.includes("winnt") ||
+    lowerPath.includes("mswin") ||
+    lowerPath.includes("cygwin") ||
+    lowerPath.includes("mingw")
   ) {
     return "Windows";
-  } else if (path.includes("mac_") || path.includes("Mac")) {
+  }
+
+  if (
+    lowerPath.includes("mac_") ||
+    lowerPath.includes("mac") ||
+    lowerPath.includes("darwin") ||
+    lowerPath.includes("osx") ||
+    lowerPath.includes("mac_arm64") ||
+    lowerPath.includes("mac_x86-64") ||
+    lowerPath.includes("macos") ||
+    lowerPath.includes("apple") ||
+    lowerPath.includes("macintosh") ||
+    lowerPath.includes("ios")
+  ) {
     return "macOS";
   }
 
-  if (path.match(/^[A-Za-z]:[\\/]/) || path.match(/^\\\\/)) {
+  if (
+    path.match(/^[A-Za-z]:[\\/]/) ||
+    path.match(/^\\\\/) ||
+    path.includes("\\")
+  ) {
     return "Windows";
   } else if (path.startsWith("/Users/")) {
     return "macOS";
   } else if (path.startsWith("/home/")) {
     return "Linux";
+  }
+
+  if (path.includes("go1.") && path.includes("wakatime/")) {
+    if (path.includes("arm64") || path.includes("darwin")) {
+      return "macOS";
+    }
+    if (path.includes("x86_64") || path.includes("x86-64")) {
+      if (path.includes("windows")) {
+        return "Windows";
+      }
+
+      return "Linux";
+    }
   }
 
   return null;
@@ -642,6 +856,9 @@ async function processDateHeartbeats(
     idleThresholdMinutes
   );
 
+  const { projectsTime, editorsTime, languagesTime, osTime } =
+    calculateCategoryTimes(heartbeats, idleThresholdMinutes);
+
   const summary = await prisma.summaries.upsert({
     where: {
       userId_date: {
@@ -649,11 +866,21 @@ async function processDateHeartbeats(
         date: new Date(dateStr),
       },
     },
-    update: {},
+    update: {
+      totalMinutes,
+      projects: projectsTime,
+      editors: editorsTime,
+      languages: languagesTime,
+      os: osTime,
+    },
     create: {
       userId,
       date: new Date(dateStr),
       totalMinutes,
+      projects: projectsTime,
+      editors: editorsTime,
+      languages: languagesTime,
+      os: osTime,
     },
   });
 
