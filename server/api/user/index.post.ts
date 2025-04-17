@@ -13,7 +13,7 @@ const passwordSchema = z
   .regex(/[0-9]/, "Password must contain at least one number")
   .regex(
     /[^A-Za-z0-9]/,
-    "Password must contain at least one special character",
+    "Password must contain at least one special character"
   );
 
 const userSettingsSchema = z.object({
@@ -26,7 +26,7 @@ const userSettingsSchema = z.object({
       (tz) =>
         Intl.DateTimeFormat(undefined, { timeZone: tz }).resolvedOptions()
           .timeZone === tz,
-      { message: "Invalid timezone" },
+      { message: "Invalid timezone" }
     )
     .optional(),
 });
@@ -74,7 +74,7 @@ export default defineEventHandler(async (event: H3Event) => {
       const saltRounds = 10;
       const passwordHash = await bcrypt.hash(
         validatedData.data.password,
-        saltRounds,
+        saltRounds
       );
       updateData.passwordHash = passwordHash;
     }
@@ -90,8 +90,6 @@ export default defineEventHandler(async (event: H3Event) => {
         },
         data: updateData,
       });
-
-      console.log(`Updated settings for user ${event.context.user.id}`);
     }
 
     return { success: true };
