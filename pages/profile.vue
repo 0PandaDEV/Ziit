@@ -237,9 +237,14 @@
           <p>
             4. Paste <kbd>{{ origin }}</kbd>
           </p>
-          <p>5. Type "Ziit: Set API Key" and press Enter</p>
-          <p>6. Paste your API key and press Enter</p>
-          <p>7. Begin coding, and your time will be tracked automatically!</p>
+          <p>
+            5. Open VS Code and press <kbd>Cmd</kbd> + <kbd>Shift</kbd> +
+            <kbd>P</kbd> (or <kbd>Ctrl</kbd> + <kbd>Shift</kbd> +
+            <kbd>P</kbd> on Windows)
+          </p>
+          <p>6. Type "Ziit: Set API Key" and press Enter</p>
+          <p>7. Paste your API key and press Enter</p>
+          <p>8. Begin coding, and your time will be tracked automatically!</p>
         </div>
       </section>
     </div>
