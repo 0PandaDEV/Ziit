@@ -43,7 +43,7 @@ watch([() => statsLib.getStats(), () => statsLib.getTimeRange()], () => {
 });
 </script>
 
-<style scoped lang="scss">
+<style lang="scss">
 .layout {
   width: 100dvw;
   height: 100dvh;

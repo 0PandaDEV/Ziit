@@ -10,7 +10,7 @@
           <h2>TOP PROJECTS</h2>
           <div class="list">
             <div
-              v-for="project in sortedProjects.slice(0, 10)"
+              v-for="project in sortedProjects.slice(0, 8)"
               :key="project.name"
               class="item"
               :style="{
@@ -32,7 +32,7 @@
           <h2>TOP LANGUAGES</h2>
           <div class="list">
             <div
-              v-for="language in languageBreakdown.slice(0, 10)"
+              v-for="language in languageBreakdown.slice(0, 8)"
               :key="language.name"
               class="item"
               :style="{
@@ -58,7 +58,7 @@
           <h2>EDITORS</h2>
           <div class="list">
             <div
-              v-for="editor in editorBreakdown.slice(0, 10)"
+              v-for="editor in editorBreakdown.slice(0, 8)"
               :key="editor.name"
               class="item"
               :style="{
@@ -82,7 +82,7 @@
           <h2>OPERATING SYSTEMS</h2>
           <div class="list">
             <div
-              v-for="os in osBreakdown.slice(0, 10)"
+              v-for="os in osBreakdown.slice(0, 8)"
               :key="os.name"
               class="item"
               :style="{
