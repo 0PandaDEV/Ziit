@@ -34,6 +34,10 @@
 
 Ziit (pronounced "tseet") is an open source, self-hostable alternative to WakaTime that provides a clean, minimal dashboard for viewing coding statistics while ensuring privacy by keeping your data on your own server. It tracks coding activity through editor integrations, collecting data about projects, languages, os, editor and time spent coding, with an intuitive dashboard similar to Plausible Analytics.
 
+## Preview
+
+![Screenshot 2025-04-15 at 20-40-18 Ziit - Coding Statistics](https://github.com/user-attachments/assets/1c8c713e-ee61-4653-aaba-04e67dc6f8fa)
+
 ## Features
 
 - Time tracking directly from VSCode to your ziit instance of choise.
@@ -53,16 +57,25 @@ The extension is available on:
 - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=pandadev.ziit)
 - [OpenVSX Registry](https://open-vsx.org/extension/pandadev/ziit)
 
-For an extension setup guide follow the one in your profile on your instance or https://ziit.app/profile at the bottom of the page.
-
-## Preview
-
-![Screenshot 2025-04-15 at 20-40-18 Ziit - Coding Statistics](https://github.com/user-attachments/assets/1c8c713e-ee61-4653-aaba-04e67dc6f8fa)
+For an extension setup guide follow the one in your profile on your instance or <https://ziit.app/profile> at the bottom of the page.
 
 ## Development
 
-1. **Database Migrations (Development):**
-   Apply database schema changes during development.
+### Prerequisites
+
+- [Bun](https://bun.sh/)
+- [TimescaleDB](https://docs.timescale.com/self-hosted/latest/install/installation-docker/)
+
+### Setup
+
+1. **Install dependencies:**
+
+   ```bash
+   bun i
+   ```
+
+1. **Database Migrations:**
+   Apply database schema changes.
 
    ```bash
    bunx prisma migrate dev
@@ -72,5 +85,5 @@ For an extension setup guide follow the one in your profile on your instance or 
    The server will start on `http://localhost:3000`.
 
    ```bash
-   bun run dev
+   bun dev
    ```
