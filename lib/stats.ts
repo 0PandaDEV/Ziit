@@ -173,12 +173,18 @@ export async function fetchStats(): Promise<void> {
 }
 
 function convertUtcToLocal(apiResponse: any): StatsResult {
+  const timezone = apiResponse.timezone || "UTC";
+  
   const allParsedHeartbeats = (apiResponse.heartbeats || []).map((hb: any) => {
-    const timestamp =
-      hb.timestamp instanceof Date ? hb.timestamp : new Date(hb.timestamp);
+    const utcTimestamp = hb.timestamp instanceof Date ? hb.timestamp : new Date(hb.timestamp);
+    
+    const localTimestamp = new Date(utcTimestamp.toLocaleString("en-US", {
+      timeZone: timezone
+    }));
+    
     return {
       ...hb,
-      timestamp,
+      timestamp: localTimestamp,
     };
   }) as Heartbeat[];
 
@@ -221,6 +227,7 @@ function convertUtcToLocal(apiResponse: any): StatsResult {
     os: calculatedOs,
     summaries,
     heartbeats: allParsedHeartbeats,
+    timezone,
   };
 }
 

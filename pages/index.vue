@@ -769,14 +769,31 @@ function groupHeartbeatsByProject(
 }
 
 function convertToUtc(date: Date): Date {
+  const userTimezone = stats.value?.timezone || "UTC";
+  
+  const dateStr = date.toLocaleString("en-US", {
+    timeZone: userTimezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  
+  const [datePart, timePart] = dateStr.split(", ");
+  const [month, day, year] = datePart.split("/");
+  const [hours, minutes, seconds] = timePart.split(":");
+  
   return new Date(
     Date.UTC(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      date.getHours(),
-      date.getMinutes(),
-      date.getSeconds()
+      parseInt(year),
+      parseInt(month) - 1,
+      parseInt(day),
+      parseInt(hours),
+      parseInt(minutes),
+      parseInt(seconds)
     )
   );
 }

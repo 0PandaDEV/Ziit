@@ -406,7 +406,13 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
             const previous = dateHeartbeats[i - 1].timestamp.getTime();
             const diffSeconds = (current - previous) / 1000;
 
-            const prevHour = new Date(dateHeartbeats[i - 1].timestamp).getHours();
+            const prevHeartbeat = dateHeartbeats[i - 1];
+            const prevLocalTimestamp = new Date(
+              prevHeartbeat.timestamp.toLocaleString("en-US", {
+                timeZone: userTimezone,
+              })
+            );
+            const prevHour = prevLocalTimestamp.getHours();
 
             if (diffSeconds < keystrokeTimeoutSeconds) {
               secondsToAdd = diffSeconds;
@@ -414,11 +420,20 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
               if (hour !== prevHour) {
                 const hourBoundary = new Date(heartbeat.timestamp);
                 hourBoundary.setMinutes(0, 0, 0);
+                
+                const localHourBoundary = new Date(
+                  hourBoundary.toLocaleString("en-US", {
+                    timeZone: userTimezone,
+                  })
+                );
+                localHourBoundary.setMinutes(0, 0, 0);
+                
+                const utcHourBoundary = convertToUTC(localHourBoundary);
 
                 const secondsBeforeBoundary =
-                  (hourBoundary.getTime() - previous) / 1000;
+                  (utcHourBoundary.getTime() - previous) / 1000;
                 const secondsAfterBoundary =
-                  (current - hourBoundary.getTime()) / 1000;
+                  (current - utcHourBoundary.getTime()) / 1000;
 
                 if (
                   secondsBeforeBoundary > 0 &&
