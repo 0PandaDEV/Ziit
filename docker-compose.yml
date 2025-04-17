@@ -12,8 +12,6 @@ services:
       NUXT_HOST: ${NUXT_HOST} # The domain where ziit will be hosted e.g. ziit.example.com
       NUXT_DISABLE_REGISTRATION: false # By default users are allowed to register a new account
     restart: unless-stopped
-    volumes:
-      - ./files:/anders/files
     depends_on:
       - postgres
     networks:
