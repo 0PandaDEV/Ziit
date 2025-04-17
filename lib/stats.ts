@@ -111,22 +111,6 @@ const state: State = {
   isAuthenticated: true,
 };
 
-const listeners: (() => void)[] = [];
-
-export function subscribe(callback: () => void): () => void {
-  listeners.push(callback);
-  return () => {
-    const index = listeners.indexOf(callback);
-    if (index > -1) {
-      listeners.splice(index, 1);
-    }
-  };
-}
-
-function notify(): void {
-  listeners.forEach((callback) => callback());
-}
-
 export async function fetchStats(): Promise<void> {
   if (typeof window === "undefined") {
     state.status = "idle";
@@ -138,13 +122,11 @@ export async function fetchStats(): Promise<void> {
   if (state.cache[cacheKey] && state.timeRange !== TimeRangeEnum.TODAY) {
     state.data = state.cache[cacheKey];
     state.status = "success";
-    notify();
     return;
   }
 
   state.status = "pending";
   state.error = null;
-  notify();
 
   try {
     const baseUrl = window.location.origin;
@@ -199,8 +181,6 @@ export async function fetchStats(): Promise<void> {
       }
     }
   }
-
-  notify();
 }
 
 function convertUtcToLocal(apiResponse: any): StatsResult {
@@ -284,14 +264,6 @@ export function getStats(): StatsResult {
 
 export function getTimeRange(): TimeRange {
   return state.timeRange;
-}
-
-export function getStatus(): "idle" | "pending" | "success" | "error" {
-  return state.status;
-}
-
-export function isAuthenticated(): boolean {
-  return state.isAuthenticated;
 }
 
 if (typeof window !== "undefined") {
