@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { TimeRangeEnum, TimeRange, HourlyData, Summary } from "~/lib/stats";
+import { TimeRangeEnum, TimeRange, Summary, HourlyData } from "~/lib/stats";
 import type { Heartbeats } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -148,7 +148,6 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
   }
 
   const summaryMap = new Map<string, Summary>();
-
   let heartbeats: Heartbeats[] = [];
 
   if (!isSingleDayView) {
@@ -160,15 +159,13 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
           lte: fetchEndDate,
         },
       },
-      include: {
-        heartbeats: {
-          select: {
-            project: true,
-            language: true,
-            editor: true,
-            os: true,
-          },
-        },
+      select: {
+        date: true,
+        totalMinutes: true,
+        projects: true,
+        languages: true,
+        editors: true,
+        os: true
       },
       orderBy: {
         date: "asc",
@@ -182,157 +179,38 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
         summaryMap.set(dateStr, {
           date: dateStr,
           totalSeconds: summary.totalMinutes * 60,
-          projects: {},
-          languages: {},
-          editors: {},
-          os: {},
-          hourlyData: Array(24)
-            .fill(null)
-            .map(() => ({
-              seconds: 0,
-              file: null,
-              editor: null,
-              language: null,
-              branch: null,
-              os: null,
-            })),
+          projects: summary.projects ? JSON.parse(JSON.stringify(summary.projects)) : {},
+          languages: summary.languages ? JSON.parse(JSON.stringify(summary.languages)) : {},
+          editors: summary.editors ? JSON.parse(JSON.stringify(summary.editors)) : {},
+          os: summary.os ? JSON.parse(JSON.stringify(summary.os)) : {},
+          hourlyData: Array<HourlyData>(24).fill({seconds: 0}).map(() => ({
+            seconds: 0,
+          })),
         });
-      }
-
-      const summaryData = summaryMap.get(dateStr)!;
-
-      const categoryCounters = {
-        projects: {} as Record<string, number>,
-        languages: {} as Record<string, number>,
-        editors: {} as Record<string, number>,
-        os: {} as Record<string, number>,
-      };
-
-      for (const heartbeat of summary.heartbeats) {
-        if (heartbeat.project) {
-          categoryCounters.projects[heartbeat.project] =
-            (categoryCounters.projects[heartbeat.project] || 0) + 1;
-        }
-        if (heartbeat.language) {
-          categoryCounters.languages[heartbeat.language] =
-            (categoryCounters.languages[heartbeat.language] || 0) + 1;
-        }
-        if (heartbeat.editor) {
-          categoryCounters.editors[heartbeat.editor] =
-            (categoryCounters.editors[heartbeat.editor] || 0) + 1;
-        }
-        if (heartbeat.os) {
-          categoryCounters.os[heartbeat.os] =
-            (categoryCounters.os[heartbeat.os] || 0) + 1;
-        }
-      }
-
-      const totalHeartbeats = summary.heartbeats.length;
-      const totalSeconds = summary.totalMinutes * 60;
-
-      if (totalHeartbeats > 0) {
-        for (const [project, count] of Object.entries(
-          categoryCounters.projects
-        )) {
-          const seconds = Math.round((count / totalHeartbeats) * totalSeconds);
-          summaryData.projects[project] =
-            (summaryData.projects[project] || 0) + seconds;
-        }
-
-        for (const [language, count] of Object.entries(
-          categoryCounters.languages
-        )) {
-          const seconds = Math.round((count / totalHeartbeats) * totalSeconds);
-          summaryData.languages[language] =
-            (summaryData.languages[language] || 0) + seconds;
-        }
-
-        for (const [editor, count] of Object.entries(
-          categoryCounters.editors
-        )) {
-          const seconds = Math.round((count / totalHeartbeats) * totalSeconds);
-          summaryData.editors[editor] =
-            (summaryData.editors[editor] || 0) + seconds;
-        }
-
-        for (const [os, count] of Object.entries(categoryCounters.os)) {
-          const seconds = Math.round((count / totalHeartbeats) * totalSeconds);
-          summaryData.os[os] = (summaryData.os[os] || 0) + seconds;
-        }
-      }
-    }
-
-    const hourlyHeartbeats = await prisma.heartbeats.findMany({
-      where: {
-        userId,
-        timestamp: {
-          gte: fetchStartDate,
-          lte: fetchEndDate,
-        },
-      },
-      select: {
-        timestamp: true,
-        file: true,
-        editor: true,
-        language: true,
-        branch: true,
-        os: true,
-      },
-      orderBy: {
-        timestamp: "asc",
-      },
-    });
-
-    const hourlyMap = new Map<string, Map<number, HourlyData>>();
-
-    for (const hb of hourlyHeartbeats) {
-      const date = new Date(hb.timestamp);
-      const dateStr = date.toISOString().split('T')[0];
-      const hourNum = date.getUTCHours();
-      
-      if (!hourlyMap.has(dateStr)) {
-        hourlyMap.set(dateStr, new Map());
-      }
-      
-      const dateMap = hourlyMap.get(dateStr)!;
-      if (!dateMap.has(hourNum)) {
-        dateMap.set(hourNum, {
-          seconds: 30,
-        });
-      } else {
-        const hourData = dateMap.get(hourNum)!;
-        hourData.seconds += 30;
-      }
-    }
-
-    for (const [dateStr, hoursMap] of hourlyMap.entries()) {
-      if (summaryMap.has(dateStr)) {
-        const summaryData = summaryMap.get(dateStr)!;
-        
-        for (const [hour, data] of hoursMap.entries()) {
-          summaryData.hourlyData[hour] = data;
-        }
       }
     }
   } else {
     try {
+      const targetDate = 
+        timeRange === TimeRangeEnum.TODAY ? todayStart : yesterdayStart;
+      const targetDateStr = targetDate.toLocaleDateString("en-CA", {
+        timeZone: userTimezone,
+      });
+      
+      const startUtc = fetchStartDate;
+      const endUtc = fetchEndDate;
+
       heartbeats = await prisma.heartbeats.findMany({
         where: {
           userId,
           timestamp: {
-            gte: fetchStartDate,
-            lte: fetchEndDate
+            gte: startUtc,
+            lte: endUtc
           }
         },
         orderBy: {
           timestamp: "asc",
         },
-      });
-
-      const targetDate =
-        timeRange === TimeRangeEnum.TODAY ? todayStart : yesterdayStart;
-      const targetDateStr = targetDate.toLocaleDateString("en-CA", {
-        timeZone: userTimezone,
       });
 
       const filteredHeartbeats = heartbeats.filter((heartbeat) => {
@@ -371,24 +249,13 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
             languages: {},
             editors: {},
             os: {},
-            hourlyData: Array(24)
-              .fill(null)
-              .map(() => ({
-                seconds: 0,
-                file: null,
-                editor: null,
-                language: null,
-                branch: null,
-                os: null,
-              })),
+            hourlyData: Array<HourlyData>(24).fill({seconds: 0}).map(() => ({
+              seconds: 0,
+            })),
           });
         }
 
         const summaryData = summaryMap.get(dateStr)!;
-
-        dateHeartbeats.sort(
-          (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-        );
 
         for (let i = 0; i < dateHeartbeats.length; i++) {
           const heartbeat = dateHeartbeats[i];
@@ -485,13 +352,6 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
 
   return {
     summaries,
-    heartbeats: isSingleDayView
-      ? heartbeats.map((h) => ({
-          ...h,
-          timestamp: h.timestamp.toISOString(),
-          createdAt: h.createdAt.toISOString(),
-        }))
-      : [],
     timezone: userTimezone,
   };
 }
