@@ -292,41 +292,15 @@ async function fetchRangeHeartbeats(
 }
 
 function processHeartbeat(heartbeat: WakApiHeartbeat | any, userId: string) {
-  let editor = null;
-  let os = null;
-
-  if (heartbeat.user_agent_id) {
-    const userAgent = heartbeat.user_agent_id;
-
-    const editorMatch = userAgent.match(
-      /vscode-wakatime\/(\d+\.\d+\.\d+)|cursor\/(\d+\.\d+\.\d+)/
-    );
-    if (editorMatch) {
-      const editorName = editorMatch[0].split("/")[0];
-      editor = editorName.charAt(0).toUpperCase() + editorName.slice(1);
-    }
-  }
-
-  if (heartbeat.entity) {
-    const filePath = heartbeat.entity;
-    if (filePath.match(/^[A-Za-z]:[\\/]/) || filePath.match(/^\\\\/)) {
-      os = "Windows";
-    } else if (filePath.startsWith("/Users/")) {
-      os = "macOS";
-    } else if (filePath.startsWith("/home/")) {
-      os = "Linux";
-    }
-  }
-
   return {
     userId: userId,
     timestamp: heartbeat.time
       ? new Date(heartbeat.time * 1000)
       : new Date(heartbeat.timestamp),
     project: heartbeat.project || null,
-    editor,
+    editor: heartbeat.user_agent_id ? extractEditor(heartbeat.user_agent_id) : null,
     language: heartbeat.language || null,
-    os,
+    os: heartbeat.user_agent_id ? extractOS(heartbeat.user_agent_id) : extractOS(heartbeat.entity || ""),
     file: heartbeat.entity || null,
     branch: heartbeat.branch || null,
   };
@@ -582,24 +556,37 @@ export default defineEventHandler(async (event: H3Event) => {
 });
 
 function extractEditor(userAgent: string): string | null {
-  const editorMatch = userAgent.match(
-    /vscode-wakatime\/(\d+\.\d+\.\d+)|cursor\/(\d+\.\d+\.\d+)/
-  );
+  if (!userAgent) return null;
+  
+  const editorRegex = /(GoLand|emacs|kate|chrome|Edge|neovim|Skype|Notepad\+\+|cursor|HBuilder X|vscode)/i;
+  const editorMatch = userAgent.match(editorRegex);
+  
   if (editorMatch) {
-    const editorName = editorMatch[0].split("/")[0];
-    return editorName.charAt(0).toUpperCase() + editorName.slice(1);
+    return editorMatch[1].charAt(0).toUpperCase() + editorMatch[1].slice(1).toLowerCase();
   }
+  
   return null;
 }
 
-function extractOS(filePath: string): string | null {
-  if (filePath.match(/^[A-Za-z]:[\\/]/) || filePath.match(/^\\\\/)) {
+function extractOS(path: string): string | null {
+  if (!path) return null;
+  
+  if (path.includes("linux") || path.includes("Linux")) {
+    return "Linux";
+  } else if (path.includes("win_") || path.includes("windows") || path.includes("Windows") || path.includes("Windows_NT")) {
     return "Windows";
-  } else if (filePath.startsWith("/Users/")) {
+  } else if (path.includes("mac_") || path.includes("Mac")) {
     return "macOS";
-  } else if (filePath.startsWith("/home/")) {
+  }
+  
+  if (path.match(/^[A-Za-z]:[\\/]/) || path.match(/^\\\\/)) {
+    return "Windows";
+  } else if (path.startsWith("/Users/")) {
+    return "macOS";
+  } else if (path.startsWith("/home/")) {
     return "Linux";
   }
+  
   return null;
 }
 
