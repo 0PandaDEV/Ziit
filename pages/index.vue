@@ -492,7 +492,7 @@ function getChartConfig() {
         return getDateLabel(date);
       }).reverse();
 
-      data = processDailySummaries(labels);
+      data = processSummaries(labels);
       return { labels, data };
     }
 
@@ -510,7 +510,7 @@ function getChartConfig() {
       }
 
       labels = days.map(getDateLabel);
-      data = processDailySummaries(labels);
+      data = processSummaries(labels);
       return { labels, data };
     }
 
@@ -526,7 +526,7 @@ function getChartConfig() {
       }
 
       labels = days.map(getDateLabel);
-      data = processDailySummaries(labels);
+      data = processSummaries(labels);
       return { labels, data };
     }
 
@@ -546,7 +546,7 @@ function getChartConfig() {
       }
 
       labels = days.map(getDateLabel);
-      data = processDailySummaries(labels);
+      data = processSummaries(labels);
       return { labels, data };
     }
 
@@ -652,13 +652,13 @@ function getChartConfig() {
         return getDateLabel(date);
       }).reverse();
 
-      data = processDailySummaries(labels);
+      data = processSummaries(labels);
       return { labels, data };
     }
   }
 }
 
-function processDailySummaries(labels: string[]): number[] {
+function processSummaries(labels: string[]): number[] {
   const result = Array(labels.length).fill(0);
   if (!stats.value?.summaries?.length) return result;
 
