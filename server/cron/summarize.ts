@@ -9,21 +9,11 @@ export default defineCronHandler(
   async () => {
     try {
       const now = new Date();
-      const randomOffset = Math.floor(
-        (crypto.getRandomValues(new Uint32Array(1))[0] / 4294967295) *
-          24 *
-          60 *
-          60 *
-          1000,
-      );
-      const yesterday = new Date(
-        now.getTime() - 24 * 60 * 60 * 1000 - randomOffset,
-      );
-      yesterday.setHours(23, 59, 59, 999);
-
+      now.setHours(0, 0, 0, 0);
+      
       const heartbeatsToSummarize = await prisma.heartbeats.findMany({
         where: {
-          timestamp: { lt: yesterday },
+          timestamp: { lt: now },
           summariesId: null,
         },
         orderBy: {
@@ -48,13 +38,9 @@ export default defineCronHandler(
         const userId = heartbeat.userId;
         const userTimezone = heartbeat.user.timezone || "UTC";
 
-        const date = new Date(
-          heartbeat.timestamp.toLocaleString("en-US", {
-            timeZone: userTimezone,
-          }),
-        );
-        date.setHours(0, 0, 0, 0);
-        const dateKey = date.toISOString().split("T")[0];
+        const timestamp = new Date(heartbeat.timestamp);
+        const userDate = new Date(timestamp.toLocaleString("en-US", { timeZone: userTimezone }));
+        const dateKey = `${userDate.getFullYear()}-${String(userDate.getMonth() + 1).padStart(2, '0')}-${String(userDate.getDate()).padStart(2, '0')}`;
 
         if (!userDateHeartbeats[userId]) {
           userDateHeartbeats[userId] = {};
@@ -73,7 +59,7 @@ export default defineCronHandler(
 
           dateHeartbeats.sort(
             (a: Heartbeats, b: Heartbeats) =>
-              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
 
           const user = await prisma.user.findUnique({
@@ -85,8 +71,11 @@ export default defineCronHandler(
 
           const totalMinutes = calculateTotalMinutesFromHeartbeats(
             dateHeartbeats,
-            idleThresholdMinutes,
+            idleThresholdMinutes
           );
+
+          const { projectsTime, editorsTime, languagesTime, osTime } =
+            calculateCategoryTimes(dateHeartbeats, idleThresholdMinutes);
 
           const summary = await prisma.summaries.upsert({
             where: {
@@ -95,27 +84,42 @@ export default defineCronHandler(
                 date: new Date(dateKey),
               },
             },
-            update: {},
+            update: {
+              totalMinutes,
+              projects: projectsTime,
+              editors: editorsTime,
+              languages: languagesTime,
+              os: osTime,
+            },
             create: {
               userId,
               date: new Date(dateKey),
               totalMinutes,
+              projects: projectsTime,
+              editors: editorsTime,
+              languages: languagesTime,
+              os: osTime,
             },
           });
 
           await prisma.$transaction(
             dateHeartbeats.map((heartbeat) =>
               prisma.heartbeats.update({
-                where: { id: heartbeat.id },
+                where: {
+                  id_timestamp: {
+                    id: heartbeat.id,
+                    timestamp: heartbeat.timestamp,
+                  },
+                },
                 data: { summariesId: summary.id },
-              }),
-            ),
+              })
+            )
           );
         }
       }
 
       console.log(
-        `Summarization complete. Processed ${heartbeatsToSummarize.length} heartbeats.`,
+        `Summarization complete. Processed ${heartbeatsToSummarize.length} heartbeats.`
       );
     } catch (error) {
       console.error("Error in summarization cron job", error);
@@ -124,17 +128,17 @@ export default defineCronHandler(
   {
     timeZone: "UTC",
     runOnInit: true,
-  },
+  }
 );
 
 function calculateTotalMinutesFromHeartbeats(
   heartbeats: Heartbeats[],
-  idleThresholdMinutes: number,
+  idleThresholdMinutes: number
 ): number {
   if (heartbeats.length === 0) return 0;
 
   const sortedHeartbeats = [...heartbeats].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
 
   let totalMinutes = 0;
@@ -156,4 +160,89 @@ function calculateTotalMinutesFromHeartbeats(
   }
 
   return Math.round(totalMinutes);
+}
+
+function calculateCategoryTimes(
+  heartbeats: Heartbeats[],
+  idleThresholdMinutes: number
+) {
+  const projectsTime: Record<string, number> = {};
+  const editorsTime: Record<string, number> = {};
+  const languagesTime: Record<string, number> = {};
+  const osTime: Record<string, number> = {};
+
+  if (heartbeats.length === 0) {
+    return { projectsTime, editorsTime, languagesTime, osTime };
+  }
+
+  const sortedHeartbeats = [...heartbeats].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  let lastTimestamp: Date | null = null;
+  let lastProject: string | null = null;
+  let lastEditor: string | null = null;
+  let lastLanguage: string | null = null;
+  let lastOs: string | null = null;
+
+  const IDLE_THRESHOLD_MS = idleThresholdMinutes * 60 * 1000;
+
+  for (const heartbeat of sortedHeartbeats) {
+    const currentTimestamp = new Date(heartbeat.timestamp);
+    const currentProject = heartbeat.project || null;
+    const currentEditor = heartbeat.editor || null;
+    const currentLanguage = heartbeat.language || null;
+    const currentOs = heartbeat.os || null;
+
+    if (lastTimestamp) {
+      const timeDiff = currentTimestamp.getTime() - lastTimestamp.getTime();
+
+      if (timeDiff < IDLE_THRESHOLD_MS) {
+        const secondsDiff = timeDiff / 1000;
+
+        if (lastProject) {
+          projectsTime[lastProject] =
+            (projectsTime[lastProject] || 0) + secondsDiff;
+        }
+
+        if (lastEditor) {
+          editorsTime[lastEditor] =
+            (editorsTime[lastEditor] || 0) + secondsDiff;
+        }
+
+        if (lastLanguage) {
+          languagesTime[lastLanguage] =
+            (languagesTime[lastLanguage] || 0) + secondsDiff;
+        }
+
+        if (lastOs) {
+          osTime[lastOs] = (osTime[lastOs] || 0) + secondsDiff;
+        }
+      }
+    }
+
+    lastTimestamp = currentTimestamp;
+    lastProject = currentProject;
+    lastEditor = currentEditor;
+    lastLanguage = currentLanguage;
+    lastOs = currentOs;
+  }
+
+  Object.keys(projectsTime).forEach((key) => {
+    projectsTime[key] = Math.round(projectsTime[key]);
+  });
+
+  Object.keys(editorsTime).forEach((key) => {
+    editorsTime[key] = Math.round(editorsTime[key]);
+  });
+
+  Object.keys(languagesTime).forEach((key) => {
+    languagesTime[key] = Math.round(languagesTime[key]);
+  });
+
+  Object.keys(osTime).forEach((key) => {
+    osTime[key] = Math.round(osTime[key]);
+  });
+
+  return { projectsTime, editorsTime, languagesTime, osTime };
 }
