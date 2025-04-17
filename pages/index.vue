@@ -562,12 +562,12 @@ function getChartConfig() {
 
       data = Array(labels.length).fill(0);
 
-      if (!stats.value?.dailySummaries?.length) {
+      if (!stats.value?.summaries?.length) {
         return { labels, data };
       }
 
       const monthlyTotals = new Map<string, number>();
-      for (const summary of stats.value.dailySummaries) {
+      for (const summary of stats.value.summaries) {
         const date = new Date(summary.date);
         const monthName = months[date.getMonth()];
         monthlyTotals.set(
@@ -585,8 +585,8 @@ function getChartConfig() {
     }
 
     case "all-time": {
-      if (stats.value?.dailySummaries?.length > 0) {
-        const dates = stats.value.dailySummaries.map(
+      if (stats.value?.summaries?.length > 0) {
+        const dates = stats.value.summaries.map(
           (summary) => new Date(summary.date)
         );
         const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
@@ -608,7 +608,7 @@ function getChartConfig() {
           labels = monthsWithYears.map(getMonthYearLabel);
           data = Array(labels.length).fill(0);
 
-          for (const summary of stats.value.dailySummaries) {
+          for (const summary of stats.value.summaries) {
             const date = new Date(summary.date);
             const labelKey = getMonthYearLabel(date);
             const labelIndex = labels.indexOf(labelKey);
@@ -630,8 +630,8 @@ function getChartConfig() {
 
       data = Array(labels.length).fill(0);
 
-      if (stats.value?.dailySummaries?.length) {
-        for (const summary of stats.value.dailySummaries) {
+      if (stats.value?.summaries?.length) {
+        for (const summary of stats.value.summaries) {
           const date = new Date(summary.date);
           const monthName = months[date.getMonth()];
           const labelIndex = labels.indexOf(monthName);
@@ -660,14 +660,14 @@ function getChartConfig() {
 
 function processDailySummaries(labels: string[]): number[] {
   const result = Array(labels.length).fill(0);
-  if (!stats.value?.dailySummaries?.length) return result;
+  if (!stats.value?.summaries?.length) return result;
 
   const labelMap = new Map<string, number>();
   for (let i = 0; i < labels.length; i++) {
     labelMap.set(labels[i], i);
   }
 
-  for (const summary of stats.value.dailySummaries) {
+  for (const summary of stats.value.summaries) {
     const date = new Date(summary.date);
     const dateString = `${date.getDate()} ${months[date.getMonth()]}`;
     const index = labelMap.get(dateString);

@@ -80,7 +80,7 @@ type StatsResult = {
   os: StatRecord;
   dailyData: DailyData[];
   heartbeats: Heartbeat[];
-  dailySummaries: DailySummary[];
+  summaries: DailySummary[];
   timezone?: string;
 };
 
@@ -101,7 +101,7 @@ const initialStats: StatsResult = {
   os: {},
   dailyData: [],
   heartbeats: [],
-  dailySummaries: [],
+  summaries: [],
 };
 
 const state: State = {
@@ -208,7 +208,7 @@ function convertUtcToLocal(apiResponse: any): StatsResult {
   const calculatedOs: StatRecord = {};
 
   const dailyData = apiResponse.summaries || [];
-  const dailySummaries = apiResponse.dailySummaries || [];
+  const summaries = apiResponse.summaries || [];
 
   dailyData.forEach((day: DailyData) => {
     calculatedTotalSeconds += day.totalSeconds;
@@ -240,7 +240,7 @@ function convertUtcToLocal(apiResponse: any): StatsResult {
     os: calculatedOs,
     dailyData,
     heartbeats: allParsedHeartbeats,
-    dailySummaries,
+    summaries,
   };
 }
 
