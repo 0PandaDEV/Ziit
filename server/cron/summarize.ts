@@ -8,13 +8,27 @@ export default defineCronHandler(
   "daily",
   async () => {
     try {
+      const now = new Date();
+      const randomOffset = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 4294967295) * 24 * 60 * 60 * 1000);
+      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000 - randomOffset);
+      yesterday.setHours(23, 59, 59, 999);
+
       const heartbeatsToSummarize = await prisma.heartbeats.findMany({
         where: {
+          timestamp: { lt: yesterday },
           summariesId: null,
         },
         orderBy: {
           timestamp: "asc",
         },
+        include: {
+          user: {
+            select: {
+              timezone: true,
+              keystrokeTimeout: true,
+            }
+          }
+        }
       });
 
       const userDateHeartbeats: Record<
@@ -24,7 +38,9 @@ export default defineCronHandler(
 
       heartbeatsToSummarize.forEach((heartbeat) => {
         const userId = heartbeat.userId;
-        const date = new Date(heartbeat.timestamp);
+        const userTimezone = heartbeat.user.timezone || "UTC";
+        
+        const date = new Date(heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone }));
         date.setHours(0, 0, 0, 0);
         const dateKey = date.toISOString().split("T")[0];
 

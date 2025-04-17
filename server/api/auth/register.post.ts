@@ -34,6 +34,10 @@ export default defineEventHandler(async (event) => {
       message: "Email and Password are required",
     });
   }
+  
+  const timezone = body.timezone && typeof body.timezone === "string" 
+    ? body.timezone 
+    : "UTC";
 
   try {
     const passwordValidation = passwordSchema.safeParse(body.password);
@@ -63,6 +67,7 @@ export default defineEventHandler(async (event) => {
       data: {
         email: body.email,
         passwordHash,
+        timezone,
       },
     });
 
