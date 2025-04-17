@@ -131,6 +131,16 @@ async function processHeartbeatsForDay(
     });
 
     for (const [localDateStr, dateHeartbeats] of heartbeatsByDate.entries()) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const currentDate = new Date(localDateStr);
+      currentDate.setHours(0, 0, 0, 0);
+      
+      if (currentDate.getTime() === today.getTime()) {
+        console.log(`Skipping summary creation for current day: ${localDateStr}`);
+        continue;
+      }
+
       const totalMinutes = calculateTotalMinutesFromHeartbeats(
         dateHeartbeats,
         idleThresholdMinutes,
@@ -589,6 +599,16 @@ async function processDateHeartbeats(
   userId: string,
   idleThresholdMinutes: number,
 ) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const currentDate = new Date(dateStr);
+  currentDate.setHours(0, 0, 0, 0);
+  
+  if (currentDate.getTime() === today.getTime()) {
+    console.log(`Skipping summary creation for current day: ${dateStr}`);
+    return;
+  }
+
   const totalMinutes = calculateTotalMinutesFromHeartbeats(
     heartbeats,
     idleThresholdMinutes,
