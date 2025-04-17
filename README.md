@@ -19,7 +19,7 @@
 </div>
 
 > [!CAUTION]
-> This project is in a early developement state and not production ready at the moment that is also why signups are currently disabeld on [ziit.app](https://ziit.app).
+> This project is in a early developement state and not production ready at the moment that is also why signups are currently disabeld on [ziit.app](https://ziit.app). You can track the progress of v1.0.0 [here](https://github.com/0PandaDEV/Ziit/milestone/1).
 
 <details>
   <summary><kbd>Star History</kbd></summary>
