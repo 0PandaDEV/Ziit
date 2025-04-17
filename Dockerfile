@@ -2,6 +2,8 @@ FROM oven/bun:latest
 
 WORKDIR /ziit
 
+RUN apt-get update -y && apt-get install -y openssl
+
 COPY package.json bun.lock ./
 RUN bun install
 
