@@ -112,6 +112,27 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { Key, keyboard } from "wrdu-keyboard";
 import * as statsLib from "~/lib/stats";
 import type { Heartbeat } from "~/lib/stats";
+import {
+  Chart,
+  CategoryScale,
+  LinearScale,
+  LineElement,
+  PointElement,
+  LineController,
+  Tooltip,
+  Filler,
+  type ChartConfiguration,
+} from "chart.js";
+
+Chart.register(
+  CategoryScale,
+  LinearScale,
+  LineElement,
+  PointElement,
+  LineController,
+  Tooltip,
+  Filler
+);
 
 type ItemWithTime = {
   name: string;
@@ -122,7 +143,7 @@ const userState = useState<User | null>("user");
 const chartContainer = ref<HTMLElement | null>(null);
 const projectSort = ref<"time" | "name">("time");
 const uniqueLanguages = ref(0);
-let chart: any = null;
+let chart: Chart | null = null;
 
 const stats = ref(statsLib.getStats());
 const timeRange = ref(statsLib.getTimeRange());
@@ -481,7 +502,8 @@ function getChartLabels(): string[] {
 
   if (timeRange.value === "today" || timeRange.value === "yesterday") {
     for (let i = 0; i < 24; i++) {
-      labels.push(`${i}:00`);
+      const hour = i.toString().padStart(2, "0");
+      labels.push(`${hour}:00`);
     }
   } else if (timeRange.value === "week") {
     const today = new Date();
@@ -594,36 +616,86 @@ function getChartData(): number[] {
     const relevantHeartbeats = stats.value.heartbeats;
 
     if (!relevantHeartbeats || relevantHeartbeats.length === 0) return result;
+    const userTimezone = stats.value.timezone || "UTC";
 
-    const localNow = new Date();
-    let localStartDate = new Date(localNow);
-    let localEndDate = new Date(localNow);
+    const now = new Date();
+
+    let startDate, endDate;
 
     if (timeRange.value === statsLib.TimeRangeEnum.TODAY) {
-      localStartDate.setHours(0, 0, 0, 0);
-      localEndDate.setHours(23, 59, 59, 999);
-    } else if (timeRange.value === statsLib.TimeRangeEnum.YESTERDAY) {
-      localStartDate.setDate(localStartDate.getDate() - 1);
-      localStartDate.setHours(0, 0, 0, 0);
-      localEndDate.setDate(localEndDate.getDate() - 1);
-      localEndDate.setHours(23, 59, 59, 999);
+      startDate = new Date(
+        now.toLocaleString("en-US", { timeZone: userTimezone })
+      );
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(
+        now.toLocaleString("en-US", { timeZone: userTimezone })
+      );
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      startDate = new Date(
+        now.toLocaleString("en-US", { timeZone: userTimezone })
+      );
+      startDate.setDate(startDate.getDate() - 1);
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(
+        startDate.toLocaleString("en-US", { timeZone: userTimezone })
+      );
+      endDate.setHours(23, 59, 59, 999);
     }
 
+    const utcStartDate = new Date(
+      Date.UTC(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        startDate.getDate(),
+        startDate.getHours(),
+        startDate.getMinutes(),
+        startDate.getSeconds()
+      )
+    );
+
+    const utcEndDate = new Date(
+      Date.UTC(
+        endDate.getFullYear(),
+        endDate.getMonth(),
+        endDate.getDate(),
+        endDate.getHours(),
+        endDate.getMinutes(),
+        endDate.getSeconds()
+      )
+    );
+
+    const filteredHeartbeats = relevantHeartbeats.filter((hb) => {
+      const hbDate = new Date(hb.timestamp);
+      return hbDate >= utcStartDate && hbDate <= utcEndDate;
+    });
+
+    console.log(
+      `Filtered ${filteredHeartbeats.length} heartbeats for ${timeRange.value}`
+    );
+    console.log(
+      `Date range: ${utcStartDate.toISOString()} - ${utcEndDate.toISOString()}`
+    );
+
     const heartbeatsByProject: Record<string, Heartbeat[]> = {};
-    relevantHeartbeats.forEach((hb) => {
+
+    filteredHeartbeats.forEach((hb) => {
       const projectKey = hb.project || "unknown";
       if (!heartbeatsByProject[projectKey]) {
         heartbeatsByProject[projectKey] = [];
       }
-
-      const ts = hb.timestamp as Date;
-      if (ts >= localStartDate && ts <= localEndDate) {
-        heartbeatsByProject[projectKey].push(hb);
-      }
+      heartbeatsByProject[projectKey].push(hb);
     });
 
     for (const projectKey in heartbeatsByProject) {
-      const projectBeats = heartbeatsByProject[projectKey];
+      const projectBeats = heartbeatsByProject[projectKey].sort((a, b) => {
+        const aTime = new Date(a.timestamp).getTime();
+        const bTime = new Date(b.timestamp).getTime();
+        return aTime - bTime;
+      });
+
       for (let i = 0; i < projectBeats.length; i++) {
         const currentBeat = projectBeats[i];
         const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
@@ -631,7 +703,13 @@ function getChartData(): number[] {
           currentBeat,
           previousBeat
         );
-        const localHour = (currentBeat.timestamp as Date).getHours();
+
+        const ts = new Date(currentBeat.timestamp);
+        const localTs = new Date(
+          ts.toLocaleString("en-US", { timeZone: userTimezone })
+        );
+        const localHour = localTs.getHours();
+
         if (localHour >= 0 && localHour < 24) {
           result[localHour] = (result[localHour] || 0) + durationSeconds / 3600;
         }
@@ -678,12 +756,13 @@ function getChartData(): number[] {
           (result[labelIndex] || 0) + summary.totalSeconds / 3600;
       }
     }
+
+    return result;
   } else if (
     timeRange.value === statsLib.TimeRangeEnum.MONTH ||
     timeRange.value === statsLib.TimeRangeEnum.MONTH_TO_DATE ||
     timeRange.value === statsLib.TimeRangeEnum.LAST_MONTH ||
-    timeRange.value === statsLib.TimeRangeEnum.LAST_90_DAYS ||
-    timeRange.value === statsLib.TimeRangeEnum.ALL_TIME
+    timeRange.value === statsLib.TimeRangeEnum.LAST_90_DAYS
   ) {
     const dateStringToIndex = new Map<string, number>();
     const months = [
@@ -715,6 +794,8 @@ function getChartData(): number[] {
           (result[labelIndex] || 0) + summary.totalSeconds / 3600;
       }
     }
+
+    return result;
   } else if (
     timeRange.value === statsLib.TimeRangeEnum.YEAR_TO_DATE ||
     timeRange.value === statsLib.TimeRangeEnum.LAST_12_MONTHS
@@ -758,6 +839,8 @@ function getChartData(): number[] {
         result[labelIndex] = totalHours;
       }
     }
+
+    return result;
   }
 
   if (timeRange.value === statsLib.TimeRangeEnum.ALL_TIME) {
@@ -802,8 +885,6 @@ function getChartData(): number[] {
         }
       }
     }
-
-    return result;
   }
 
   return result;
@@ -828,6 +909,19 @@ function calculateInlinedDuration(
   } else {
     return HEARTBEAT_INTERVAL_SECONDS;
   }
+}
+
+function getDayOfWeek(day: number): string {
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  return days[day % 7];
 }
 
 useSeoMeta({
