@@ -19,13 +19,13 @@ defineProps({
   text: String,
   keyName: String,
   type: {
-    type: String as () => 'button' | 'submit' | 'reset',
-    default: 'button'
+    type: String as () => "button" | "submit" | "reset",
+    default: "button",
   },
   disabled: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
 defineEmits(["click"]);

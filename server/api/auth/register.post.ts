@@ -3,16 +3,20 @@ import jwt from "jsonwebtoken";
 import { prisma } from "~~/prisma/prisma";
 import { z } from "zod";
 
-const passwordSchema = z.string()
+const passwordSchema = z
+  .string()
   .min(12, "Password must be at least 8 characters")
   .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
   .regex(/[a-z]/, "Password must contain at least one lowercase letter")
   .regex(/[0-9]/, "Password must contain at least one number")
-  .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character");
+  .regex(
+    /[^A-Za-z0-9]/,
+    "Password must contain at least one special character",
+  );
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
-  
+
   if (config.disableRegistering === "true") {
     throw createError({
       statusCode: 403,
@@ -34,10 +38,9 @@ export default defineEventHandler(async (event) => {
       message: "Email and Password are required",
     });
   }
-  
-  const timezone = body.timezone && typeof body.timezone === "string" 
-    ? body.timezone 
-    : "UTC";
+
+  const timezone =
+    body.timezone && typeof body.timezone === "string" ? body.timezone : "UTC";
 
   try {
     const passwordValidation = passwordSchema.safeParse(body.password);
@@ -90,7 +93,10 @@ export default defineEventHandler(async (event) => {
 
     return sendRedirect(event, "/");
   } catch (error) {
-    console.error("Registration error:", error instanceof Error ? error.message : "Unknown error");
+    console.error(
+      "Registration error:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
     throw createError({
       statusCode: 500,
       message: "Registration failed",

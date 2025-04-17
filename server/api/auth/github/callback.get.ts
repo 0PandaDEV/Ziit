@@ -62,7 +62,7 @@ export default defineEventHandler(async (event) => {
           code,
           redirect_uri: config.githubRedirectUri,
         }),
-      }
+      },
     );
 
     const accessToken = tokenResponse.access_token;
@@ -81,7 +81,7 @@ export default defineEventHandler(async (event) => {
           Authorization: `Bearer ${accessToken}`,
           Accept: "application/vnd.github.v3+json",
         },
-      }
+      },
     );
 
     const primaryEmail =
@@ -212,7 +212,7 @@ export default defineEventHandler(async (event) => {
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60 * 24 * 7,
         path: "/",
-        sameSite: "lax"
+        sameSite: "lax",
       });
 
       return "/";
@@ -224,4 +224,3 @@ export default defineEventHandler(async (event) => {
     return sendRedirect(event, "/login?error=github_auth_failed");
   }
 });
-

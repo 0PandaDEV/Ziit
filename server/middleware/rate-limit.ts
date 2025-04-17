@@ -6,7 +6,7 @@ const rateLimits = {
   default: { limit: 50, window: 60000 },
   auth: { limit: 5, window: 1800000 },
   external: { limit: 100, window: 30000 },
-  stats: { limit: 50, window: 60000 }
+  stats: { limit: 50, window: 60000 },
 };
 
 export default defineEventHandler(async (event) => {
@@ -14,9 +14,9 @@ export default defineEventHandler(async (event) => {
 
   const ip = getRequestIP(event);
   const path = event.path;
-  
+
   let limitConfig = rateLimits.default;
-  
+
   if (path.startsWith("/api/auth")) {
     limitConfig = rateLimits.auth;
   } else if (path.startsWith("/api/external")) {

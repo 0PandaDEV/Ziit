@@ -25,7 +25,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
 
   const now = new Date();
   const userNow = new Date(
-    now.toLocaleString("en-US", { timeZone: userTimezone })
+    now.toLocaleString("en-US", { timeZone: userTimezone }),
   );
 
   const todayEnd = new Date(userNow);
@@ -72,8 +72,8 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
         parseInt(day),
         parseInt(hours),
         parseInt(minutes),
-        parseInt(seconds)
-      )
+        parseInt(seconds),
+      ),
     );
   };
 
@@ -93,7 +93,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
     fetchStartDate = utcTodayStart;
     fetchEndDate = new Date();
     console.log(
-      `Using current time for today's end boundary: ${fetchEndDate.toISOString()}`
+      `Using current time for today's end boundary: ${fetchEndDate.toISOString()}`,
     );
     isSingleDayView = true;
   } else if (timeRange === TimeRangeEnum.YESTERDAY) {
@@ -259,7 +259,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
 
       if (totalHeartbeats > 0) {
         for (const [project, count] of Object.entries(
-          categoryCounters.projects
+          categoryCounters.projects,
         )) {
           const seconds = Math.round((count / totalHeartbeats) * totalSeconds);
           dailyData.projects[project] =
@@ -267,7 +267,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
         }
 
         for (const [language, count] of Object.entries(
-          categoryCounters.languages
+          categoryCounters.languages,
         )) {
           const seconds = Math.round((count / totalHeartbeats) * totalSeconds);
           dailyData.languages[language] =
@@ -275,7 +275,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
         }
 
         for (const [editor, count] of Object.entries(
-          categoryCounters.editors
+          categoryCounters.editors,
         )) {
           const seconds = Math.round((count / totalHeartbeats) * totalSeconds);
           dailyData.editors[editor] =
@@ -290,7 +290,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
     }
   } else {
     console.log(
-      `Fetching heartbeats for ${timeRange} in timezone ${userTimezone}`
+      `Fetching heartbeats for ${timeRange} in timezone ${userTimezone}`,
     );
 
     let query: any = {
@@ -331,7 +331,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
 
     const filteredHeartbeats = heartbeats.filter((heartbeat) => {
       const localDate = new Date(
-        heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone })
+        heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone }),
       );
       const localDateStr = localDate.toLocaleDateString("en-CA", {
         timeZone: userTimezone,
@@ -343,20 +343,20 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
     heartbeats = filteredHeartbeats;
 
     console.log(
-      `After timezone filtering: ${heartbeats.length} heartbeats remain for ${targetDateStr}`
+      `After timezone filtering: ${heartbeats.length} heartbeats remain for ${targetDateStr}`,
     );
     console.log(
-      `First heartbeat time: ${heartbeats.length > 0 ? heartbeats[0].timestamp.toISOString() : "none"}`
+      `First heartbeat time: ${heartbeats.length > 0 ? heartbeats[0].timestamp.toISOString() : "none"}`,
     );
     console.log(
-      `Last heartbeat time: ${heartbeats.length > 0 ? heartbeats[heartbeats.length - 1].timestamp.toISOString() : "none"}`
+      `Last heartbeat time: ${heartbeats.length > 0 ? heartbeats[heartbeats.length - 1].timestamp.toISOString() : "none"}`,
     );
 
     const heartbeatsByDate = new Map<string, Array<(typeof heartbeats)[0]>>();
 
     for (const heartbeat of heartbeats) {
       const localTimestamp = new Date(
-        heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone })
+        heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone }),
       );
       const dateStr = localTimestamp.toISOString().split("T")[0];
 
@@ -368,7 +368,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
     }
 
     console.log(
-      `Heartbeats grouped by date: ${Array.from(heartbeatsByDate.keys()).join(", ")}`
+      `Heartbeats grouped by date: ${Array.from(heartbeatsByDate.keys()).join(", ")}`,
     );
 
     for (const [dateStr, dateHeartbeats] of heartbeatsByDate.entries()) {
@@ -396,7 +396,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
       const dailyData = dailyDataMap.get(dateStr)!;
 
       dateHeartbeats.sort(
-        (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+        (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
       );
 
       for (let i = 0; i < dateHeartbeats.length; i++) {
@@ -404,7 +404,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
         const localTimestamp = new Date(
           heartbeat.timestamp.toLocaleString("en-US", {
             timeZone: userTimezone,
-          })
+          }),
         );
         const hour = localTimestamp.getHours();
 
@@ -492,7 +492,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
   }
 
   const dailyData = Array.from(dailyDataMap.values()).sort((a, b) =>
-    a.date.localeCompare(b.date)
+    a.date.localeCompare(b.date),
   );
 
   return {

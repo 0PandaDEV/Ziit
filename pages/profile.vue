@@ -20,15 +20,18 @@
             v-if="!hasGithubAccount"
             text="Link Github"
             keyName="L"
-            @click="linkGithub" />
+            @click="linkGithub"
+          />
           <UiButton
             text="Change Email"
             keyName="E"
-            @click="showEmailModal = true" />
+            @click="showEmailModal = true"
+          />
           <UiButton
             text="Change Password"
             keyName="P"
-            @click="showPasswordModal = true" />
+            @click="showPasswordModal = true"
+          />
           <UiButton text="Logout" keyName="Alt+L" @click="logout" />
         </div>
       </section>
@@ -40,14 +43,21 @@
             type="email"
             v-model="newEmail"
             placeholder="New Email Address"
-            required />
+            required
+          />
         </form>
         <div class="modal-buttons">
           <UiButton
             type="button"
             text="Cancel"
-            @click="showEmailModal = false" />
-          <UiButton type="submit" text="Save" :disabled="isLoading" @click="changeEmail" />
+            @click="showEmailModal = false"
+          />
+          <UiButton
+            type="submit"
+            text="Save"
+            :disabled="isLoading"
+            @click="changeEmail"
+          />
         </div>
       </dialog>
 
@@ -62,19 +72,27 @@
             type="password"
             v-model="newPassword"
             placeholder="New Password"
-            required />
+            required
+          />
           <UiInput
             type="password"
             v-model="confirmPassword"
             placeholder="Confirm Password"
-            required />
+            required
+          />
         </form>
         <div class="modal-buttons">
           <UiButton
             type="button"
             text="Cancel"
-            @click="showPasswordModal = false" />
-          <UiButton type="submit" text="Save" :disabled="isLoading" @click="changePassword" />
+            @click="showPasswordModal = false"
+          />
+          <UiButton
+            type="submit"
+            text="Save"
+            :disabled="isLoading"
+            @click="changePassword"
+          />
         </div>
       </dialog>
 
@@ -83,23 +101,27 @@
         <UiInput
           :locked="true"
           :type="showApiKey ? 'text' : 'password'"
-          :modelValue="user?.apiKey" />
+          :modelValue="user?.apiKey"
+        />
         <div class="buttons">
           <UiButton
             v-if="showApiKey"
             text="Hide API Key"
             keyName="S"
-            @click="toggleApiKey" />
+            @click="toggleApiKey"
+          />
           <UiButton
             v-else
             text="Show API Key"
             keyName="S"
-            @click="toggleApiKey" />
+            @click="toggleApiKey"
+          />
           <UiButton text="Copy API Key" keyName="c" @click="copyApiKey" />
           <UiButton
             text="Regenerate API Key"
             keyName="r"
-            @click="regenerateApiKey" />
+            @click="regenerateApiKey"
+          />
         </div>
       </section>
 
@@ -112,7 +134,8 @@
             v-model="keystrokeTimeout"
             :min="1"
             :max="60"
-            @update:modelValue="updateKeystrokeTimeout" />
+            @update:modelValue="updateKeystrokeTimeout"
+          />
 
           <p v-if="timeoutChanged">
             In order to work correctly, summaries need to be regenerated after
@@ -122,13 +145,20 @@
             v-if="timeoutChanged"
             text="Regenerate Summaries"
             keyName="Alt+R"
-            @click="regenerateSummaries" />
+            @click="regenerateSummaries"
+          />
         </div>
 
         <div class="setting-group">
           <p class="setting-description">Timezone:</p>
-          <select v-model="timezone" @change="updateTimezone" class="timezone-select">
-            <option v-for="tz in timezones" :key="tz" :value="tz">{{ tz }}</option>
+          <select
+            v-model="timezone"
+            @change="updateTimezone"
+            class="timezone-select"
+          >
+            <option v-for="tz in timezones" :key="tz" :value="tz">
+              {{ tz }}
+            </option>
           </select>
         </div>
       </section>
@@ -141,12 +171,14 @@
               :text="'WakaTime'"
               :selected="importType === 'wakatime'"
               :value="'wakatime'"
-              @update="(val) => (importType = val as ImportType)" />
+              @update="(val) => (importType = val as ImportType)"
+            />
             <UiRadioButton
               :text="'WakAPI'"
               :selected="importType === 'wakapi'"
               :value="'wakapi'"
-              @update="(val) => (importType = val as ImportType)" />
+              @update="(val) => (importType = val as ImportType)"
+            />
           </div>
 
           <UiInput
@@ -154,14 +186,16 @@
             type="password"
             v-model="importApiKey"
             :placeholder="apiKeyPlaceholder"
-            v-if="importType === 'wakapi'" />
+            v-if="importType === 'wakapi'"
+          />
 
           <UiInput
             id="wakapiInstanceUrl"
             type="text"
             v-model="wakapiInstanceUrl"
             placeholder="Enter your WakAPI instance URL (e.g. https://wakapi.dev)"
-            v-if="importType === 'wakapi'" />
+            v-if="importType === 'wakapi'"
+          />
 
           <div v-if="importType === 'wakatime'" class="steps">
             <p>
@@ -183,7 +217,8 @@
             ref="wakaTimeFileInput"
             accept=".json"
             @change="handleFileChange"
-            v-if="importType === 'wakatime'" />
+            v-if="importType === 'wakatime'"
+          />
         </div>
 
         <UiButton text="Import Data" keyName="I" @click="importTrackingData" />
@@ -230,74 +265,324 @@ const timeoutChanged = ref(false);
 const hasGithubAccount = computed(() => !!user.value?.githubId);
 const timezone = ref("");
 const timezones = ref([
-  "Africa/Abidjan", "Africa/Accra", "Africa/Algiers", "Africa/Bissau", "Africa/Cairo", 
-  "Africa/Casablanca", "Africa/Ceuta", "Africa/El_Aaiun", "Africa/Johannesburg", 
-  "Africa/Juba", "Africa/Khartoum", "Africa/Lagos", "Africa/Maputo", "Africa/Monrovia", 
-  "Africa/Nairobi", "Africa/Ndjamena", "Africa/Sao_Tome", "Africa/Tripoli", "Africa/Tunis", 
-  "Africa/Windhoek", "America/Adak", "America/Anchorage", "America/Araguaina", 
-  "America/Argentina/Buenos_Aires", "America/Argentina/Catamarca", "America/Argentina/Cordoba", 
-  "America/Argentina/Jujuy", "America/Argentina/La_Rioja", "America/Argentina/Mendoza", 
-  "America/Argentina/Rio_Gallegos", "America/Argentina/Salta", "America/Argentina/San_Juan", 
-  "America/Argentina/San_Luis", "America/Argentina/Tucuman", "America/Argentina/Ushuaia", 
-  "America/Asuncion", "America/Bahia", "America/Bahia_Banderas", "America/Barbados", 
-  "America/Belem", "America/Belize", "America/Boa_Vista", "America/Bogota", "America/Boise", 
-  "America/Cambridge_Bay", "America/Campo_Grande", "America/Cancun", "America/Caracas", 
-  "America/Cayenne", "America/Chicago", "America/Chihuahua", "America/Ciudad_Juarez", 
-  "America/Costa_Rica", "America/Cuiaba", "America/Danmarkshavn", "America/Dawson", 
-  "America/Dawson_Creek", "America/Denver", "America/Detroit", "America/Edmonton", 
-  "America/Eirunepe", "America/El_Salvador", "America/Fort_Nelson", "America/Fortaleza", 
-  "America/Glace_Bay", "America/Goose_Bay", "America/Grand_Turk", "America/Guatemala", 
-  "America/Guayaquil", "America/Guyana", "America/Halifax", "America/Havana", "America/Hermosillo", 
-  "America/Indiana/Indianapolis", "America/Indiana/Knox", "America/Indiana/Marengo", 
-  "America/Indiana/Petersburg", "America/Indiana/Tell_City", "America/Indiana/Vevay", 
-  "America/Indiana/Vincennes", "America/Indiana/Winamac", "America/Inuvik", "America/Iqaluit", 
-  "America/Jamaica", "America/Juneau", "America/Kentucky/Louisville", "America/Kentucky/Monticello", 
-  "America/La_Paz", "America/Lima", "America/Los_Angeles", "America/Maceio", "America/Managua", 
-  "America/Manaus", "America/Martinique", "America/Matamoros", "America/Mazatlan", "America/Menominee", 
-  "America/Merida", "America/Metlakatla", "America/Mexico_City", "America/Miquelon", 
-  "America/Moncton", "America/Monterrey", "America/Montevideo", "America/New_York", 
-  "America/Nome", "America/Noronha", "America/North_Dakota/Beulah", "America/North_Dakota/Center", 
-  "America/North_Dakota/New_Salem", "America/Nuuk", "America/Ojinaga", "America/Panama", 
-  "America/Paramaribo", "America/Phoenix", "America/Port-au-Prince", "America/Porto_Velho", 
-  "America/Puerto_Rico", "America/Punta_Arenas", "America/Rankin_Inlet", "America/Recife", 
-  "America/Regina", "America/Resolute", "America/Rio_Branco", "America/Santarem", "America/Santiago", 
-  "America/Santo_Domingo", "America/Sao_Paulo", "America/Scoresbysund", "America/Sitka", 
-  "America/St_Johns", "America/Swift_Current", "America/Tegucigalpa", "America/Thule", 
-  "America/Tijuana", "America/Toronto", "America/Vancouver", "America/Whitehorse", "America/Winnipeg", 
-  "America/Yakutat", "Antarctica/Casey", "Antarctica/Davis", "Antarctica/Macquarie", 
-  "Antarctica/Mawson", "Antarctica/Palmer", "Antarctica/Rothera", "Antarctica/Troll", 
-  "Antarctica/Vostok", "Asia/Almaty", "Asia/Amman", "Asia/Anadyr", "Asia/Aqtau", "Asia/Aqtobe", 
-  "Asia/Ashgabat", "Asia/Atyrau", "Asia/Baghdad", "Asia/Baku", "Asia/Bangkok", "Asia/Barnaul", 
-  "Asia/Beirut", "Asia/Bishkek", "Asia/Chita", "Asia/Choibalsan", "Asia/Colombo", "Asia/Damascus", 
-  "Asia/Dhaka", "Asia/Dili", "Asia/Dubai", "Asia/Dushanbe", "Asia/Famagusta", "Asia/Gaza", 
-  "Asia/Hebron", "Asia/Ho_Chi_Minh", "Asia/Hong_Kong", "Asia/Hovd", "Asia/Irkutsk", "Asia/Jakarta", 
-  "Asia/Jayapura", "Asia/Jerusalem", "Asia/Kabul", "Asia/Kamchatka", "Asia/Karachi", "Asia/Kathmandu", 
-  "Asia/Khandyga", "Asia/Kolkata", "Asia/Krasnoyarsk", "Asia/Kuching", "Asia/Macau", "Asia/Magadan", 
-  "Asia/Makassar", "Asia/Manila", "Asia/Nicosia", "Asia/Novokuznetsk", "Asia/Novosibirsk", "Asia/Omsk", 
-  "Asia/Oral", "Asia/Pontianak", "Asia/Pyongyang", "Asia/Qatar", "Asia/Qostanay", "Asia/Qyzylorda", 
-  "Asia/Riyadh", "Asia/Sakhalin", "Asia/Samarkand", "Asia/Seoul", "Asia/Shanghai", "Asia/Singapore", 
-  "Asia/Srednekolymsk", "Asia/Taipei", "Asia/Tashkent", "Asia/Tbilisi", "Asia/Tehran", "Asia/Thimphu", 
-  "Asia/Tokyo", "Asia/Tomsk", "Asia/Ulaanbaatar", "Asia/Urumqi", "Asia/Ust-Nera", "Asia/Vladivostok", 
-  "Asia/Yakutsk", "Asia/Yangon", "Asia/Yekaterinburg", "Asia/Yerevan", "Atlantic/Azores", 
-  "Atlantic/Bermuda", "Atlantic/Canary", "Atlantic/Cape_Verde", "Atlantic/Faroe", "Atlantic/Madeira", 
-  "Atlantic/South_Georgia", "Atlantic/Stanley", "Australia/Adelaide", "Australia/Brisbane", 
-  "Australia/Broken_Hill", "Australia/Darwin", "Australia/Eucla", "Australia/Hobart", 
-  "Australia/Lindeman", "Australia/Lord_Howe", "Australia/Melbourne", "Australia/Perth", 
-  "Australia/Sydney", "Europe/Amsterdam", "Europe/Andorra", "Europe/Astrakhan", "Europe/Athens", 
-  "Europe/Belgrade", "Europe/Berlin", "Europe/Brussels", "Europe/Bucharest", "Europe/Budapest", 
-  "Europe/Chisinau", "Europe/Dublin", "Europe/Gibraltar", "Europe/Helsinki", "Europe/Istanbul", 
-  "Europe/Kaliningrad", "Europe/Kirov", "Europe/Kyiv", "Europe/Lisbon", "Europe/London", 
-  "Europe/Madrid", "Europe/Malta", "Europe/Minsk", "Europe/Moscow", "Europe/Paris", "Europe/Prague", 
-  "Europe/Riga", "Europe/Rome", "Europe/Samara", "Europe/Saratov", "Europe/Simferopol", "Europe/Sofia", 
-  "Europe/Stockholm", "Europe/Tallinn", "Europe/Tirane", "Europe/Ulyanovsk", "Europe/Vienna", 
-  "Europe/Vilnius", "Europe/Volgograd", "Europe/Warsaw", "Europe/Zurich", "Indian/Chagos", 
-  "Indian/Maldives", "Indian/Mauritius", "Pacific/Apia", "Pacific/Auckland", "Pacific/Bougainville", 
-  "Pacific/Chatham", "Pacific/Easter", "Pacific/Efate", "Pacific/Fakaofo", "Pacific/Fiji", 
-  "Pacific/Galapagos", "Pacific/Gambier", "Pacific/Guadalcanal", "Pacific/Guam", "Pacific/Honolulu", 
-  "Pacific/Kanton", "Pacific/Kiritimati", "Pacific/Kosrae", "Pacific/Kwajalein", "Pacific/Marquesas", 
-  "Pacific/Nauru", "Pacific/Niue", "Pacific/Norfolk", "Pacific/Noumea", "Pacific/Pago_Pago", 
-  "Pacific/Palau", "Pacific/Pitcairn", "Pacific/Port_Moresby", "Pacific/Rarotonga", "Pacific/Tahiti", 
-  "Pacific/Tarawa", "Pacific/Tongatapu", "Pacific/Wake", "Pacific/Wallis", "UTC"
+  "Africa/Abidjan",
+  "Africa/Accra",
+  "Africa/Algiers",
+  "Africa/Bissau",
+  "Africa/Cairo",
+  "Africa/Casablanca",
+  "Africa/Ceuta",
+  "Africa/El_Aaiun",
+  "Africa/Johannesburg",
+  "Africa/Juba",
+  "Africa/Khartoum",
+  "Africa/Lagos",
+  "Africa/Maputo",
+  "Africa/Monrovia",
+  "Africa/Nairobi",
+  "Africa/Ndjamena",
+  "Africa/Sao_Tome",
+  "Africa/Tripoli",
+  "Africa/Tunis",
+  "Africa/Windhoek",
+  "America/Adak",
+  "America/Anchorage",
+  "America/Araguaina",
+  "America/Argentina/Buenos_Aires",
+  "America/Argentina/Catamarca",
+  "America/Argentina/Cordoba",
+  "America/Argentina/Jujuy",
+  "America/Argentina/La_Rioja",
+  "America/Argentina/Mendoza",
+  "America/Argentina/Rio_Gallegos",
+  "America/Argentina/Salta",
+  "America/Argentina/San_Juan",
+  "America/Argentina/San_Luis",
+  "America/Argentina/Tucuman",
+  "America/Argentina/Ushuaia",
+  "America/Asuncion",
+  "America/Bahia",
+  "America/Bahia_Banderas",
+  "America/Barbados",
+  "America/Belem",
+  "America/Belize",
+  "America/Boa_Vista",
+  "America/Bogota",
+  "America/Boise",
+  "America/Cambridge_Bay",
+  "America/Campo_Grande",
+  "America/Cancun",
+  "America/Caracas",
+  "America/Cayenne",
+  "America/Chicago",
+  "America/Chihuahua",
+  "America/Ciudad_Juarez",
+  "America/Costa_Rica",
+  "America/Cuiaba",
+  "America/Danmarkshavn",
+  "America/Dawson",
+  "America/Dawson_Creek",
+  "America/Denver",
+  "America/Detroit",
+  "America/Edmonton",
+  "America/Eirunepe",
+  "America/El_Salvador",
+  "America/Fort_Nelson",
+  "America/Fortaleza",
+  "America/Glace_Bay",
+  "America/Goose_Bay",
+  "America/Grand_Turk",
+  "America/Guatemala",
+  "America/Guayaquil",
+  "America/Guyana",
+  "America/Halifax",
+  "America/Havana",
+  "America/Hermosillo",
+  "America/Indiana/Indianapolis",
+  "America/Indiana/Knox",
+  "America/Indiana/Marengo",
+  "America/Indiana/Petersburg",
+  "America/Indiana/Tell_City",
+  "America/Indiana/Vevay",
+  "America/Indiana/Vincennes",
+  "America/Indiana/Winamac",
+  "America/Inuvik",
+  "America/Iqaluit",
+  "America/Jamaica",
+  "America/Juneau",
+  "America/Kentucky/Louisville",
+  "America/Kentucky/Monticello",
+  "America/La_Paz",
+  "America/Lima",
+  "America/Los_Angeles",
+  "America/Maceio",
+  "America/Managua",
+  "America/Manaus",
+  "America/Martinique",
+  "America/Matamoros",
+  "America/Mazatlan",
+  "America/Menominee",
+  "America/Merida",
+  "America/Metlakatla",
+  "America/Mexico_City",
+  "America/Miquelon",
+  "America/Moncton",
+  "America/Monterrey",
+  "America/Montevideo",
+  "America/New_York",
+  "America/Nome",
+  "America/Noronha",
+  "America/North_Dakota/Beulah",
+  "America/North_Dakota/Center",
+  "America/North_Dakota/New_Salem",
+  "America/Nuuk",
+  "America/Ojinaga",
+  "America/Panama",
+  "America/Paramaribo",
+  "America/Phoenix",
+  "America/Port-au-Prince",
+  "America/Porto_Velho",
+  "America/Puerto_Rico",
+  "America/Punta_Arenas",
+  "America/Rankin_Inlet",
+  "America/Recife",
+  "America/Regina",
+  "America/Resolute",
+  "America/Rio_Branco",
+  "America/Santarem",
+  "America/Santiago",
+  "America/Santo_Domingo",
+  "America/Sao_Paulo",
+  "America/Scoresbysund",
+  "America/Sitka",
+  "America/St_Johns",
+  "America/Swift_Current",
+  "America/Tegucigalpa",
+  "America/Thule",
+  "America/Tijuana",
+  "America/Toronto",
+  "America/Vancouver",
+  "America/Whitehorse",
+  "America/Winnipeg",
+  "America/Yakutat",
+  "Antarctica/Casey",
+  "Antarctica/Davis",
+  "Antarctica/Macquarie",
+  "Antarctica/Mawson",
+  "Antarctica/Palmer",
+  "Antarctica/Rothera",
+  "Antarctica/Troll",
+  "Antarctica/Vostok",
+  "Asia/Almaty",
+  "Asia/Amman",
+  "Asia/Anadyr",
+  "Asia/Aqtau",
+  "Asia/Aqtobe",
+  "Asia/Ashgabat",
+  "Asia/Atyrau",
+  "Asia/Baghdad",
+  "Asia/Baku",
+  "Asia/Bangkok",
+  "Asia/Barnaul",
+  "Asia/Beirut",
+  "Asia/Bishkek",
+  "Asia/Chita",
+  "Asia/Choibalsan",
+  "Asia/Colombo",
+  "Asia/Damascus",
+  "Asia/Dhaka",
+  "Asia/Dili",
+  "Asia/Dubai",
+  "Asia/Dushanbe",
+  "Asia/Famagusta",
+  "Asia/Gaza",
+  "Asia/Hebron",
+  "Asia/Ho_Chi_Minh",
+  "Asia/Hong_Kong",
+  "Asia/Hovd",
+  "Asia/Irkutsk",
+  "Asia/Jakarta",
+  "Asia/Jayapura",
+  "Asia/Jerusalem",
+  "Asia/Kabul",
+  "Asia/Kamchatka",
+  "Asia/Karachi",
+  "Asia/Kathmandu",
+  "Asia/Khandyga",
+  "Asia/Kolkata",
+  "Asia/Krasnoyarsk",
+  "Asia/Kuching",
+  "Asia/Macau",
+  "Asia/Magadan",
+  "Asia/Makassar",
+  "Asia/Manila",
+  "Asia/Nicosia",
+  "Asia/Novokuznetsk",
+  "Asia/Novosibirsk",
+  "Asia/Omsk",
+  "Asia/Oral",
+  "Asia/Pontianak",
+  "Asia/Pyongyang",
+  "Asia/Qatar",
+  "Asia/Qostanay",
+  "Asia/Qyzylorda",
+  "Asia/Riyadh",
+  "Asia/Sakhalin",
+  "Asia/Samarkand",
+  "Asia/Seoul",
+  "Asia/Shanghai",
+  "Asia/Singapore",
+  "Asia/Srednekolymsk",
+  "Asia/Taipei",
+  "Asia/Tashkent",
+  "Asia/Tbilisi",
+  "Asia/Tehran",
+  "Asia/Thimphu",
+  "Asia/Tokyo",
+  "Asia/Tomsk",
+  "Asia/Ulaanbaatar",
+  "Asia/Urumqi",
+  "Asia/Ust-Nera",
+  "Asia/Vladivostok",
+  "Asia/Yakutsk",
+  "Asia/Yangon",
+  "Asia/Yekaterinburg",
+  "Asia/Yerevan",
+  "Atlantic/Azores",
+  "Atlantic/Bermuda",
+  "Atlantic/Canary",
+  "Atlantic/Cape_Verde",
+  "Atlantic/Faroe",
+  "Atlantic/Madeira",
+  "Atlantic/South_Georgia",
+  "Atlantic/Stanley",
+  "Australia/Adelaide",
+  "Australia/Brisbane",
+  "Australia/Broken_Hill",
+  "Australia/Darwin",
+  "Australia/Eucla",
+  "Australia/Hobart",
+  "Australia/Lindeman",
+  "Australia/Lord_Howe",
+  "Australia/Melbourne",
+  "Australia/Perth",
+  "Australia/Sydney",
+  "Europe/Amsterdam",
+  "Europe/Andorra",
+  "Europe/Astrakhan",
+  "Europe/Athens",
+  "Europe/Belgrade",
+  "Europe/Berlin",
+  "Europe/Brussels",
+  "Europe/Bucharest",
+  "Europe/Budapest",
+  "Europe/Chisinau",
+  "Europe/Dublin",
+  "Europe/Gibraltar",
+  "Europe/Helsinki",
+  "Europe/Istanbul",
+  "Europe/Kaliningrad",
+  "Europe/Kirov",
+  "Europe/Kyiv",
+  "Europe/Lisbon",
+  "Europe/London",
+  "Europe/Madrid",
+  "Europe/Malta",
+  "Europe/Minsk",
+  "Europe/Moscow",
+  "Europe/Paris",
+  "Europe/Prague",
+  "Europe/Riga",
+  "Europe/Rome",
+  "Europe/Samara",
+  "Europe/Saratov",
+  "Europe/Simferopol",
+  "Europe/Sofia",
+  "Europe/Stockholm",
+  "Europe/Tallinn",
+  "Europe/Tirane",
+  "Europe/Ulyanovsk",
+  "Europe/Vienna",
+  "Europe/Vilnius",
+  "Europe/Volgograd",
+  "Europe/Warsaw",
+  "Europe/Zurich",
+  "Indian/Chagos",
+  "Indian/Maldives",
+  "Indian/Mauritius",
+  "Pacific/Apia",
+  "Pacific/Auckland",
+  "Pacific/Bougainville",
+  "Pacific/Chatham",
+  "Pacific/Easter",
+  "Pacific/Efate",
+  "Pacific/Fakaofo",
+  "Pacific/Fiji",
+  "Pacific/Galapagos",
+  "Pacific/Gambier",
+  "Pacific/Guadalcanal",
+  "Pacific/Guam",
+  "Pacific/Honolulu",
+  "Pacific/Kanton",
+  "Pacific/Kiritimati",
+  "Pacific/Kosrae",
+  "Pacific/Kwajalein",
+  "Pacific/Marquesas",
+  "Pacific/Nauru",
+  "Pacific/Niue",
+  "Pacific/Norfolk",
+  "Pacific/Noumea",
+  "Pacific/Pago_Pago",
+  "Pacific/Palau",
+  "Pacific/Pitcairn",
+  "Pacific/Port_Moresby",
+  "Pacific/Rarotonga",
+  "Pacific/Tahiti",
+  "Pacific/Tarawa",
+  "Pacific/Tongatapu",
+  "Pacific/Wake",
+  "Pacific/Wallis",
+  "UTC",
 ]);
 const WAKATIME = "wakatime" as const;
 const WAKAPI = "wakapi" as const;
@@ -512,7 +797,7 @@ async function regenerateSummaries() {
   try {
     const response = await $fetch("/api/user/regenerateSummaries");
     toast.success(
-      (response as any).message || "Summaries regenerated successfully"
+      (response as any).message || "Summaries regenerated successfully",
     );
     timeoutChanged.value = false;
     originalKeystrokeTimeout.value = keystrokeTimeout.value;
@@ -542,7 +827,7 @@ async function copyApiKey() {
 async function regenerateApiKey() {
   if (
     !confirm(
-      "Are you sure you want to regenerate your API key? Your existing VS Code extension setup will stop working until you update it."
+      "Are you sure you want to regenerate your API key? Your existing VS Code extension setup will stop working until you update it.",
     )
   ) {
     return;

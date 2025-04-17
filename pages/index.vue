@@ -18,7 +18,8 @@
                   (project.seconds / stats.totalSeconds) *
                   100
                 ).toFixed(1)}%`,
-              }">
+              }"
+            >
               <div class="name">{{ project.name }}</div>
               <div class="time">{{ formatTime(project.seconds) }}</div>
               <div class="percentage">
@@ -40,7 +41,8 @@
                   (language.seconds / stats.totalSeconds) *
                   100
                 ).toFixed(1)}%`,
-              }">
+              }"
+            >
               <div class="name">{{ language.name || "Unknown" }}</div>
               <div class="time">
                 {{ formatTime(language.seconds) }}
@@ -66,7 +68,8 @@
                   (editor.seconds / stats.totalSeconds) *
                   100
                 ).toFixed(1)}%`,
-              }">
+              }"
+            >
               <div class="name">{{ editor.name || "Unknown" }}</div>
               <div class="time">
                 {{ formatTime(editor.seconds) }}
@@ -90,7 +93,8 @@
                   (os.seconds / stats.totalSeconds) *
                   100
                 ).toFixed(1)}%`,
-              }">
+              }"
+            >
               <div class="name">{{ os.name || "Unknown" }}</div>
               <div class="time">
                 {{ formatTime(os.seconds) }}
@@ -131,7 +135,7 @@ Chart.register(
   PointElement,
   LineController,
   Tooltip,
-  Filler
+  Filler,
 );
 
 type ItemWithTime = {
@@ -167,7 +171,7 @@ watch(
       updateChart();
     }
   },
-  { immediate: true, deep: true }
+  { immediate: true, deep: true },
 );
 
 const sortedProjects = computed(() => {
@@ -177,7 +181,7 @@ const sortedProjects = computed(() => {
     ([name, seconds]) => ({
       name,
       seconds: seconds as number,
-    })
+    }),
   );
 
   if (projectSort.value === "time") {
@@ -194,7 +198,7 @@ const languageBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    })
+    }),
   );
 
   return languages.sort((a, b) => b.seconds - a.seconds);
@@ -207,7 +211,7 @@ const editorBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    })
+    }),
   );
 
   return editors.sort((a, b) => b.seconds - a.seconds);
@@ -220,7 +224,7 @@ const osBreakdown = computed(() => {
     ([name, seconds]) => ({
       name: name || "Unknown",
       seconds: seconds as number,
-    })
+    }),
   );
 
   return osArray.sort((a, b) => b.seconds - a.seconds);
@@ -324,7 +328,7 @@ function renderChart() {
       PointElement,
       LineController,
       Tooltip,
-      Filler
+      Filler,
     );
 
     const ctx = document.createElement("canvas");
@@ -561,7 +565,7 @@ function getChartLabels(): string[] {
       stats.value.dailySummaries.length > 0
     ) {
       const dates = stats.value.dailySummaries.map(
-        (summary) => new Date(summary.date)
+        (summary) => new Date(summary.date),
       );
       const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
       const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
@@ -571,7 +575,7 @@ function getChartLabels(): string[] {
         let currentDate = new Date(
           minDate.getFullYear(),
           minDate.getMonth(),
-          1
+          1,
         );
 
         while (currentDate <= maxDate) {
@@ -580,7 +584,7 @@ function getChartLabels(): string[] {
         }
 
         return monthsWithYears.map(
-          (date) => `${months[date.getMonth()]} ${date.getFullYear()}`
+          (date) => `${months[date.getMonth()]} ${date.getFullYear()}`,
         );
       }
     }
@@ -624,23 +628,23 @@ function getChartData(): number[] {
 
     if (timeRange.value === statsLib.TimeRangeEnum.TODAY) {
       startDate = new Date(
-        now.toLocaleString("en-US", { timeZone: userTimezone })
+        now.toLocaleString("en-US", { timeZone: userTimezone }),
       );
       startDate.setHours(0, 0, 0, 0);
 
       endDate = new Date(
-        now.toLocaleString("en-US", { timeZone: userTimezone })
+        now.toLocaleString("en-US", { timeZone: userTimezone }),
       );
       endDate.setHours(23, 59, 59, 999);
     } else {
       startDate = new Date(
-        now.toLocaleString("en-US", { timeZone: userTimezone })
+        now.toLocaleString("en-US", { timeZone: userTimezone }),
       );
       startDate.setDate(startDate.getDate() - 1);
       startDate.setHours(0, 0, 0, 0);
 
       endDate = new Date(
-        startDate.toLocaleString("en-US", { timeZone: userTimezone })
+        startDate.toLocaleString("en-US", { timeZone: userTimezone }),
       );
       endDate.setHours(23, 59, 59, 999);
     }
@@ -652,8 +656,8 @@ function getChartData(): number[] {
         startDate.getDate(),
         startDate.getHours(),
         startDate.getMinutes(),
-        startDate.getSeconds()
-      )
+        startDate.getSeconds(),
+      ),
     );
 
     const utcEndDate = new Date(
@@ -663,8 +667,8 @@ function getChartData(): number[] {
         endDate.getDate(),
         endDate.getHours(),
         endDate.getMinutes(),
-        endDate.getSeconds()
-      )
+        endDate.getSeconds(),
+      ),
     );
 
     const filteredHeartbeats = relevantHeartbeats.filter((hb) => {
@@ -673,10 +677,10 @@ function getChartData(): number[] {
     });
 
     console.log(
-      `Filtered ${filteredHeartbeats.length} heartbeats for ${timeRange.value}`
+      `Filtered ${filteredHeartbeats.length} heartbeats for ${timeRange.value}`,
     );
     console.log(
-      `Date range: ${utcStartDate.toISOString()} - ${utcEndDate.toISOString()}`
+      `Date range: ${utcStartDate.toISOString()} - ${utcEndDate.toISOString()}`,
     );
 
     const heartbeatsByProject: Record<string, Heartbeat[]> = {};
@@ -701,12 +705,12 @@ function getChartData(): number[] {
         const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
         const durationSeconds = calculateInlinedDuration(
           currentBeat,
-          previousBeat
+          previousBeat,
         );
 
         const ts = new Date(currentBeat.timestamp);
         const localTs = new Date(
-          ts.toLocaleString("en-US", { timeZone: userTimezone })
+          ts.toLocaleString("en-US", { timeZone: userTimezone }),
         );
         const localHour = localTs.getHours();
 
@@ -829,7 +833,7 @@ function getChartData(): number[] {
 
       monthlyTotals.set(
         monthName,
-        (monthlyTotals.get(monthName) || 0) + summary.totalSeconds / 3600
+        (monthlyTotals.get(monthName) || 0) + summary.totalSeconds / 3600,
       );
     }
 
@@ -892,7 +896,7 @@ function getChartData(): number[] {
 
 function calculateInlinedDuration(
   current: Heartbeat,
-  previous?: Heartbeat
+  previous?: Heartbeat,
 ): number {
   const keystrokeTimeoutSecs = statsLib.getKeystrokeTimeout() * 60;
 

@@ -8,7 +8,8 @@
       @input="
         $emit('update:modelValue', ($event.target as HTMLInputElement).value)
       "
-      :readonly="locked" />
+      :readonly="locked"
+    />
   </div>
 </template>
 

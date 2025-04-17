@@ -5,7 +5,10 @@
     <div class="content">
       <slot />
     </div>
-    <div class="fade-bottom" :class="{ 'home-page': $route.path === '/' }"></div>
+    <div
+      class="fade-bottom"
+      :class="{ 'home-page': $route.path === '/' }"
+    ></div>
     <div class="bottombar" v-if="$route.path === '/'">
       <p class="coding-time">{{ formattedTime }}</p>
       <UiSelect v-model="selectedTimeRange" :items="timeRangeOptions" />
@@ -45,7 +48,11 @@ const timeRangeOptions = computed(() => [
   { label: "Yesterday", value: "yesterday" as statsLib.TimeRange, key: "E" },
   { label: "Last 7 Days", value: "week" as statsLib.TimeRange, key: "W" },
   { label: "Last 30 Days", value: "month" as statsLib.TimeRange, key: "T" },
-  { label: "Last 90 Days", value: "last-90-days" as statsLib.TimeRange, key: "N" },
+  {
+    label: "Last 90 Days",
+    value: "last-90-days" as statsLib.TimeRange,
+    key: "N",
+  },
   {
     label: "Month to Date",
     value: "month-to-date" as statsLib.TimeRange,
@@ -114,7 +121,7 @@ const timeRangeOptions = computed(() => [
   background: linear-gradient(to top, var(--background) 20%, transparent 100%);
   z-index: 5;
   pointer-events: none;
-  
+
   &.home-page {
     bottom: 42px;
   }

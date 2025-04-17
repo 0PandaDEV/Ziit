@@ -59,12 +59,12 @@ export default defineEventHandler(async (event: H3Event) => {
 
       dayHeartbeats.sort(
         (a, b) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
       );
 
       const totalMinutes = calculateTotalMinutesFromHeartbeats(
         dayHeartbeats,
-        idleThresholdMinutes
+        idleThresholdMinutes,
       );
 
       const summary = await prisma.summaries.create({
@@ -80,8 +80,8 @@ export default defineEventHandler(async (event: H3Event) => {
           prisma.heartbeats.update({
             where: { id: heartbeat.id },
             data: { summariesId: summary.id },
-          })
-        )
+          }),
+        ),
       );
 
       summaries.push(summary);
@@ -95,7 +95,7 @@ export default defineEventHandler(async (event: H3Event) => {
   } catch (error) {
     console.error(
       "Regenerate summaries error:",
-      error instanceof Error ? error.message : "Unknown error"
+      error instanceof Error ? error.message : "Unknown error",
     );
     throw createError({
       statusCode: 500,
@@ -106,12 +106,12 @@ export default defineEventHandler(async (event: H3Event) => {
 
 function calculateTotalMinutesFromHeartbeats(
   heartbeats: Heartbeats[],
-  idleThresholdMinutes: number
+  idleThresholdMinutes: number,
 ): number {
   if (heartbeats.length === 0) return 0;
 
   const sortedHeartbeats = [...heartbeats].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
   );
 
   let totalMinutes = 0;

@@ -5,13 +5,15 @@
       @mousedown="startDecrement"
       @mouseup="stopRepeat"
       @mouseleave="stopRepeat"
-      :disabled="disabled || modelValue <= min">
+      :disabled="disabled || modelValue <= min"
+    >
       <svg
         width="16"
         height="16"
         viewBox="0 0 16 16"
         fill="none"
-        xmlns="http://www.w3.org/2000/svg">
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <g>
           <path
             d="M0 0L9.33333 0"
@@ -20,7 +22,8 @@
             stroke="#191919"
             stroke-linecap="round"
             stroke-linejoin="round"
-            transform="translate(3.333 8)" />
+            transform="translate(3.333 8)"
+          />
         </g>
       </svg>
     </button>
@@ -32,19 +35,22 @@
       @blur="validateInput"
       @keydown.enter.prevent="validateInput"
       :tabindex="disabled ? -1 : 0"
-      :style="{ width: inputWidth + 'px' }" />
+      :style="{ width: inputWidth + 'px' }"
+    />
     <button
       class="plus"
       @mousedown="startIncrement"
       @mouseup="stopRepeat"
       @mouseleave="stopRepeat"
-      :disabled="disabled || modelValue >= max">
+      :disabled="disabled || modelValue >= max"
+    >
       <svg
         width="15.333"
         height="15.333"
         viewBox="0 0 15.333 15.333"
         fill="none"
-        xmlns="http://www.w3.org/2000/svg">
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <g transform="translate(-0 0)">
           <path
             d="M0 4.66667L9.33333 4.66667M4.66667 0L4.66667 9.33333"
@@ -53,7 +59,8 @@
             stroke="#191919"
             stroke-linecap="round"
             stroke-linejoin="round"
-            transform="translate(3 3)" />
+            transform="translate(3 3)"
+          />
         </g>
       </svg>
     </button>

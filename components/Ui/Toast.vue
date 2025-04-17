@@ -4,7 +4,8 @@
       v-for="toast in toasts"
       :key="toast.id"
       :class="['toast', toast.type]"
-      @click="hideById(toast.id)">
+      @click="hideById(toast.id)"
+    >
       {{ toast.message }}
     </div>
   </div>

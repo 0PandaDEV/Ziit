@@ -60,8 +60,8 @@ export default defineEventHandler(async (event: H3Event) => {
             editor: heartbeat.editor,
             os: heartbeat.os,
           },
-        })
-      )
+        }),
+      ),
     );
 
     return {
@@ -85,4 +85,4 @@ export default defineEventHandler(async (event: H3Event) => {
       message: "Failed to process heartbeats",
     });
   }
-}); 
+});

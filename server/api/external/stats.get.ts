@@ -48,7 +48,9 @@ export default defineEventHandler(async (event: H3Event) => {
     const timeRange = query.timeRange as TimeRange;
 
     if (!timeRange || !Object.values(TimeRangeEnum).includes(timeRange)) {
-      console.error(`External Stats error: Invalid timeRange value ${timeRange}`);
+      console.error(
+        `External Stats error: Invalid timeRange value ${timeRange}`,
+      );
       throw createError({
         statusCode: 400,
         message: "Invalid timeRange value",

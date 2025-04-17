@@ -3,8 +3,8 @@ export default defineEventHandler(async (event) => {
 
   if (config.disableRegistering === "true") {
     throw createError({
-      statusCode: 403, 
-      message: "Registration is currently disabled"
+      statusCode: 403,
+      message: "Registration is currently disabled",
     });
   }
 

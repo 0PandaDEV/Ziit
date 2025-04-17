@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email format"),
-  password: z.string().min(1, "Password is required")
+  password: z.string().min(1, "Password is required"),
 });
 
 export default defineEventHandler(async (event) => {
@@ -13,18 +13,19 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
 
   const validation = loginSchema.safeParse(body);
-  
+
   if (!validation.success) {
     console.error("Login error: invalid input", validation.error.errors);
     throw createError({
       statusCode: 400,
-      message: validation.error.errors[0].message || "Email and password are required",
+      message:
+        validation.error.errors[0].message || "Email and password are required",
     });
   }
 
   try {
     const { email, password } = validation.data;
-    
+
     const user = await prisma.user.findUnique({
       where: { email },
     });
@@ -66,7 +67,10 @@ export default defineEventHandler(async (event) => {
 
     await sendRedirect(event, "/");
   } catch (error) {
-    console.error("Login error:", error instanceof Error ? error.message : "Unknown error");
+    console.error(
+      "Login error:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
     throw createError({
       statusCode: 500,
       message: "Invalid email or password",

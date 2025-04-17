@@ -65,7 +65,7 @@ async function register() {
   error.value = "";
   try {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    
+
     await $fetch("/api/auth/register", {
       method: "POST",
       body: {
@@ -109,7 +109,8 @@ useSeoMeta({
   ogUrl: "https://ziit.app/register",
   ogSiteName: "Ziit",
   twitterTitle: "Register - Ziit",
-  twitterDescription: "Create your Ziit account to start tracking your coding time",
+  twitterDescription:
+    "Create your Ziit account to start tracking your coding time",
   twitterImage: "https://ziit.app/logo.webp",
   twitterCard: "summary",
   twitterCreator: "@pandadev_",

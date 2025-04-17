@@ -7,7 +7,7 @@ export default defineEventHandler(async (event: H3Event) => {
   if (config.disableRegistering === "true") {
     throw createError({
       statusCode: 403,
-      message: "Registration is currently disabled"
+      message: "Registration is currently disabled",
     });
   }
 
@@ -20,18 +20,22 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   const sessionCookie = getCookie(event, "session");
-  
+
   if (!sessionCookie) {
     throw createError({
       statusCode: 401,
       message: "No session found",
     });
   }
-  
+
   let userId: string;
   try {
     const decoded = jwt.verify(sessionCookie, config.jwtSecret);
-    if (typeof decoded !== "object" || decoded === null || !("userId" in decoded)) {
+    if (
+      typeof decoded !== "object" ||
+      decoded === null ||
+      !("userId" in decoded)
+    ) {
       throw createError({
         statusCode: 401,
         message: "Invalid token",
@@ -52,7 +56,7 @@ export default defineEventHandler(async (event: H3Event) => {
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 10,
     path: "/",
-    sameSite: "lax"
+    sameSite: "lax",
   });
 
   setCookie(event, "github_link_account", "true", {
@@ -60,7 +64,7 @@ export default defineEventHandler(async (event: H3Event) => {
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 10,
     path: "/",
-    sameSite: "lax"
+    sameSite: "lax",
   });
 
   const token = jwt.sign({ userId }, config.jwtSecret, {
@@ -72,7 +76,7 @@ export default defineEventHandler(async (event: H3Event) => {
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 10,
     path: "/",
-    sameSite: "lax"
+    sameSite: "lax",
   });
 
   const githubAuthUrl = new URL("https://github.com/login/oauth/authorize");

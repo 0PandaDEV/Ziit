@@ -9,8 +9,16 @@ export default defineCronHandler(
   async () => {
     try {
       const now = new Date();
-      const randomOffset = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 4294967295) * 24 * 60 * 60 * 1000);
-      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000 - randomOffset);
+      const randomOffset = Math.floor(
+        (crypto.getRandomValues(new Uint32Array(1))[0] / 4294967295) *
+          24 *
+          60 *
+          60 *
+          1000,
+      );
+      const yesterday = new Date(
+        now.getTime() - 24 * 60 * 60 * 1000 - randomOffset,
+      );
       yesterday.setHours(23, 59, 59, 999);
 
       const heartbeatsToSummarize = await prisma.heartbeats.findMany({
@@ -26,9 +34,9 @@ export default defineCronHandler(
             select: {
               timezone: true,
               keystrokeTimeout: true,
-            }
-          }
-        }
+            },
+          },
+        },
       });
 
       const userDateHeartbeats: Record<
@@ -39,8 +47,12 @@ export default defineCronHandler(
       heartbeatsToSummarize.forEach((heartbeat) => {
         const userId = heartbeat.userId;
         const userTimezone = heartbeat.user.timezone || "UTC";
-        
-        const date = new Date(heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone }));
+
+        const date = new Date(
+          heartbeat.timestamp.toLocaleString("en-US", {
+            timeZone: userTimezone,
+          }),
+        );
         date.setHours(0, 0, 0, 0);
         const dateKey = date.toISOString().split("T")[0];
 
@@ -61,7 +73,7 @@ export default defineCronHandler(
 
           dateHeartbeats.sort(
             (a: Heartbeats, b: Heartbeats) =>
-              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
           );
 
           const user = await prisma.user.findUnique({
@@ -73,7 +85,7 @@ export default defineCronHandler(
 
           const totalMinutes = calculateTotalMinutesFromHeartbeats(
             dateHeartbeats,
-            idleThresholdMinutes
+            idleThresholdMinutes,
           );
 
           const summary = await prisma.summaries.upsert({
@@ -96,14 +108,14 @@ export default defineCronHandler(
               prisma.heartbeats.update({
                 where: { id: heartbeat.id },
                 data: { summariesId: summary.id },
-              })
-            )
+              }),
+            ),
           );
         }
       }
 
       console.log(
-        `Summarization complete. Processed ${heartbeatsToSummarize.length} heartbeats.`
+        `Summarization complete. Processed ${heartbeatsToSummarize.length} heartbeats.`,
       );
     } catch (error) {
       console.error("Error in summarization cron job", error);
@@ -112,17 +124,17 @@ export default defineCronHandler(
   {
     timeZone: "UTC",
     runOnInit: true,
-  }
+  },
 );
 
 function calculateTotalMinutesFromHeartbeats(
   heartbeats: Heartbeats[],
-  idleThresholdMinutes: number
+  idleThresholdMinutes: number,
 ): number {
   if (heartbeats.length === 0) return 0;
 
   const sortedHeartbeats = [...heartbeats].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
   );
 
   let totalMinutes = 0;

@@ -6,12 +6,12 @@ const prisma = new PrismaClient();
 
 function calculateTotalMinutesFromHeartbeats(
   heartbeats: any[],
-  idleThresholdMinutes: number
+  idleThresholdMinutes: number,
 ): number {
   if (heartbeats.length === 0) return 0;
 
   const sortedHeartbeats = [...heartbeats].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
   );
 
   let totalMinutes = 0;
@@ -92,9 +92,9 @@ const wakaTimeExportSchema = z.object({
             project: z.string().optional().nullable(),
             user_agent_id: z.string().optional().nullable(),
           })
-          .passthrough()
+          .passthrough(),
       ),
-    })
+    }),
   ),
 });
 
@@ -102,7 +102,7 @@ async function processHeartbeatsForDay(
   dateStr: string,
   heartbeats: any[],
   userId: string,
-  userTimezone: string
+  userTimezone: string,
 ) {
   if (heartbeats.length === 0) return;
 
@@ -119,7 +119,7 @@ async function processHeartbeatsForDay(
 
     heartbeats.forEach((heartbeat) => {
       const localDate = new Date(
-        heartbeat.timestamp.toLocaleString("en-US", { timeZone: timezone })
+        heartbeat.timestamp.toLocaleString("en-US", { timeZone: timezone }),
       );
       const dateKey = localDate.toISOString().split("T")[0];
 
@@ -133,7 +133,7 @@ async function processHeartbeatsForDay(
     for (const [localDateStr, dateHeartbeats] of heartbeatsByDate.entries()) {
       const totalMinutes = calculateTotalMinutesFromHeartbeats(
         dateHeartbeats,
-        idleThresholdMinutes
+        idleThresholdMinutes,
       );
 
       const summary = await prisma.summaries.upsert({
@@ -152,7 +152,7 @@ async function processHeartbeatsForDay(
       });
 
       console.log(
-        `Created/updated summary for ${localDateStr} with ID ${summary.id}`
+        `Created/updated summary for ${localDateStr} with ID ${summary.id}`,
       );
 
       const heartbeatsWithSummaryId = dateHeartbeats.map((heartbeat) => ({
@@ -167,7 +167,7 @@ async function processHeartbeatsForDay(
           data: batch,
         });
         console.log(
-          `Imported heartbeats ${i} to ${i + batch.length} for ${localDateStr}`
+          `Imported heartbeats ${i} to ${i + batch.length} for ${localDateStr}`,
         );
       }
     }
@@ -182,10 +182,10 @@ async function fetchRangeHeartbeats(
   headers: any,
   startDate: Date,
   endDate: Date,
-  userId: string
+  userId: string,
 ) {
   console.log(
-    `Fetching heartbeats from ${startDate.toISOString()} to ${endDate.toISOString()}`
+    `Fetching heartbeats from ${startDate.toISOString()} to ${endDate.toISOString()}`,
   );
 
   const today = new Date();
@@ -213,7 +213,7 @@ async function fetchRangeHeartbeats(
   }
 
   console.log(
-    `Generated ${allDateStrings.length} dates to check based on date range, including tomorrow to ensure all heartbeats are captured`
+    `Generated ${allDateStrings.length} dates to check based on date range, including tomorrow to ensure all heartbeats are captured`,
   );
 
   const heartbeatsByDate = new Map<string, any[]>();
@@ -222,7 +222,7 @@ async function fetchRangeHeartbeats(
   for (let i = 0; i < allDateStrings.length; i += BATCH_SIZE) {
     const dateBatch = allDateStrings.slice(i, i + BATCH_SIZE);
     console.log(
-      `Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(allDateStrings.length / BATCH_SIZE)}: ${dateBatch[0]} to ${dateBatch[dateBatch.length - 1]}`
+      `Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(allDateStrings.length / BATCH_SIZE)}: ${dateBatch[0]} to ${dateBatch[dateBatch.length - 1]}`,
     );
 
     for (const dateStr of dateBatch) {
@@ -245,11 +245,11 @@ async function fetchRangeHeartbeats(
         }
 
         console.log(
-          `Found ${heartbeatsResponse.data.length} heartbeats for ${dateStr}`
+          `Found ${heartbeatsResponse.data.length} heartbeats for ${dateStr}`,
         );
 
         const heartbeats = heartbeatsResponse.data.map((h) =>
-          processHeartbeat(h, userId)
+          processHeartbeat(h, userId),
         );
 
         if (heartbeats.length > 0) {
@@ -279,7 +279,7 @@ function processHeartbeat(heartbeat: WakApiHeartbeat | any, userId: string) {
     const userAgent = heartbeat.user_agent_id;
 
     const editorMatch = userAgent.match(
-      /vscode-wakatime\/(\d+\.\d+\.\d+)|cursor\/(\d+\.\d+\.\d+)/
+      /vscode-wakatime\/(\d+\.\d+\.\d+)|cursor\/(\d+\.\d+\.\d+)/,
     );
     if (editorMatch) {
       const editorName = editorMatch[0].split("/")[0];
@@ -412,7 +412,7 @@ export default defineEventHandler(async (event: H3Event) => {
       const endDate = new Date();
 
       console.log(
-        `Found activity range: ${startDate.toISOString()} to ${endDate.toISOString()}`
+        `Found activity range: ${startDate.toISOString()} to ${endDate.toISOString()}`,
       );
 
       const heartbeatsByDate = await fetchRangeHeartbeats(
@@ -421,7 +421,7 @@ export default defineEventHandler(async (event: H3Event) => {
         headers,
         startDate,
         endDate,
-        userId
+        userId,
       );
 
       if (heartbeatsByDate.size === 0) {
@@ -441,7 +441,7 @@ export default defineEventHandler(async (event: H3Event) => {
           dateStr,
           heartbeats,
           userId,
-          userTimezone
+          userTimezone,
         );
       }
     } catch (error) {
@@ -457,7 +457,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
   console.log("Processing WakaTime exported file upload");
   const fileData = formData.find(
-    (item) => item.name === "file" && item.filename
+    (item) => item.name === "file" && item.filename,
   );
 
   if (!fileData || !fileData.data) {
@@ -482,7 +482,7 @@ export default defineEventHandler(async (event: H3Event) => {
     const wakaData = validationResult.data;
 
     console.log(
-      `Parsing WakaTime export with ${wakaData.days.length} days of data`
+      `Parsing WakaTime export with ${wakaData.days.length} days of data`,
     );
 
     let totalHeartbeats = 0;
@@ -491,7 +491,7 @@ export default defineEventHandler(async (event: H3Event) => {
       if (!day.heartbeats || day.heartbeats.length === 0) continue;
 
       console.log(
-        `Processing ${day.heartbeats.length} heartbeats for ${day.date}`
+        `Processing ${day.heartbeats.length} heartbeats for ${day.date}`,
       );
       totalHeartbeats += day.heartbeats.length;
 
@@ -523,7 +523,7 @@ export default defineEventHandler(async (event: H3Event) => {
           const localDate = new Date(
             heartbeat.timestamp.toLocaleString("en-US", {
               timeZone: userTimezone,
-            })
+            }),
           );
           const dateKey = localDate.toISOString().split("T")[0];
 
@@ -542,7 +542,7 @@ export default defineEventHandler(async (event: H3Event) => {
             localDateStr,
             dateHeartbeats,
             userId,
-            idleThresholdMinutes
+            idleThresholdMinutes,
           );
         }
       } catch (error) {
@@ -563,7 +563,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
 function extractEditor(userAgent: string): string | null {
   const editorMatch = userAgent.match(
-    /vscode-wakatime\/(\d+\.\d+\.\d+)|cursor\/(\d+\.\d+\.\d+)/
+    /vscode-wakatime\/(\d+\.\d+\.\d+)|cursor\/(\d+\.\d+\.\d+)/,
   );
   if (editorMatch) {
     const editorName = editorMatch[0].split("/")[0];
@@ -587,11 +587,11 @@ async function processDateHeartbeats(
   dateStr: string,
   heartbeats: any[],
   userId: string,
-  idleThresholdMinutes: number
+  idleThresholdMinutes: number,
 ) {
   const totalMinutes = calculateTotalMinutesFromHeartbeats(
     heartbeats,
-    idleThresholdMinutes
+    idleThresholdMinutes,
   );
 
   const summary = await prisma.summaries.upsert({
@@ -623,7 +623,7 @@ async function processDateHeartbeats(
       data: batch,
     });
     console.log(
-      `Imported heartbeats ${i} to ${i + batch.length} for ${dateStr}`
+      `Imported heartbeats ${i} to ${i + batch.length} for ${dateStr}`,
     );
   }
 }

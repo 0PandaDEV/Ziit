@@ -13,7 +13,7 @@ const heartbeatSchema = z.object({
   editor: z.string().min(1).max(50),
   os: z.string().min(1).max(50),
   branch: z.string().max(255).optional(),
-  file: z.string().max(255)
+  file: z.string().max(255),
 });
 
 export default defineEventHandler(async (event: H3Event) => {
@@ -62,7 +62,7 @@ export default defineEventHandler(async (event: H3Event) => {
         editor: validatedData.editor,
         os: validatedData.os,
         branch: validatedData.branch,
-        file: validatedData.file
+        file: validatedData.file,
       },
     });
 
@@ -72,7 +72,10 @@ export default defineEventHandler(async (event: H3Event) => {
     };
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      console.error("Heartbeats error: Validation error", error.errors[0].message);
+      console.error(
+        "Heartbeats error: Validation error",
+        error.errors[0].message,
+      );
       throw createError({
         statusCode: 400,
         statusMessage: "Bad request: validation failed",
@@ -81,7 +84,10 @@ export default defineEventHandler(async (event: H3Event) => {
     if (error.statusCode) {
       throw error;
     }
-    console.error("Heartbeats error:", error instanceof Error ? error.message : "Unknown error");
+    console.error(
+      "Heartbeats error:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
     throw createError({
       statusCode: 500,
       statusMessage: "Internal server error",
