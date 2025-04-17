@@ -711,15 +711,15 @@ function getSingleDayChartData(
     endDate = new Date(now.toLocaleString("en-US", { timeZone: userTimezone }));
     endDate.setHours(23, 59, 59, 999);
   } else {
-    startDate = new Date(
+    const yesterdayDate = new Date(
       now.toLocaleString("en-US", { timeZone: userTimezone })
     );
-    startDate.setDate(startDate.getDate() - 1);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    
+    startDate = new Date(yesterdayDate);
     startDate.setHours(0, 0, 0, 0);
 
-    endDate = new Date(
-      startDate.toLocaleString("en-US", { timeZone: userTimezone })
-    );
+    endDate = new Date(yesterdayDate);
     endDate.setHours(23, 59, 59, 999);
   }
 

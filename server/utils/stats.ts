@@ -298,9 +298,10 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
     };
 
     if (timeRange === TimeRangeEnum.YESTERDAY) {
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
       query.timestamp = {
-        gte: fetchStartDate,
-        lte: fetchEndDate,
+        gte: oneDayAgo,
       };
     } else if (timeRange === TimeRangeEnum.TODAY) {
       const twoDaysAgo = new Date();
