@@ -42,25 +42,18 @@ export function getKeystrokeTimeout(): number {
 
 type StatRecord = Record<string, number>;
 
-type HourlyData = {
-  timestamp: string;
-  totalSeconds: number;
+export type HourlyData = {
+  seconds: number;
 };
 
-type DailyData = {
+export type Summary = {
   date: string;
   totalSeconds: number;
   projects: StatRecord;
   languages: StatRecord;
   editors: StatRecord;
   os: StatRecord;
-  files: string[];
-  hourlyData?: HourlyData[];
-};
-
-type DailySummary = {
-  date: string;
-  totalSeconds: number;
+  hourlyData: HourlyData[];
 };
 
 export interface Heartbeat {
@@ -78,9 +71,8 @@ type StatsResult = {
   languages: StatRecord;
   editors: StatRecord;
   os: StatRecord;
-  dailyData: DailyData[];
+  summaries: Summary[];
   heartbeats: Heartbeat[];
-  summaries: DailySummary[];
   timezone?: string;
 };
 
@@ -99,9 +91,8 @@ const initialStats: StatsResult = {
   languages: {},
   editors: {},
   os: {},
-  dailyData: [],
-  heartbeats: [],
   summaries: [],
+  heartbeats: [],
 };
 
 const state: State = {
@@ -142,7 +133,7 @@ export async function fetchStats(): Promise<void> {
       url.searchParams.append("t", Date.now().toString());
     }
 
-    const response = await fetch(url.toString(), {
+    const apiResponse = await $fetch<any>(url.toString(), {
       method: "GET",
       headers: {
         Accept: "application/json",
@@ -150,16 +141,6 @@ export async function fetchStats(): Promise<void> {
       credentials: "include",
     });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        state.isAuthenticated = false;
-        throw new Error("Authentication required");
-      }
-
-      throw new Error(`API error: ${response.status}`);
-    }
-
-    const apiResponse = await response.json();
     state.isAuthenticated = true;
 
     if (apiResponse.heartbeats) {
@@ -181,7 +162,7 @@ export async function fetchStats(): Promise<void> {
     state.data = { ...initialStats };
     state.status = "error";
 
-    if (state.error.message === "Authentication required") {
+    if (err instanceof Error && err.message.includes("401")) {
       state.isAuthenticated = false;
       if (typeof window !== "undefined") {
         window.location.href = "/login";
@@ -210,7 +191,7 @@ function convertUtcToLocal(apiResponse: any): StatsResult {
   const dailyData = apiResponse.summaries || [];
   const summaries = apiResponse.summaries || [];
 
-  dailyData.forEach((day: DailyData) => {
+  dailyData.forEach((day: Summary) => {
     calculatedTotalSeconds += day.totalSeconds;
 
     Object.entries(day.projects).forEach(([project, seconds]) => {
@@ -238,9 +219,8 @@ function convertUtcToLocal(apiResponse: any): StatsResult {
     languages: calculatedLanguages,
     editors: calculatedEditors,
     os: calculatedOs,
-    dailyData,
-    heartbeats: allParsedHeartbeats,
     summaries,
+    heartbeats: allParsedHeartbeats,
   };
 }
 

@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { TimeRangeEnum, TimeRange } from "~/lib/stats";
+import { TimeRangeEnum, TimeRange, HourlyData, Summary } from "~/lib/stats";
 import type { Heartbeats } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -147,28 +147,9 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
     isSingleDayView = true;
   }
 
-  const dailyDataMap = new Map<
-    string,
-    {
-      date: string;
-      totalSeconds: number;
-      projects: Record<string, number>;
-      languages: Record<string, number>;
-      editors: Record<string, number>;
-      os: Record<string, number>;
-      hourlyData: Array<{
-        seconds: number;
-        file: string | null;
-        editor: string | null;
-        language: string | null;
-        branch: string | null;
-        os: string | null;
-      }>;
-    }
-  >();
+  const summaryMap = new Map<string, Summary>();
 
   let heartbeats: Heartbeats[] = [];
-  const dailySummaries: { date: string; totalSeconds: number }[] = [];
 
   if (!isSingleDayView) {
     const summaries = await prisma.summaries.findMany({
@@ -197,13 +178,8 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
     for (const summary of summaries) {
       const dateStr = summary.date.toISOString().split("T")[0];
 
-      dailySummaries.push({
-        date: dateStr,
-        totalSeconds: summary.totalMinutes * 60,
-      });
-
-      if (!dailyDataMap.has(dateStr)) {
-        dailyDataMap.set(dateStr, {
+      if (!summaryMap.has(dateStr)) {
+        summaryMap.set(dateStr, {
           date: dateStr,
           totalSeconds: summary.totalMinutes * 60,
           projects: {},
@@ -223,7 +199,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
         });
       }
 
-      const dailyData = dailyDataMap.get(dateStr)!;
+      const summaryData = summaryMap.get(dateStr)!;
 
       const categoryCounters = {
         projects: {} as Record<string, number>,
@@ -259,218 +235,241 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
           categoryCounters.projects
         )) {
           const seconds = Math.round((count / totalHeartbeats) * totalSeconds);
-          dailyData.projects[project] =
-            (dailyData.projects[project] || 0) + seconds;
+          summaryData.projects[project] =
+            (summaryData.projects[project] || 0) + seconds;
         }
 
         for (const [language, count] of Object.entries(
           categoryCounters.languages
         )) {
           const seconds = Math.round((count / totalHeartbeats) * totalSeconds);
-          dailyData.languages[language] =
-            (dailyData.languages[language] || 0) + seconds;
+          summaryData.languages[language] =
+            (summaryData.languages[language] || 0) + seconds;
         }
 
         for (const [editor, count] of Object.entries(
           categoryCounters.editors
         )) {
           const seconds = Math.round((count / totalHeartbeats) * totalSeconds);
-          dailyData.editors[editor] =
-            (dailyData.editors[editor] || 0) + seconds;
+          summaryData.editors[editor] =
+            (summaryData.editors[editor] || 0) + seconds;
         }
 
         for (const [os, count] of Object.entries(categoryCounters.os)) {
           const seconds = Math.round((count / totalHeartbeats) * totalSeconds);
-          dailyData.os[os] = (dailyData.os[os] || 0) + seconds;
+          summaryData.os[os] = (summaryData.os[os] || 0) + seconds;
         }
       }
     }
-  } else {
-    let query: any = {
-      userId,
-    };
 
-    if (timeRange === TimeRangeEnum.YESTERDAY) {
-      const oneDayAgo = new Date();
-      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-      query.timestamp = {
-        gte: oneDayAgo,
-      };
-    } else if (timeRange === TimeRangeEnum.TODAY) {
-      const twoDaysAgo = new Date();
-      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-      query.timestamp = {
-        gte: twoDaysAgo,
-      };
-    }
-
-    heartbeats = await prisma.heartbeats.findMany({
-      where: query,
+    const hourlyHeartbeats = await prisma.heartbeats.findMany({
+      where: {
+        userId,
+        timestamp: {
+          gte: fetchStartDate,
+          lte: fetchEndDate,
+        },
+      },
+      select: {
+        timestamp: true,
+        file: true,
+        editor: true,
+        language: true,
+        branch: true,
+        os: true,
+      },
       orderBy: {
         timestamp: "asc",
       },
     });
 
-    const targetDate =
-      timeRange === TimeRangeEnum.TODAY ? todayStart : yesterdayStart;
-    const targetDateStr = targetDate.toLocaleDateString("en-CA", {
-      timeZone: userTimezone,
-    });
+    const hourlyMap = new Map<string, Map<number, HourlyData>>();
 
-    const filteredHeartbeats = heartbeats.filter((heartbeat) => {
-      const localDate = new Date(
-        heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone })
-      );
-      const localDateStr = localDate.toLocaleDateString("en-CA", {
+    for (const hb of hourlyHeartbeats) {
+      const date = new Date(hb.timestamp);
+      const dateStr = date.toISOString().split('T')[0];
+      const hourNum = date.getUTCHours();
+      
+      if (!hourlyMap.has(dateStr)) {
+        hourlyMap.set(dateStr, new Map());
+      }
+      
+      const dateMap = hourlyMap.get(dateStr)!;
+      if (!dateMap.has(hourNum)) {
+        dateMap.set(hourNum, {
+          seconds: 30,
+        });
+      } else {
+        const hourData = dateMap.get(hourNum)!;
+        hourData.seconds += 30;
+      }
+    }
+
+    for (const [dateStr, hoursMap] of hourlyMap.entries()) {
+      if (summaryMap.has(dateStr)) {
+        const summaryData = summaryMap.get(dateStr)!;
+        
+        for (const [hour, data] of hoursMap.entries()) {
+          summaryData.hourlyData[hour] = data;
+        }
+      }
+    }
+  } else {
+    try {
+      heartbeats = await prisma.heartbeats.findMany({
+        where: {
+          userId,
+          timestamp: {
+            gte: fetchStartDate,
+            lte: fetchEndDate
+          }
+        },
+        orderBy: {
+          timestamp: "asc",
+        },
+      });
+
+      const targetDate =
+        timeRange === TimeRangeEnum.TODAY ? todayStart : yesterdayStart;
+      const targetDateStr = targetDate.toLocaleDateString("en-CA", {
         timeZone: userTimezone,
       });
 
-      return localDateStr === targetDateStr;
-    });
-
-    heartbeats = filteredHeartbeats;
-
-    const heartbeatsByDate = new Map<string, Array<(typeof heartbeats)[0]>>();
-
-    for (const heartbeat of heartbeats) {
-      const localTimestamp = new Date(
-        heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone })
-      );
-      const dateStr = localTimestamp.toISOString().split("T")[0];
-
-      if (!heartbeatsByDate.has(dateStr)) {
-        heartbeatsByDate.set(dateStr, []);
-      }
-
-      heartbeatsByDate.get(dateStr)!.push(heartbeat);
-    }
-
-    for (const [dateStr, dateHeartbeats] of heartbeatsByDate.entries()) {
-      if (!dailyDataMap.has(dateStr)) {
-        dailyDataMap.set(dateStr, {
-          date: dateStr,
-          totalSeconds: 0,
-          projects: {},
-          languages: {},
-          editors: {},
-          os: {},
-          hourlyData: Array(24)
-            .fill(null)
-            .map(() => ({
-              seconds: 0,
-              file: null,
-              editor: null,
-              language: null,
-              branch: null,
-              os: null,
-            })),
-        });
-      }
-
-      const dailyData = dailyDataMap.get(dateStr)!;
-
-      dateHeartbeats.sort(
-        (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-      );
-
-      for (let i = 0; i < dateHeartbeats.length; i++) {
-        const heartbeat = dateHeartbeats[i];
-        const localTimestamp = new Date(
-          heartbeat.timestamp.toLocaleString("en-US", {
-            timeZone: userTimezone,
-          })
+      const filteredHeartbeats = heartbeats.filter((heartbeat) => {
+        const localDate = new Date(
+          heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone })
         );
-        const hour = localTimestamp.getHours();
+        const localDateStr = localDate.toLocaleDateString("en-CA", {
+          timeZone: userTimezone,
+        });
 
-        if (heartbeat.editor) {
-          dailyData.hourlyData[hour].editor = heartbeat.editor;
+        return localDateStr === targetDateStr;
+      });
+
+      heartbeats = filteredHeartbeats;
+      const heartbeatsByDate = new Map<string, Array<(typeof heartbeats)[0]>>();
+
+      for (const heartbeat of heartbeats) {
+        const localTimestamp = new Date(
+          heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone })
+        );
+        const dateStr = localTimestamp.toISOString().split("T")[0];
+
+        if (!heartbeatsByDate.has(dateStr)) {
+          heartbeatsByDate.set(dateStr, []);
         }
 
-        if (heartbeat.language) {
-          dailyData.hourlyData[hour].language = heartbeat.language;
+        heartbeatsByDate.get(dateStr)!.push(heartbeat);
+      }
+
+      for (const [dateStr, dateHeartbeats] of heartbeatsByDate.entries()) {
+        if (!summaryMap.has(dateStr)) {
+          summaryMap.set(dateStr, {
+            date: dateStr,
+            totalSeconds: 0,
+            projects: {},
+            languages: {},
+            editors: {},
+            os: {},
+            hourlyData: Array(24)
+              .fill(null)
+              .map(() => ({
+                seconds: 0,
+                file: null,
+                editor: null,
+                language: null,
+                branch: null,
+                os: null,
+              })),
+          });
         }
 
-        if (heartbeat.os) {
-          dailyData.hourlyData[hour].os = heartbeat.os;
-        }
+        const summaryData = summaryMap.get(dateStr)!;
 
-        if (heartbeat.file) {
-          dailyData.hourlyData[hour].file = heartbeat.file;
-        }
+        dateHeartbeats.sort(
+          (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+        );
 
-        if (heartbeat.branch) {
-          dailyData.hourlyData[hour].branch = heartbeat.branch;
-        }
+        for (let i = 0; i < dateHeartbeats.length; i++) {
+          const heartbeat = dateHeartbeats[i];
+          const localTimestamp = new Date(
+            heartbeat.timestamp.toLocaleString("en-US", {
+              timeZone: userTimezone,
+            })
+          );
+          const hour = localTimestamp.getHours();
 
-        let secondsToAdd = 30;
+          let secondsToAdd = 30;
 
-        if (i > 0) {
-          const current = heartbeat.timestamp.getTime();
-          const previous = dateHeartbeats[i - 1].timestamp.getTime();
-          const diffSeconds = (current - previous) / 1000;
+          if (i > 0) {
+            const current = heartbeat.timestamp.getTime();
+            const previous = dateHeartbeats[i - 1].timestamp.getTime();
+            const diffSeconds = (current - previous) / 1000;
 
-          const prevHour = dateHeartbeats[i - 1].timestamp.getHours();
+            const prevHour = new Date(dateHeartbeats[i - 1].timestamp).getHours();
 
-          if (diffSeconds < keystrokeTimeoutSeconds) {
-            secondsToAdd = diffSeconds;
+            if (diffSeconds < keystrokeTimeoutSeconds) {
+              secondsToAdd = diffSeconds;
 
-            if (hour !== prevHour) {
-              const hourBoundary = new Date(heartbeat.timestamp);
-              hourBoundary.setMinutes(0, 0, 0);
+              if (hour !== prevHour) {
+                const hourBoundary = new Date(heartbeat.timestamp);
+                hourBoundary.setMinutes(0, 0, 0);
 
-              const secondsBeforeBoundary =
-                (hourBoundary.getTime() - previous) / 1000;
-              const secondsAfterBoundary =
-                (current - hourBoundary.getTime()) / 1000;
+                const secondsBeforeBoundary =
+                  (hourBoundary.getTime() - previous) / 1000;
+                const secondsAfterBoundary =
+                  (current - hourBoundary.getTime()) / 1000;
 
-              if (
-                secondsBeforeBoundary > 0 &&
-                secondsBeforeBoundary < keystrokeTimeoutSeconds
-              ) {
-                dailyData.hourlyData[prevHour].seconds += secondsBeforeBoundary;
-                secondsToAdd = secondsAfterBoundary;
+                if (
+                  secondsBeforeBoundary > 0 &&
+                  secondsBeforeBoundary < keystrokeTimeoutSeconds
+                ) {
+                  summaryData.hourlyData[prevHour].seconds += secondsBeforeBoundary;
+                  secondsToAdd = secondsAfterBoundary;
+                }
               }
             }
           }
-        }
 
-        dailyData.totalSeconds += secondsToAdd;
-        dailyData.hourlyData[hour].seconds += secondsToAdd;
+          summaryData.totalSeconds += secondsToAdd;
+          summaryData.hourlyData[hour].seconds += secondsToAdd;
 
-        if (heartbeat.project) {
-          dailyData.projects[heartbeat.project] =
-            (dailyData.projects[heartbeat.project] || 0) + secondsToAdd;
-        }
+          if (heartbeat.project) {
+            summaryData.projects[heartbeat.project] =
+              (summaryData.projects[heartbeat.project] || 0) + secondsToAdd;
+          }
 
-        if (heartbeat.language) {
-          dailyData.languages[heartbeat.language] =
-            (dailyData.languages[heartbeat.language] || 0) + secondsToAdd;
-        }
+          if (heartbeat.language) {
+            summaryData.languages[heartbeat.language] =
+              (summaryData.languages[heartbeat.language] || 0) + secondsToAdd;
+          }
 
-        if (heartbeat.editor) {
-          dailyData.editors[heartbeat.editor] =
-            (dailyData.editors[heartbeat.editor] || 0) + secondsToAdd;
-        }
+          if (heartbeat.editor) {
+            summaryData.editors[heartbeat.editor] =
+              (summaryData.editors[heartbeat.editor] || 0) + secondsToAdd;
+          }
 
-        if (heartbeat.os) {
-          dailyData.os[heartbeat.os] =
-            (dailyData.os[heartbeat.os] || 0) + secondsToAdd;
+          if (heartbeat.os) {
+            summaryData.os[heartbeat.os] =
+              (summaryData.os[heartbeat.os] || 0) + secondsToAdd;
+          }
         }
       }
-
-      dailySummaries.push({
-        date: dateStr,
-        totalSeconds: dailyData.totalSeconds,
+    } catch (error) {
+      console.error("Error calculating stats for single day view:", error);
+      throw createError({
+        statusCode: 500,
+        message: `Error calculating stats: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
 
-  const dailyData = Array.from(dailyDataMap.values()).sort((a, b) =>
+  const summaries = Array.from(summaryMap.values()).sort((a, b) =>
     a.date.localeCompare(b.date)
   );
 
   return {
-    summaries: dailyData,
+    summaries,
     heartbeats: isSingleDayView
       ? heartbeats.map((h) => ({
           ...h,
@@ -478,7 +477,6 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
           createdAt: h.createdAt.toISOString(),
         }))
       : [],
-    dailySummaries: dailySummaries.sort((a, b) => a.date.localeCompare(b.date)),
     timezone: userTimezone,
   };
 }
