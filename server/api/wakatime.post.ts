@@ -1,128 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
+import { processHeartbeatsByDate } from "~/server/utils/summarize";
 
 const prisma = new PrismaClient();
-const userAgentCounts = new Map<string, number>();
-let totalHeartbeatsProcessed = 0;
-let heartbeatsWithoutUserAgent = 0;
-
-function calculateTotalMinutesFromHeartbeats(
-  heartbeats: any[],
-  idleThresholdMinutes: number
-): number {
-  if (heartbeats.length === 0) return 0;
-
-  const sortedHeartbeats = [...heartbeats].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
-
-  let totalMinutes = 0;
-  let lastTimestamp: Date | null = null;
-  const IDLE_THRESHOLD_MS = idleThresholdMinutes * 60 * 1000;
-
-  for (const heartbeat of sortedHeartbeats) {
-    const currentTimestamp = new Date(heartbeat.timestamp);
-
-    if (lastTimestamp) {
-      const timeDiff = currentTimestamp.getTime() - lastTimestamp.getTime();
-
-      if (timeDiff < IDLE_THRESHOLD_MS) {
-        totalMinutes += timeDiff / (60 * 1000);
-      }
-    }
-
-    lastTimestamp = currentTimestamp;
-  }
-
-  return Math.round(totalMinutes);
-}
-
-function calculateCategoryTimes(
-  heartbeats: any[],
-  idleThresholdMinutes: number
-) {
-  const projectsTime: Record<string, number> = {};
-  const editorsTime: Record<string, number> = {};
-  const languagesTime: Record<string, number> = {};
-  const osTime: Record<string, number> = {};
-
-  if (heartbeats.length === 0) {
-    return { projectsTime, editorsTime, languagesTime, osTime };
-  }
-
-  const sortedHeartbeats = [...heartbeats].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
-
-  let lastTimestamp: Date | null = null;
-  let lastProject: string | null = null;
-  let lastEditor: string | null = null;
-  let lastLanguage: string | null = null;
-  let lastOs: string | null = null;
-
-  const IDLE_THRESHOLD_MS = idleThresholdMinutes * 60 * 1000;
-
-  for (const heartbeat of sortedHeartbeats) {
-    const currentTimestamp = new Date(heartbeat.timestamp);
-    const currentProject = heartbeat.project || null;
-    const currentEditor = heartbeat.editor || null;
-    const currentLanguage = heartbeat.language || null;
-    const currentOs = heartbeat.os || null;
-
-    if (lastTimestamp) {
-      const timeDiff = currentTimestamp.getTime() - lastTimestamp.getTime();
-
-      if (timeDiff < IDLE_THRESHOLD_MS) {
-        const secondsDiff = timeDiff / 1000;
-
-        if (lastProject) {
-          projectsTime[lastProject] =
-            (projectsTime[lastProject] || 0) + secondsDiff;
-        }
-
-        if (lastEditor) {
-          editorsTime[lastEditor] =
-            (editorsTime[lastEditor] || 0) + secondsDiff;
-        }
-
-        if (lastLanguage) {
-          languagesTime[lastLanguage] =
-            (languagesTime[lastLanguage] || 0) + secondsDiff;
-        }
-
-        if (lastOs) {
-          osTime[lastOs] = (osTime[lastOs] || 0) + secondsDiff;
-        }
-      }
-    }
-
-    lastTimestamp = currentTimestamp;
-    lastProject = currentProject;
-    lastEditor = currentEditor;
-    lastLanguage = currentLanguage;
-    lastOs = currentOs;
-  }
-
-  Object.keys(projectsTime).forEach((key) => {
-    projectsTime[key] = Math.round(projectsTime[key]);
-  });
-
-  Object.keys(editorsTime).forEach((key) => {
-    editorsTime[key] = Math.round(editorsTime[key]);
-  });
-
-  Object.keys(languagesTime).forEach((key) => {
-    languagesTime[key] = Math.round(languagesTime[key]);
-  });
-
-  Object.keys(osTime).forEach((key) => {
-    osTime[key] = Math.round(osTime[key]);
-  });
-
-  return { projectsTime, editorsTime, languagesTime, osTime };
-}
-
 interface WakApiUser {
   data: {
     username: string;
@@ -185,120 +66,6 @@ const wakaTimeExportSchema = z.object({
     })
   ),
 });
-
-async function processHeartbeatsForDay(
-  dateStr: string,
-  heartbeats: any[],
-  userId: string,
-  userTimezone: string
-) {
-  if (heartbeats.length === 0) return;
-
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { keystrokeTimeout: true, timezone: true },
-    });
-
-    const idleThresholdMinutes = user?.keystrokeTimeout || 5;
-    const timezone = user?.timezone || userTimezone || "UTC";
-
-    const heartbeatsByDate = new Map<string, any[]>();
-
-    heartbeats.forEach((heartbeat) => {
-      const localDate = new Date(
-        heartbeat.timestamp.toLocaleString("en-US", { timeZone: timezone })
-      );
-      const dateKey = localDate.toISOString().split("T")[0];
-
-      if (!heartbeatsByDate.has(dateKey)) {
-        heartbeatsByDate.set(dateKey, []);
-      }
-
-      heartbeatsByDate.get(dateKey)!.push(heartbeat);
-    });
-
-    for (const [localDateStr, dateHeartbeats] of heartbeatsByDate.entries()) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const currentDate = new Date(localDateStr);
-      currentDate.setHours(0, 0, 0, 0);
-
-      if (currentDate.getTime() === today.getTime()) {
-        console.log(
-          `Skipping summary creation for current day: ${localDateStr}, but still importing heartbeats`
-        );
-
-        const BATCH_SIZE = 1000;
-        for (let i = 0; i < dateHeartbeats.length; i += BATCH_SIZE) {
-          const batch = dateHeartbeats.slice(i, i + BATCH_SIZE);
-          await prisma.heartbeats.createMany({
-            data: batch,
-          });
-          console.log(
-            `Imported heartbeats ${i} to ${i + batch.length} for current day ${localDateStr}`
-          );
-        }
-        continue;
-      }
-
-      const totalMinutes = calculateTotalMinutesFromHeartbeats(
-        dateHeartbeats,
-        idleThresholdMinutes
-      );
-
-      const { projectsTime, editorsTime, languagesTime, osTime } =
-        calculateCategoryTimes(dateHeartbeats, idleThresholdMinutes);
-
-      const summary = await prisma.summaries.upsert({
-        where: {
-          userId_date: {
-            userId,
-            date: new Date(localDateStr),
-          },
-        },
-        update: {
-          totalMinutes,
-          projects: projectsTime,
-          editors: editorsTime,
-          languages: languagesTime,
-          os: osTime,
-        },
-        create: {
-          userId,
-          date: new Date(localDateStr),
-          totalMinutes,
-          projects: projectsTime,
-          editors: editorsTime,
-          languages: languagesTime,
-          os: osTime,
-        },
-      });
-
-      console.log(
-        `Created/updated summary for ${localDateStr} with ID ${summary.id}`
-      );
-
-      const heartbeatsWithSummaryId = dateHeartbeats.map((heartbeat) => ({
-        ...heartbeat,
-        summariesId: summary.id,
-      }));
-
-      const BATCH_SIZE = 1000;
-      for (let i = 0; i < heartbeatsWithSummaryId.length; i += BATCH_SIZE) {
-        const batch = heartbeatsWithSummaryId.slice(i, i + BATCH_SIZE);
-        await prisma.heartbeats.createMany({
-          data: batch,
-        });
-        console.log(
-          `Imported heartbeats ${i} to ${i + batch.length} for ${localDateStr}`
-        );
-      }
-    }
-  } catch (error) {
-    console.error(`Error saving data for ${dateStr}:`, error);
-  }
-}
 
 async function fetchRangeHeartbeats(
   baseUrl: string,
@@ -392,10 +159,9 @@ async function fetchRangeHeartbeats(
         });
         const userTimezone = user?.timezone || "UTC";
 
-        await processHeartbeatsForDay(
-          dateStr,
-          heartbeats,
+        await processHeartbeatsByDate(
           userId,
+          heartbeats,
           userTimezone
         );
       }
@@ -411,12 +177,6 @@ async function fetchRangeHeartbeats(
 }
 
 function processHeartbeat(heartbeat: WakApiHeartbeat | any, userId: string) {
-  totalHeartbeatsProcessed++;
-  
-  if (!heartbeat.user_agent_id) {
-    heartbeatsWithoutUserAgent++;
-  }
-  
   return {
     userId: userId,
     timestamp: heartbeat.time
@@ -432,16 +192,14 @@ function processHeartbeat(heartbeat: WakApiHeartbeat | any, userId: string) {
       : extractOS(heartbeat.entity || ""),
     file: heartbeat.entity || null,
     branch: heartbeat.branch || null,
+    createdAt: new Date(),
+    summariesId: null
   };
 }
 
 export default defineEventHandler(async (event: H3Event) => {
   const userId = event.context.user.id;
   console.log("Processing for user ID:", userId);
-  
-  userAgentCounts.clear();
-  totalHeartbeatsProcessed = 0;
-  heartbeatsWithoutUserAgent = 0;
 
   const formData = await readMultipartFormData(event);
   if (!formData || formData.length === 0) {
@@ -553,14 +311,12 @@ export default defineEventHandler(async (event: H3Event) => {
 
       if (heartbeatsByDate.size === 0) {
         console.log("No days with activity found");
-        logUserAgentStats();
         return { success: true, message: "No data to import" };
       }
 
       console.log(
         `Successfully imported data from ${heartbeatsByDate.size} days with activity`
       );
-      logUserAgentStats();
       return { success: true, imported: heartbeatsByDate.size };
     } catch (error) {
       console.error("Error during import process:", error);
@@ -617,7 +373,6 @@ export default defineEventHandler(async (event: H3Event) => {
           select: { keystrokeTimeout: true, timezone: true },
         });
 
-        const idleThresholdMinutes = user?.keystrokeTimeout || 5;
         const userTimezone = user?.timezone || "UTC";
 
         const processedHeartbeats = day.heartbeats.map((h) => {
@@ -630,44 +385,18 @@ export default defineEventHandler(async (event: H3Event) => {
             os: h.entity ? extractOS(h.entity) : null,
             file: h.entity || null,
             branch: h.branch || null,
+            createdAt: new Date(),
+            summariesId: null
           };
         });
 
-        const heartbeatsByDate = new Map<string, any[]>();
-
-        processedHeartbeats.forEach((heartbeat) => {
-          const localDate = new Date(
-            heartbeat.timestamp.toLocaleString("en-US", {
-              timeZone: userTimezone,
-            })
-          );
-          const dateKey = localDate.toISOString().split("T")[0];
-
-          if (!heartbeatsByDate.has(dateKey)) {
-            heartbeatsByDate.set(dateKey, []);
-          }
-
-          heartbeatsByDate.get(dateKey)!.push(heartbeat);
-        });
-
-        for (const [
-          localDateStr,
-          dateHeartbeats,
-        ] of heartbeatsByDate.entries()) {
-          await processDateHeartbeats(
-            localDateStr,
-            dateHeartbeats,
-            userId,
-            idleThresholdMinutes
-          );
-        }
+        await processHeartbeatsByDate(userId, processedHeartbeats, userTimezone);
       } catch (error) {
         console.error(`Error saving data for ${day.date}:`, error);
       }
     }
 
     console.log("Database update complete");
-    logUserAgentStats();
     return { success: true, imported: totalHeartbeats };
   } catch (error) {
     console.error("Error processing uploaded file:", error);
@@ -678,26 +407,10 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 });
 
-function logUserAgentStats() {
-  console.log(
-    "USER AGENTS ENCOUNTERED:",
-    Array.from(userAgentCounts.entries())
-      .sort((a, b) => b[1] - a[1]) // Sort by count (descending)
-      .map(([agent, count]) => `${agent} (${count} times)`)
-  );
-  console.log(`HEARTBEATS WITHOUT USER AGENT: ${heartbeatsWithoutUserAgent}`);
-  console.log(`TOTAL HEARTBEATS PROCESSED: ${totalHeartbeatsProcessed}`);
-  const percentageMissing = (heartbeatsWithoutUserAgent / totalHeartbeatsProcessed * 100).toFixed(2);
-  console.log(`PERCENTAGE WITHOUT USER AGENT: ${percentageMissing}%`);
-}
-
 function extractEditor(userAgent: string) {
   if (!userAgent) {
-    heartbeatsWithoutUserAgent++;
     return "No user Agent";
   }
-
-  userAgentCounts.set(userAgent, (userAgentCounts.get(userAgent) || 0) + 1);
 
   if (userAgent.includes("cursor/")) return "Cursor";
   if (userAgent.includes("vscode/") && !userAgent.includes("cursor/"))
@@ -820,85 +533,4 @@ function extractOS(path: string): string | null {
   }
 
   return null;
-}
-
-async function processDateHeartbeats(
-  dateStr: string,
-  heartbeats: any[],
-  userId: string,
-  idleThresholdMinutes: number
-) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const currentDate = new Date(dateStr);
-  currentDate.setHours(0, 0, 0, 0);
-
-  if (currentDate.getTime() === today.getTime()) {
-    console.log(
-      `Skipping summary creation for current day: ${dateStr}, but still importing heartbeats`
-    );
-
-    const BATCH_SIZE = 1000;
-    for (let i = 0; i < heartbeats.length; i += BATCH_SIZE) {
-      const batch = heartbeats.slice(i, i + BATCH_SIZE);
-      await prisma.heartbeats.createMany({
-        data: batch,
-      });
-      console.log(
-        `Imported heartbeats ${i} to ${i + batch.length} for current day ${dateStr}`
-      );
-    }
-    return;
-  }
-
-  const totalMinutes = calculateTotalMinutesFromHeartbeats(
-    heartbeats,
-    idleThresholdMinutes
-  );
-
-  const { projectsTime, editorsTime, languagesTime, osTime } =
-    calculateCategoryTimes(heartbeats, idleThresholdMinutes);
-
-  const summary = await prisma.summaries.upsert({
-    where: {
-      userId_date: {
-        userId,
-        date: new Date(dateStr),
-      },
-    },
-    update: {
-      totalMinutes,
-      projects: projectsTime,
-      editors: editorsTime,
-      languages: languagesTime,
-      os: osTime,
-    },
-    create: {
-      userId,
-      date: new Date(dateStr),
-      totalMinutes,
-      projects: projectsTime,
-      editors: editorsTime,
-      languages: languagesTime,
-      os: osTime,
-    },
-  });
-
-  console.log(`Created/updated summary for ${dateStr} with ID ${summary.id}`);
-
-  const heartbeatsWithSummaryId = heartbeats.map((h) => ({
-    ...h,
-    summariesId: summary.id,
-  }));
-
-  const BATCH_SIZE = 1000;
-  for (let i = 0; i < heartbeatsWithSummaryId.length; i += BATCH_SIZE) {
-    const batch = heartbeatsWithSummaryId.slice(i, i + BATCH_SIZE);
-    await prisma.heartbeats.createMany({
-      data: batch,
-    });
-    console.log(
-      `Imported heartbeats ${i} to ${i + batch.length} for ${dateStr}`
-    );
-  }
 }
