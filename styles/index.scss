@@ -32,11 +32,28 @@
       height: 326px;
       overflow: hidden;
 
-      h2 {
-        font-size: 14px;
-        color: var(--text-secondary);
-        font-weight: 600;
-        text-transform: uppercase;
+      .text {
+        display: flex;
+        justify-content: space-between;
+
+        h2 {
+          font-size: 14px;
+          color: var(--text-secondary);
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+
+        .extend {
+          color: var(--text);
+          display: flex;
+          gap: 8px;
+          align-items: center;
+
+          &:hover {
+            color: var(--accent);
+            cursor: pointer;
+          }
+        }
       }
     }
   }

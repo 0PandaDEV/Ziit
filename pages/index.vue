@@ -7,7 +7,13 @@
 
       <div class="metrics-tables">
         <div class="section">
-          <h2>TOP PROJECTS</h2>
+          <div class="text">
+            <h2>TOP PROJECTS</h2>
+            <p class="extend" @click="openListModal('Top Projects', sortedProjects)">
+              <Maximize :size="16" />
+              DETAILS
+            </p>
+          </div>
           <div class="list">
             <div
               v-for="project in sortedProjects.slice(0, 8)"
@@ -29,7 +35,13 @@
         </div>
 
         <div class="section">
-          <h2>TOP LANGUAGES</h2>
+          <div class="text">
+            <h2>TOP LANGUAGES</h2>
+            <p class="extend" @click="openListModal('Top Languages', languageBreakdown)">
+              <Maximize :size="16" />
+              DETAILS
+            </p>
+          </div>
           <div class="list">
             <div
               v-for="language in languageBreakdown.slice(0, 8)"
@@ -55,7 +67,13 @@
         </div>
 
         <div class="section">
-          <h2>EDITORS</h2>
+          <div class="text">
+            <h2>EDITORS</h2>
+            <p class="extend" @click="openListModal('Editors', editorBreakdown)">
+              <Maximize :size="16" />
+              DETAILS
+            </p>
+          </div>
           <div class="list">
             <div
               v-for="editor in editorBreakdown.slice(0, 8)"
@@ -79,7 +97,13 @@
         </div>
 
         <div class="section">
-          <h2>OPERATING SYSTEMS</h2>
+          <div class="text">
+            <h2>OPERATING SYSTEMS</h2>
+            <p class="extend" @click="openListModal('Operating Systems', osBreakdown)">
+              <Maximize :size="16" />
+              DETAILS
+            </p>
+          </div>
           <div class="list">
             <div
               v-for="os in osBreakdown.slice(0, 8)"
@@ -103,10 +127,20 @@
         </div>
       </div>
     </div>
+
+    <UiListModal
+      :open="showListModal"
+      :title="modalTitle"
+      :items="modalItems"
+      :totalSeconds="stats.totalSeconds"
+      :formatTime="formatTime"
+      @close="showListModal = false" />
   </NuxtLayout>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { Maximize } from "lucide-vue-next";
 import type { User } from "@prisma/client";
 import { Key, keyboard } from "wrdu-keyboard";
 import * as statsLib from "~/lib/stats";
@@ -122,6 +156,7 @@ import {
   Filler,
 } from "chart.js";
 import { useTimeRangeOptions } from "~/composables/useTimeRangeOptions";
+import UiListModal from "~/components/Ui/ListModal.vue";
 
 Chart.register(
   CategoryScale,
@@ -143,6 +178,10 @@ const chartContainer = ref<HTMLElement | null>(null);
 const projectSort = ref<"time" | "name">("time");
 const uniqueLanguages = ref(0);
 let chart: Chart | null = null;
+
+const showListModal = ref(false);
+const modalTitle = ref("");
+const modalItems = ref<ItemWithTime[]>([]);
 
 const stats = ref(statsLib.getStats());
 const timeRange = ref(statsLib.getTimeRange());
@@ -240,6 +279,12 @@ const osBreakdown = computed(() => {
 
   return osArray.sort((a, b) => b.seconds - a.seconds);
 });
+
+function openListModal(title: string, items: ItemWithTime[]) {
+  modalTitle.value = title;
+  modalItems.value = items;
+  showListModal.value = true;
+}
 
 const HEARTBEAT_INTERVAL_SECONDS = 30;
 
@@ -413,11 +458,11 @@ function renderChart() {
             titleFont: {
               family: "ChivoMono",
               weight: 500,
-              size: 14
+              size: 14,
             },
             bodyFont: {
               family: "ChivoMono",
-              size: 14
+              size: 14,
             },
             callbacks: {
               title: function (tooltipItems) {
@@ -679,19 +724,20 @@ function processSummaries(labels: string[]): number[] {
   return result;
 }
 
-function getSingleDayChartData(
-  result: number[],
-): number[] {
-  if (stats.value?.summaries?.length > 0 && stats.value.summaries[0].hourlyData) {
+function getSingleDayChartData(result: number[]): number[] {
+  if (
+    stats.value?.summaries?.length > 0 &&
+    stats.value.summaries[0].hourlyData
+  ) {
     const summary = stats.value.summaries[0];
-    
+
     for (let hour = 0; hour < 24; hour++) {
       result[hour] = summary.hourlyData[hour].seconds / 3600;
     }
-    
+
     return result;
   }
-  
+
   const relevantHeartbeats = stats.value?.heartbeats;
 
   if (!relevantHeartbeats?.length) return result;
@@ -717,10 +763,11 @@ function getSingleDayChartData(
   }
 
   const filteredHeartbeats = relevantHeartbeats.filter((hb) => {
-    const timestamp = typeof hb.timestamp === 'string' ? parseInt(hb.timestamp) : hb.timestamp;
+    const timestamp =
+      typeof hb.timestamp === "string" ? parseInt(hb.timestamp) : hb.timestamp;
     const hbDate = new Date(timestamp);
     const hbTime = hbDate.getTime();
-    
+
     return hbTime >= startDate.getTime() && hbTime <= endDate.getTime();
   });
 
@@ -728,8 +775,14 @@ function getSingleDayChartData(
 
   for (const projectKey in heartbeatsByProject) {
     const projectBeats = heartbeatsByProject[projectKey].sort((a, b) => {
-      const aTime = typeof a.timestamp === 'string' ? parseInt(a.timestamp) : Number(a.timestamp);
-      const bTime = typeof b.timestamp === 'string' ? parseInt(b.timestamp) : Number(b.timestamp);
+      const aTime =
+        typeof a.timestamp === "string"
+          ? parseInt(a.timestamp)
+          : Number(a.timestamp);
+      const bTime =
+        typeof b.timestamp === "string"
+          ? parseInt(b.timestamp)
+          : Number(b.timestamp);
       return aTime - bTime;
     });
 
@@ -741,9 +794,11 @@ function getSingleDayChartData(
         previousBeat
       );
 
-      const timestamp = typeof currentBeat.timestamp === 'string' ? 
-        parseInt(currentBeat.timestamp) : Number(currentBeat.timestamp);
-      
+      const timestamp =
+        typeof currentBeat.timestamp === "string"
+          ? parseInt(currentBeat.timestamp)
+          : Number(currentBeat.timestamp);
+
       const ts = new Date(timestamp);
       const localHour = ts.getHours();
 
@@ -766,12 +821,16 @@ function calculateInlinedDuration(
     return HEARTBEAT_INTERVAL_SECONDS;
   }
 
-  const currentTs = typeof current.timestamp === 'string' ? 
-    parseInt(current.timestamp) : Number(current.timestamp);
-    
-  const previousTs = typeof previous.timestamp === 'string' ? 
-    parseInt(previous.timestamp) : Number(previous.timestamp);
-    
+  const currentTs =
+    typeof current.timestamp === "string"
+      ? parseInt(current.timestamp)
+      : Number(current.timestamp);
+
+  const previousTs =
+    typeof previous.timestamp === "string"
+      ? parseInt(previous.timestamp)
+      : Number(previous.timestamp);
+
   const diffSeconds = Math.round((currentTs - previousTs) / 1000);
 
   if (diffSeconds < keystrokeTimeoutSecs) {
@@ -839,6 +898,8 @@ useHead({
     },
   ],
 });
+
+definePageMeta({ scrollToTop: true });
 </script>
 
 <style lang="scss">
