@@ -58,7 +58,7 @@ export type Summary = {
 
 export interface Heartbeat {
   id: string;
-  timestamp: Date | string;
+  timestamp: number | string;
   project?: string | null;
   language?: string | null;
   editor?: string | null;
@@ -73,7 +73,7 @@ type StatsResult = {
   os: StatRecord;
   summaries: Summary[];
   heartbeats: Heartbeat[];
-  timezone?: string;
+  offsetSeconds: number;
 };
 
 type State = {
@@ -93,6 +93,7 @@ const initialStats: StatsResult = {
   os: {},
   summaries: [],
   heartbeats: [],
+  offsetSeconds: 0,
 };
 
 const state: State = {
@@ -126,9 +127,25 @@ export async function fetchStats(): Promise<void> {
   state.error = null;
 
   try {
+    const now = new Date();
+    const timezoneOffsetMinutes = now.getTimezoneOffset();
+    const timezoneOffsetSeconds = timezoneOffsetMinutes * 60;
+    
+    console.log('Browser timezone detection:', {
+      offsetMinutes: timezoneOffsetMinutes,
+      offsetSeconds: timezoneOffsetSeconds,
+      offsetHours: timezoneOffsetMinutes / 60 * -1,
+      detectedTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+    
     const baseUrl = window.location.origin;
     const url = new URL("/api/stats", baseUrl);
     url.searchParams.append("timeRange", state.timeRange);
+    url.searchParams.append(
+      "midnightOffsetSeconds",
+      timezoneOffsetSeconds.toString()
+    );
+
     if (state.timeRange === TimeRangeEnum.TODAY) {
       url.searchParams.append("t", Date.now().toString());
     }
@@ -143,17 +160,10 @@ export async function fetchStats(): Promise<void> {
 
     state.isAuthenticated = true;
 
-    if (apiResponse.heartbeats) {
-      apiResponse.heartbeats = apiResponse.heartbeats.map((hb: any) => ({
-        ...hb,
-        timestamp: new Date(hb.timestamp),
-      }));
-    }
+    const processedData = processHeartbeats(apiResponse);
 
-    const localData = convertUtcToLocal(apiResponse);
-
-    state.cache[cacheKey] = localData;
-    state.data = localData;
+    state.cache[cacheKey] = processedData;
+    state.data = processedData;
     state.status = "success";
     statsRef.value = state.data;
   } catch (err: unknown) {
@@ -172,19 +182,11 @@ export async function fetchStats(): Promise<void> {
   }
 }
 
-function convertUtcToLocal(apiResponse: any): StatsResult {
-  const timezone = apiResponse.timezone || "UTC";
-  
+function processHeartbeats(apiResponse: any): StatsResult {
   const allParsedHeartbeats = (apiResponse.heartbeats || []).map((hb: any) => {
-    const utcTimestamp = hb.timestamp instanceof Date ? hb.timestamp : new Date(hb.timestamp);
-    
-    const localTimestamp = new Date(utcTimestamp.toLocaleString("en-US", {
-      timeZone: timezone
-    }));
-    
     return {
       ...hb,
-      timestamp: localTimestamp,
+      timestamp: Number(hb.timestamp),
     };
   }) as Heartbeat[];
 
@@ -227,7 +229,7 @@ function convertUtcToLocal(apiResponse: any): StatsResult {
     os: calculatedOs,
     summaries,
     heartbeats: allParsedHeartbeats,
-    timezone,
+    offsetSeconds: apiResponse.offsetSeconds || 0,
   };
 }
 
