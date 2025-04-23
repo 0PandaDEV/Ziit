@@ -7,8 +7,7 @@
           height="28"
           viewBox="0 0 124 28"
           fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+          xmlns="http://www.w3.org/2000/svg">
           <defs>
             <clipPath id="clip_path_1">
               <rect width="124" height="28" />
@@ -17,8 +16,7 @@
           <path
             d="M29.32 -1.90735e-06L1.32 -1.90735e-06L1.32 5.6L18.12 5.6L1.32 28L29.32 28L29.32 22.4L12.5197 22.4L29.32 -1.90735e-06ZM60.44 5.6L60.44 -1.90735e-06L32.44 -1.90735e-06L32.44 5.6L43.64 5.6L43.64 22.4L32.44 22.4L32.44 28L60.44 28L60.44 22.4L49.24 22.4L49.24 5.6L60.44 5.6ZM92.04 5.6L92.04 -1.90735e-06L64.04 -1.90735e-06L64.04 5.6L75.24 5.6L75.24 22.4L64.04 22.4L64.04 28L92.04 28L92.04 22.4L80.84 22.4L80.84 5.6L92.04 5.6ZM94.72 -1.90735e-06L94.72 5.6L105.92 5.6L105.92 28L111.52 28L111.52 5.6L122.72 5.6L122.72 -1.90735e-06L94.72 -1.90735e-06Z"
             fill="#E6E6E6"
-            clip-path="url(#clip_path_1)"
-          />
+            clip-path="url(#clip_path_1)" />
         </svg>
       </h1>
       <p class="description">
@@ -30,20 +28,17 @@
       class="form"
       @submit.prevent="login"
       autocomplete="on"
-      data-form-type="login"
-    >
+      data-form-type="login">
       <UiInput
         v-model="email"
         placeholder="Email"
         type="text"
-        :icon="IconsMail"
-      />
+        :icon="MailIcon" />
       <UiInput
         v-model="password"
         placeholder="Password"
         type="password"
-        :icon="IconsKey"
-      />
+        :icon="KeyRoundIcon" />
     </form>
     <div class="buttons">
       <UiButton text="Login" keyName="enter" @click="login" />
@@ -53,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { IconsKey, IconsMail } from "#components";
+import { KeyRoundIcon, MailIcon } from "lucide-vue-next";
 import { Key, keyboard } from "wrdu-keyboard";
 
 const error = ref("");

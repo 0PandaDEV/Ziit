@@ -3,16 +3,14 @@
     class="select-container"
     @click="toggleDropdown"
     @blur="closeDropdown"
-    tabindex="0"
-  >
+    tabindex="0">
     <div class="dropdown-menu" v-show="isOpen">
       <div
         v-for="(item, index) in items"
         :key="index"
         class="dropdown-item"
         :class="{ selected: selectedItem && selectedItem.value === item.value }"
-        @click.stop="selectItem(item)"
-      >
+        @click.stop="selectItem(item)">
         {{ item.label }}
         <div class="key-container" v-if="item.key">
           <template v-if="item.key.includes('+')">
@@ -28,15 +26,15 @@
     </div>
     <div class="selected-item">
       {{ selectedItem ? selectedItem.label : placeholder }}
-      <IconsDownUp v-if="isOpen" />
-      <IconsUpDown v-else />
+      <ChevronsDownUpIcon :size="16" v-if="isOpen" />
+      <ChevronsUpDownIcon :size="16" v-else />
     </div>
   </div>
 </template>
 
 <script setup lang="ts" generic="T">
 import { ref, computed } from "vue";
-import Key from "./Key.vue";
+import { ChevronsDownUpIcon, ChevronsUpDownIcon } from "lucide-vue-next";
 
 interface SelectItem<V> {
   label: string;

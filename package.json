@@ -17,6 +17,7 @@
     "bcrypt": "5.1.1",
     "chart.js": "4.4.8",
     "jsonwebtoken": "9.0.2",
+    "lucide-vue-next": "^0.503.0",
     "nuxt": "3.16.2",
     "nuxt-cron": "1.8.0",
     "pg": "8.14.1",
