@@ -20,15 +20,6 @@ const userSettingsSchema = z.object({
   keystrokeTimeout: z.number().min(1).max(60).optional(),
   email: z.string().email().optional(),
   password: passwordSchema.optional(),
-  timezone: z
-    .string()
-    .refine(
-      (tz) =>
-        Intl.DateTimeFormat(undefined, { timeZone: tz }).resolvedOptions()
-          .timeZone === tz,
-      { message: "Invalid timezone" }
-    )
-    .optional(),
 });
 
 export default defineEventHandler(async (event: H3Event) => {
@@ -48,7 +39,6 @@ export default defineEventHandler(async (event: H3Event) => {
       keystrokeTimeout?: number;
       email?: string;
       passwordHash?: string;
-      timezone?: string;
     } = {};
 
     if (validatedData.data.keystrokeTimeout !== undefined) {
@@ -77,10 +67,6 @@ export default defineEventHandler(async (event: H3Event) => {
         saltRounds
       );
       updateData.passwordHash = passwordHash;
-    }
-
-    if (validatedData.data.timezone !== undefined) {
-      updateData.timezone = validatedData.data.timezone;
     }
 
     if (Object.keys(updateData).length > 0) {

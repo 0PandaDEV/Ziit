@@ -10,18 +10,18 @@ export function calculateTotalMinutesFromHeartbeats(
   if (heartbeats.length === 0) return 0;
 
   const sortedHeartbeats = [...heartbeats].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    (a, b) => Number(a.timestamp) - Number(b.timestamp)
   );
 
   let totalMinutes = 0;
-  let lastTimestamp: Date | null = null;
+  let lastTimestamp: number | null = null;
   const IDLE_THRESHOLD_MS = idleThresholdMinutes * 60 * 1000;
 
   for (const heartbeat of sortedHeartbeats) {
-    const currentTimestamp = new Date(heartbeat.timestamp);
+    const currentTimestamp = Number(heartbeat.timestamp);
 
     if (lastTimestamp) {
-      const timeDiff = currentTimestamp.getTime() - lastTimestamp.getTime();
+      const timeDiff = currentTimestamp - lastTimestamp;
 
       if (timeDiff < IDLE_THRESHOLD_MS) {
         totalMinutes += timeDiff / (60 * 1000);
@@ -48,10 +48,10 @@ export function calculateCategoryTimes(
   }
 
   const sortedHeartbeats = [...heartbeats].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    (a, b) => Number(a.timestamp) - Number(b.timestamp)
   );
 
-  let lastTimestamp: Date | null = null;
+  let lastTimestamp: number | null = null;
   let lastProject: string | null = null;
   let lastEditor: string | null = null;
   let lastLanguage: string | null = null;
@@ -60,14 +60,14 @@ export function calculateCategoryTimes(
   const IDLE_THRESHOLD_MS = idleThresholdMinutes * 60 * 1000;
 
   for (const heartbeat of sortedHeartbeats) {
-    const currentTimestamp = new Date(heartbeat.timestamp);
+    const currentTimestamp = Number(heartbeat.timestamp);
     const currentProject = heartbeat.project || null;
     const currentEditor = heartbeat.editor || null;
     const currentLanguage = heartbeat.language || null;
     const currentOs = heartbeat.os || null;
 
     if (lastTimestamp) {
-      const timeDiff = currentTimestamp.getTime() - lastTimestamp.getTime();
+      const timeDiff = currentTimestamp - lastTimestamp;
 
       if (timeDiff < IDLE_THRESHOLD_MS) {
         const secondsDiff = timeDiff / 1000;
@@ -140,12 +140,20 @@ export async function createOrUpdateSummary(
     currentDate.setHours(0, 0, 0, 0);
 
     if (currentDate.getTime() === today.getTime()) {
+      const startOfDay = new Date(dateStr);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(dateStr);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const startTimestamp = BigInt(startOfDay.getTime());
+      const endTimestamp = BigInt(endOfDay.getTime());
+
       const existingHeartbeats = await prisma.heartbeats.findMany({
         where: {
           userId,
           timestamp: {
-            gte: new Date(`${dateStr}T00:00:00.000Z`),
-            lt: new Date(`${dateStr}T23:59:59.999Z`),
+            gte: startTimestamp,
+            lte: endTimestamp,
           },
         },
         select: { timestamp: true, file: true },
@@ -153,12 +161,11 @@ export async function createOrUpdateSummary(
 
       const existingMap = new Map();
       existingHeartbeats.forEach((h) => {
-        existingMap.set(`${h.timestamp.getTime()}-${h.file || ""}`, true);
+        existingMap.set(`${h.timestamp}-${h.file || ""}`, true);
       });
 
       const newHeartbeats = heartbeats.filter(
-        (h) =>
-          !existingMap.has(`${new Date(h.timestamp).getTime()}-${h.file || ""}`)
+        (h) => !existingMap.has(`${h.timestamp}-${h.file || ""}`)
       );
 
       if (newHeartbeats.length === 0) {
@@ -168,19 +175,36 @@ export async function createOrUpdateSummary(
       for (let i = 0; i < newHeartbeats.length; i += BATCH_SIZE) {
         const batch = newHeartbeats.slice(i, i + BATCH_SIZE);
         await prisma.heartbeats.createMany({
-          data: batch,
+          data: batch.map((h) => ({
+            userId: h.userId,
+            timestamp: h.timestamp,
+            project: h.project,
+            language: h.language,
+            editor: h.editor,
+            os: h.os,
+            branch: h.branch,
+            file: h.file,
+          })),
           skipDuplicates: true,
         });
       }
       return null;
     }
 
+    const startOfDay = new Date(dateStr);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(dateStr);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const startTimestamp = BigInt(startOfDay.getTime());
+    const endTimestamp = BigInt(endOfDay.getTime());
+
     const existingHeartbeatsForImport = await prisma.heartbeats.findMany({
       where: {
         userId,
         timestamp: {
-          gte: new Date(`${dateStr}T00:00:00.000Z`),
-          lt: new Date(`${dateStr}T23:59:59.999Z`),
+          gte: startTimestamp,
+          lte: endTimestamp,
         },
       },
       select: { timestamp: true, file: true },
@@ -188,17 +212,11 @@ export async function createOrUpdateSummary(
 
     const existingMapForImport = new Map();
     existingHeartbeatsForImport.forEach((h) => {
-      existingMapForImport.set(
-        `${h.timestamp.getTime()}-${h.file || ""}`,
-        true
-      );
+      existingMapForImport.set(`${h.timestamp}-${h.file || ""}`, true);
     });
 
     const newHeartbeatsForImport = heartbeats.filter(
-      (h) =>
-        !existingMapForImport.has(
-          `${new Date(h.timestamp).getTime()}-${h.file || ""}`
-        )
+      (h) => !existingMapForImport.has(`${h.timestamp}-${h.file || ""}`)
     );
 
     if (newHeartbeatsForImport.length > 0) {
@@ -206,7 +224,16 @@ export async function createOrUpdateSummary(
       for (let i = 0; i < newHeartbeatsForImport.length; i += BATCH_SIZE) {
         const batch = newHeartbeatsForImport.slice(i, i + BATCH_SIZE);
         await prisma.heartbeats.createMany({
-          data: batch,
+          data: batch.map((h) => ({
+            userId: h.userId,
+            timestamp: h.timestamp,
+            project: h.project,
+            language: h.language,
+            editor: h.editor,
+            os: h.os,
+            branch: h.branch,
+            file: h.file,
+          })),
           skipDuplicates: true,
         });
       }
@@ -216,8 +243,8 @@ export async function createOrUpdateSummary(
       where: {
         userId,
         timestamp: {
-          gte: new Date(`${dateStr}T00:00:00.000Z`),
-          lt: new Date(`${dateStr}T23:59:59.999Z`),
+          gte: startTimestamp,
+          lte: endTimestamp,
         },
       },
       orderBy: {
@@ -296,18 +323,15 @@ export async function createOrUpdateSummary(
 
 export async function processHeartbeatsByDate(
   userId: string,
-  heartbeats: any[],
-  userTimezone: string
+  heartbeats: any[]
 ) {
   if (heartbeats.length === 0) return;
 
   const heartbeatsByDate = new Map<string, any[]>();
 
   heartbeats.forEach((heartbeat) => {
-    const localDate = new Date(
-      heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone })
-    );
-    const dateKey = localDate.toISOString().split("T")[0];
+    const date = new Date(Number(heartbeat.timestamp));
+    const dateKey = date.toISOString().split("T")[0];
 
     if (!heartbeatsByDate.has(dateKey)) {
       heartbeatsByDate.set(dateKey, []);
@@ -337,14 +361,7 @@ export async function regenerateSummariesForUser(userId: string) {
       orderBy: { timestamp: "asc" },
     });
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-
-    const userTimezone = user?.timezone || "UTC";
-
-    await processHeartbeatsByDate(userId, heartbeats, userTimezone);
+    await processHeartbeatsByDate(userId, heartbeats);
 
     const summariesCount = await prisma.summaries.count({
       where: { userId },

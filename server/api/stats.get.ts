@@ -8,6 +8,9 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     const query = getQuery(event);
     const timeRange = query.timeRange as TimeRange;
+    const midnightOffsetSeconds = query.midnightOffsetSeconds 
+      ? parseInt(query.midnightOffsetSeconds as string, 10)
+      : undefined;
 
     if (!timeRange || !Object.values(TimeRangeEnum).includes(timeRange)) {
       console.error(`Stats error: Invalid timeRange value ${timeRange}`);
@@ -17,9 +20,9 @@ export default defineEventHandler(async (event: H3Event) => {
       });
     }
 
-    return await calculateStats(userId, timeRange);
+    return await calculateStats(userId, timeRange, midnightOffsetSeconds);
   } catch (error: unknown) {
-    console.error("Stats error occurred");
+    console.error("Stats error occurred:", error);
     throw createError({
       statusCode:
         error instanceof Error && "statusCode" in error

@@ -7,11 +7,13 @@ const prisma = new PrismaClient();
 const apiKeySchema = z.string().uuid();
 
 const heartbeatSchema = z.object({
-  timestamp: z.string().datetime(),
+  timestamp: z.string().datetime().or(z.number()),
   project: z.string().min(1).max(255),
   language: z.string().min(1).max(50),
   editor: z.string().min(1).max(50),
   os: z.string().min(1).max(50),
+  branch: z.string().max(255).optional(),
+  file: z.string().max(255).optional(),
 });
 
 export default defineEventHandler(async (event: H3Event) => {
@@ -50,18 +52,24 @@ export default defineEventHandler(async (event: H3Event) => {
     const heartbeats = z.array(heartbeatSchema).parse(body);
 
     const createdHeartbeats = await prisma.$transaction(
-      heartbeats.map((heartbeat) =>
-        prisma.heartbeats.create({
+      heartbeats.map((heartbeat) => {
+        const timestamp = typeof heartbeat.timestamp === 'number' 
+          ? BigInt(heartbeat.timestamp) 
+          : BigInt(new Date(heartbeat.timestamp).getTime());
+          
+        return prisma.heartbeats.create({
           data: {
             userId: user.id,
-            timestamp: new Date(heartbeat.timestamp),
+            timestamp,
             project: heartbeat.project,
             language: heartbeat.language,
             editor: heartbeat.editor,
             os: heartbeat.os,
+            branch: heartbeat.branch,
+            file: heartbeat.file,
           },
-        }),
-      ),
+        });
+      }),
     );
 
     return {

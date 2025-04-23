@@ -10,10 +10,11 @@ export default defineCronHandler(
     try {
       const now = new Date();
       now.setHours(0, 0, 0, 0);
+      const nowTimestamp = BigInt(now.getTime());
 
       const heartbeatsToSummarize = await prisma.heartbeats.findMany({
         where: {
-          timestamp: { lt: now },
+          timestamp: { lt: nowTimestamp },
           summariesId: null,
         },
         orderBy: {
@@ -22,7 +23,6 @@ export default defineCronHandler(
         include: {
           user: {
             select: {
-              timezone: true,
               keystrokeTimeout: true,
             },
           },
@@ -45,11 +45,9 @@ export default defineCronHandler(
       });
 
       for (const userId in userHeartbeats) {
-        const userTimezone = userHeartbeats[userId][0]?.user.timezone || "UTC";
         await processHeartbeatsByDate(
           userId,
-          userHeartbeats[userId],
-          userTimezone
+          userHeartbeats[userId]
         );
       }
 

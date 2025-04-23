@@ -1,15 +1,18 @@
 import { PrismaClient } from "@prisma/client";
-import { TimeRangeEnum, TimeRange, Summary, HourlyData } from "~/lib/stats";
+import { TimeRangeEnum, TimeRange, Summary } from "~/lib/stats";
 import type { Heartbeats } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export async function calculateStats(userId: string, timeRange: TimeRange) {
+export async function calculateStats(
+  userId: string,
+  timeRange: TimeRange,
+  midnightOffsetSeconds?: number
+) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       keystrokeTimeout: true,
-      timezone: true,
     },
   });
 
@@ -21,129 +24,124 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
   }
 
   const keystrokeTimeoutSeconds = user.keystrokeTimeout * 60;
-  const userTimezone = user.timezone || "UTC";
+  const now = Date.now();
+  const offsetMs =
+    midnightOffsetSeconds !== undefined ? midnightOffsetSeconds * 1000 : 0;
 
-  const now = new Date();
-  const userNow = new Date(
-    now.toLocaleString("en-US", { timeZone: userTimezone })
-  );
+  const userLocalSimulatedDate = new Date(now - offsetMs);
+  const userTodayYear = userLocalSimulatedDate.getUTCFullYear();
+  const userTodayMonth = userLocalSimulatedDate.getUTCMonth();
+  const userTodayDay = userLocalSimulatedDate.getUTCDate();
 
-  const todayEnd = new Date(userNow);
-  todayEnd.setHours(23, 59, 59, 999);
+  const userTodayStartMs =
+    Date.UTC(userTodayYear, userTodayMonth, userTodayDay, 0, 0, 0, 0) +
+    offsetMs;
+  const userTodayEndMs =
+    Date.UTC(userTodayYear, userTodayMonth, userTodayDay, 23, 59, 59, 999) +
+    offsetMs;
 
-  const todayStart = new Date(todayEnd);
-  todayStart.setHours(0, 0, 0, 0);
+  const todayStartTimestamp: bigint = BigInt(userTodayStartMs);
+  const todayEndTimestamp: bigint = BigInt(userTodayEndMs);
 
-  const yesterdayEnd = new Date(todayStart);
-  yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
-  yesterdayEnd.setHours(23, 59, 59, 999);
+  const oneDayMsNum = 24 * 60 * 60 * 1000;
+  const yesterdayStartMs = userTodayStartMs - oneDayMsNum;
+  const yesterdayEndMs = userTodayEndMs - oneDayMsNum;
+  const yesterdayStartTimestamp: bigint = BigInt(yesterdayStartMs);
+  const yesterdayEndTimestamp: bigint = BigInt(yesterdayEndMs);
 
-  const yesterdayStart = new Date(yesterdayEnd);
-  yesterdayStart.setHours(0, 0, 0, 0);
-
-  const tomorrowEnd = new Date(todayEnd);
-  tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
-  tomorrowEnd.setHours(23, 59, 59, 999);
-
-  const dayBeforeYesterdayStart = new Date(yesterdayStart);
-  dayBeforeYesterdayStart.setDate(dayBeforeYesterdayStart.getDate() - 1);
-  dayBeforeYesterdayStart.setHours(0, 0, 0, 0);
-
-  const convertToUTC = (date: Date) => {
-    const dateStr = date.toLocaleString("en-US", {
-      timeZone: userTimezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-
-    const [datePart, timePart] = dateStr.split(", ");
-    const [month, day, year] = datePart.split("/");
-    const [hours, minutes, seconds] = timePart.split(":");
-
-    return new Date(
-      Date.UTC(
-        parseInt(year),
-        parseInt(month) - 1,
-        parseInt(day),
-        parseInt(hours),
-        parseInt(minutes),
-        parseInt(seconds)
-      )
-    );
-  };
-
-  const utcTodayStart = convertToUTC(todayStart);
-  const utcNow = new Date();
-  utcNow.setMinutes(utcNow.getMinutes() + 5);
-  const utcTodayEnd =
-    timeRange === TimeRangeEnum.TODAY ? utcNow : convertToUTC(todayEnd);
-  const utcYesterdayStart = convertToUTC(yesterdayStart);
-  const utcYesterdayEnd = convertToUTC(yesterdayEnd);
-
-  let fetchStartDate: Date;
-  let fetchEndDate: Date;
+  let fetchStartTimestamp: bigint;
+  let fetchEndTimestamp: bigint;
   let isSingleDayView = false;
 
   if (timeRange === TimeRangeEnum.TODAY) {
-    fetchStartDate = utcTodayStart;
-    fetchEndDate = new Date();
+    fetchStartTimestamp = todayStartTimestamp;
+    fetchEndTimestamp = BigInt(now);
     isSingleDayView = true;
   } else if (timeRange === TimeRangeEnum.YESTERDAY) {
-    fetchStartDate = utcYesterdayStart;
-    fetchEndDate = utcYesterdayEnd;
+    fetchStartTimestamp = yesterdayStartTimestamp;
+    fetchEndTimestamp = yesterdayEndTimestamp;
     isSingleDayView = true;
   } else if (timeRange === TimeRangeEnum.WEEK) {
-    fetchStartDate = new Date(utcYesterdayEnd);
-    fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 6);
-    fetchStartDate.setUTCHours(0, 0, 0, 0);
-    fetchEndDate = utcYesterdayEnd;
+    const weekStart = new Date(Number(todayStartTimestamp));
+    weekStart.setUTCDate(weekStart.getUTCDate() - 6);
+    fetchStartTimestamp = BigInt(weekStart.getTime());
+    fetchEndTimestamp = todayEndTimestamp;
   } else if (timeRange === TimeRangeEnum.MONTH) {
-    fetchStartDate = new Date(utcYesterdayEnd);
-    fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 29);
-    fetchStartDate.setUTCHours(0, 0, 0, 0);
-    fetchEndDate = utcYesterdayEnd;
+    const monthStart = new Date(Number(todayStartTimestamp));
+    monthStart.setUTCDate(monthStart.getUTCDate() - 29);
+    fetchStartTimestamp = BigInt(monthStart.getTime());
+    fetchEndTimestamp = todayEndTimestamp;
   } else if (timeRange === TimeRangeEnum.MONTH_TO_DATE) {
-    fetchStartDate = new Date(utcTodayEnd);
-    fetchStartDate.setUTCDate(1);
-    fetchStartDate.setUTCHours(0, 0, 0, 0);
-    fetchEndDate = utcTodayEnd;
+    const userLocalFirstDayOfMonth = new Date(now - offsetMs);
+    userLocalFirstDayOfMonth.setUTCDate(1);
+    const userMonthStartYear = userLocalFirstDayOfMonth.getUTCFullYear();
+    const userMonthStartMonth = userLocalFirstDayOfMonth.getUTCMonth();
+    fetchStartTimestamp = BigInt(
+      Date.UTC(userMonthStartYear, userMonthStartMonth, 1, 0, 0, 0, 0) +
+        offsetMs
+    );
+    fetchEndTimestamp = todayEndTimestamp;
   } else if (timeRange === TimeRangeEnum.LAST_MONTH) {
-    const lastDayOfLastUTCMonth = new Date(utcTodayStart);
-    lastDayOfLastUTCMonth.setUTCDate(0);
-    lastDayOfLastUTCMonth.setUTCHours(23, 59, 59, 999);
+    const userLocalLastDayOfPrevMonth = new Date(now - offsetMs);
+    userLocalLastDayOfPrevMonth.setUTCDate(0);
+    const userPrevMonthYear = userLocalLastDayOfPrevMonth.getUTCFullYear();
+    const userPrevMonthMonth = userLocalLastDayOfPrevMonth.getUTCMonth();
+    const userPrevMonthDay = userLocalLastDayOfPrevMonth.getUTCDate();
 
-    const firstDayOfLastUTCMonth = new Date(lastDayOfLastUTCMonth);
-    firstDayOfLastUTCMonth.setUTCDate(1);
-    firstDayOfLastUTCMonth.setUTCHours(0, 0, 0, 0);
+    fetchEndTimestamp = BigInt(
+      Date.UTC(
+        userPrevMonthYear,
+        userPrevMonthMonth,
+        userPrevMonthDay,
+        23,
+        59,
+        59,
+        999
+      ) + offsetMs
+    );
 
-    fetchStartDate = firstDayOfLastUTCMonth;
-    fetchEndDate = lastDayOfLastUTCMonth;
+    const userLocalFirstDayOfPrevMonth = new Date(
+      Number(fetchEndTimestamp) - offsetMs
+    );
+    userLocalFirstDayOfPrevMonth.setUTCDate(1);
+    const userPrevMonthStartYear =
+      userLocalFirstDayOfPrevMonth.getUTCFullYear();
+    const userPrevMonthStartMonth = userLocalFirstDayOfPrevMonth.getUTCMonth();
+    fetchStartTimestamp = BigInt(
+      Date.UTC(userPrevMonthStartYear, userPrevMonthStartMonth, 1, 0, 0, 0, 0) +
+        offsetMs
+    );
   } else if (timeRange === TimeRangeEnum.LAST_90_DAYS) {
-    fetchStartDate = new Date(utcYesterdayEnd);
-    fetchStartDate.setUTCDate(fetchStartDate.getUTCDate() - 89);
-    fetchStartDate.setUTCHours(0, 0, 0, 0);
-    fetchEndDate = utcYesterdayEnd;
+    const ninetyDaysAgo = new Date(Number(todayStartTimestamp));
+    ninetyDaysAgo.setUTCDate(ninetyDaysAgo.getUTCDate() - 89);
+    fetchStartTimestamp = BigInt(ninetyDaysAgo.getTime());
+    fetchEndTimestamp = todayEndTimestamp;
   } else if (timeRange === TimeRangeEnum.YEAR_TO_DATE) {
-    fetchStartDate = new Date(utcTodayEnd);
-    fetchStartDate.setUTCMonth(0, 1);
-    fetchStartDate.setUTCHours(0, 0, 0, 0);
-    fetchEndDate = utcTodayEnd;
+    const userLocalFirstDayOfYear = new Date(now - offsetMs);
+    const userYearStartYear = userLocalFirstDayOfYear.getUTCFullYear();
+    fetchStartTimestamp = BigInt(
+      Date.UTC(userYearStartYear, 0, 1, 0, 0, 0, 0) + offsetMs
+    );
+    fetchEndTimestamp = todayEndTimestamp;
   } else if (timeRange === TimeRangeEnum.LAST_12_MONTHS) {
-    fetchStartDate = new Date(utcTodayEnd);
-    fetchStartDate.setUTCFullYear(fetchStartDate.getUTCFullYear() - 1);
-    fetchStartDate.setUTCHours(0, 0, 0, 0);
-    fetchEndDate = utcTodayEnd;
+    const twelveMonthsAgo = new Date(Number(todayStartTimestamp));
+    twelveMonthsAgo.setUTCFullYear(twelveMonthsAgo.getUTCFullYear() - 1);
+
+    const targetDate = new Date(now - offsetMs);
+    targetDate.setUTCFullYear(targetDate.getUTCFullYear() - 1);
+    const targetYear = targetDate.getUTCFullYear();
+    const targetMonth = targetDate.getUTCMonth();
+    const targetDay = targetDate.getUTCDate();
+    fetchStartTimestamp = BigInt(
+      Date.UTC(targetYear, targetMonth, targetDay, 0, 0, 0, 0) + offsetMs
+    );
+    fetchEndTimestamp = todayEndTimestamp;
   } else if (timeRange === TimeRangeEnum.ALL_TIME) {
-    fetchStartDate = new Date("2020-01-01T00:00:00.000Z");
-    fetchEndDate = utcTodayEnd;
+    fetchStartTimestamp = BigInt(0);
+    fetchEndTimestamp = todayEndTimestamp;
   } else {
-    fetchStartDate = utcTodayStart;
-    fetchEndDate = utcTodayEnd;
+    fetchStartTimestamp = todayStartTimestamp;
+    fetchEndTimestamp = todayEndTimestamp;
     isSingleDayView = true;
   }
 
@@ -151,12 +149,15 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
   let heartbeats: Heartbeats[] = [];
 
   if (!isSingleDayView) {
+    const startDate = new Date(Number(fetchStartTimestamp));
+    const endDate = new Date(Number(fetchEndTimestamp));
+
     const summaries = await prisma.summaries.findMany({
       where: {
         userId,
         date: {
-          gte: fetchStartDate,
-          lte: fetchEndDate,
+          gte: startDate,
+          lte: endDate,
         },
       },
       select: {
@@ -165,7 +166,7 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
         projects: true,
         languages: true,
         editors: true,
-        os: true
+        os: true,
       },
       orderBy: {
         date: "asc",
@@ -179,161 +180,145 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
         summaryMap.set(dateStr, {
           date: dateStr,
           totalSeconds: summary.totalMinutes * 60,
-          projects: summary.projects ? JSON.parse(JSON.stringify(summary.projects)) : {},
-          languages: summary.languages ? JSON.parse(JSON.stringify(summary.languages)) : {},
-          editors: summary.editors ? JSON.parse(JSON.stringify(summary.editors)) : {},
+          projects: summary.projects
+            ? JSON.parse(JSON.stringify(summary.projects))
+            : {},
+          languages: summary.languages
+            ? JSON.parse(JSON.stringify(summary.languages))
+            : {},
+          editors: summary.editors
+            ? JSON.parse(JSON.stringify(summary.editors))
+            : {},
           os: summary.os ? JSON.parse(JSON.stringify(summary.os)) : {},
-          hourlyData: Array<HourlyData>(24).fill({seconds: 0}).map(() => ({
-            seconds: 0,
-          })),
+          hourlyData: Array(24)
+            .fill(null)
+            .map(() => ({ seconds: 0 })),
         });
       }
     }
   } else {
     try {
-      const targetDate = 
-        timeRange === TimeRangeEnum.TODAY ? todayStart : yesterdayStart;
-      const targetDateStr = targetDate.toLocaleDateString("en-CA", {
-        timeZone: userTimezone,
-      });
-      
-      const startUtc = fetchStartDate;
-      const endUtc = fetchEndDate;
-
       heartbeats = await prisma.heartbeats.findMany({
         where: {
           userId,
           timestamp: {
-            gte: startUtc,
-            lte: endUtc
-          }
+            gte: fetchStartTimestamp,
+            lte: fetchEndTimestamp,
+          },
         },
         orderBy: {
           timestamp: "asc",
         },
       });
 
-      const filteredHeartbeats = heartbeats.filter((heartbeat) => {
-        const localDate = new Date(
-          heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone })
-        );
-        const localDateStr = localDate.toLocaleDateString("en-CA", {
-          timeZone: userTimezone,
+      const viewDateReferenceTimestamp = Number(fetchStartTimestamp);
+      const viewDateSimulated = new Date(viewDateReferenceTimestamp - offsetMs);
+      const year = viewDateSimulated.getUTCFullYear();
+      const month = String(viewDateSimulated.getUTCMonth() + 1).padStart(
+        2,
+        "0"
+      );
+      const day = String(viewDateSimulated.getUTCDate()).padStart(2, "0");
+      const dateStr = `${year}-${month}-${day}`;
+
+      if (heartbeats.length > 0) {
+        summaryMap.set(dateStr, {
+          date: dateStr,
+          totalSeconds: 0,
+          projects: {},
+          languages: {},
+          editors: {},
+          os: {},
+          hourlyData: Array(24)
+            .fill(null)
+            .map(() => ({ seconds: 0 })),
         });
 
-        return localDateStr === targetDateStr;
-      });
-
-      heartbeats = filteredHeartbeats;
-      const heartbeatsByDate = new Map<string, Array<(typeof heartbeats)[0]>>();
-
-      for (const heartbeat of heartbeats) {
-        const localTimestamp = new Date(
-          heartbeat.timestamp.toLocaleString("en-US", { timeZone: userTimezone })
-        );
-        const dateStr = localTimestamp.toISOString().split("T")[0];
-
-        if (!heartbeatsByDate.has(dateStr)) {
-          heartbeatsByDate.set(dateStr, []);
-        }
-
-        heartbeatsByDate.get(dateStr)!.push(heartbeat);
-      }
-
-      for (const [dateStr, dateHeartbeats] of heartbeatsByDate.entries()) {
-        if (!summaryMap.has(dateStr)) {
-          summaryMap.set(dateStr, {
-            date: dateStr,
-            totalSeconds: 0,
-            projects: {},
-            languages: {},
-            editors: {},
-            os: {},
-            hourlyData: Array<HourlyData>(24).fill({seconds: 0}).map(() => ({
-              seconds: 0,
-            })),
-          });
-        }
-
         const summaryData = summaryMap.get(dateStr)!;
+        const dateHeartbeats = heartbeats;
 
         for (let i = 0; i < dateHeartbeats.length; i++) {
           const heartbeat = dateHeartbeats[i];
-          const localTimestamp = new Date(
-            heartbeat.timestamp.toLocaleString("en-US", {
-              timeZone: userTimezone,
-            })
+          const currentTimestamp = Number(heartbeat.timestamp);
+
+          const heartbeatLocalSimulatedDate = new Date(
+            currentTimestamp - offsetMs
           );
-          const hour = localTimestamp.getHours();
+          const hour = heartbeatLocalSimulatedDate.getUTCHours();
 
           let secondsToAdd = 30;
 
           if (i > 0) {
-            const current = heartbeat.timestamp.getTime();
-            const previous = dateHeartbeats[i - 1].timestamp.getTime();
-            const diffSeconds = (current - previous) / 1000;
-
             const prevHeartbeat = dateHeartbeats[i - 1];
-            const prevLocalTimestamp = new Date(
-              prevHeartbeat.timestamp.toLocaleString("en-US", {
-                timeZone: userTimezone,
-              })
-            );
-            const prevHour = prevLocalTimestamp.getHours();
+            const previousTimestamp = Number(prevHeartbeat.timestamp);
+            const diffSeconds = (currentTimestamp - previousTimestamp) / 1000;
 
             if (diffSeconds < keystrokeTimeoutSeconds) {
               secondsToAdd = diffSeconds;
 
+              const prevHeartbeatLocalSimulatedDate = new Date(
+                previousTimestamp - offsetMs
+              );
+              const prevHour = prevHeartbeatLocalSimulatedDate.getUTCHours();
+
               if (hour !== prevHour) {
-                const hourBoundary = new Date(heartbeat.timestamp);
-                hourBoundary.setMinutes(0, 0, 0);
-                
-                const localHourBoundary = new Date(
-                  hourBoundary.toLocaleString("en-US", {
-                    timeZone: userTimezone,
-                  })
+                const hourBoundarySimulated = new Date(
+                  currentTimestamp - offsetMs
                 );
-                localHourBoundary.setMinutes(0, 0, 0);
-                
-                const utcHourBoundary = convertToUTC(localHourBoundary);
+                hourBoundarySimulated.setUTCMinutes(0, 0, 0);
+
+                const hourBoundaryUTC =
+                  hourBoundarySimulated.getTime() + offsetMs;
 
                 const secondsBeforeBoundary =
-                  (utcHourBoundary.getTime() - previous) / 1000;
+                  (hourBoundaryUTC - previousTimestamp) / 1000;
                 const secondsAfterBoundary =
-                  (current - utcHourBoundary.getTime()) / 1000;
+                  (currentTimestamp - hourBoundaryUTC) / 1000;
 
                 if (
                   secondsBeforeBoundary > 0 &&
                   secondsBeforeBoundary < keystrokeTimeoutSeconds
                 ) {
-                  summaryData.hourlyData[prevHour].seconds += secondsBeforeBoundary;
-                  secondsToAdd = secondsAfterBoundary;
+                  if (prevHour >= 0 && prevHour < 24) {
+                    summaryData.hourlyData[prevHour].seconds +=
+                      secondsBeforeBoundary;
+                  }
+
+                  secondsToAdd =
+                    secondsAfterBoundary > 0 ? secondsAfterBoundary : 0;
+                } else {
+                  secondsToAdd = diffSeconds;
                 }
               }
+            } else {
+              secondsToAdd = 30;
             }
+          } else {
+            secondsToAdd = 30;
           }
 
-          summaryData.totalSeconds += secondsToAdd;
-          summaryData.hourlyData[hour].seconds += secondsToAdd;
+          secondsToAdd = Math.max(0, secondsToAdd);
 
-          if (heartbeat.project) {
-            summaryData.projects[heartbeat.project] =
-              (summaryData.projects[heartbeat.project] || 0) + secondsToAdd;
-          }
+          if (hour >= 0 && hour < 24) {
+            summaryData.totalSeconds += secondsToAdd;
+            summaryData.hourlyData[hour].seconds += secondsToAdd;
 
-          if (heartbeat.language) {
-            summaryData.languages[heartbeat.language] =
-              (summaryData.languages[heartbeat.language] || 0) + secondsToAdd;
-          }
-
-          if (heartbeat.editor) {
-            summaryData.editors[heartbeat.editor] =
-              (summaryData.editors[heartbeat.editor] || 0) + secondsToAdd;
-          }
-
-          if (heartbeat.os) {
-            summaryData.os[heartbeat.os] =
-              (summaryData.os[heartbeat.os] || 0) + secondsToAdd;
+            if (heartbeat.project) {
+              summaryData.projects[heartbeat.project] =
+                (summaryData.projects[heartbeat.project] || 0) + secondsToAdd;
+            }
+            if (heartbeat.language) {
+              summaryData.languages[heartbeat.language] =
+                (summaryData.languages[heartbeat.language] || 0) + secondsToAdd;
+            }
+            if (heartbeat.editor) {
+              summaryData.editors[heartbeat.editor] =
+                (summaryData.editors[heartbeat.editor] || 0) + secondsToAdd;
+            }
+            if (heartbeat.os) {
+              summaryData.os[heartbeat.os] =
+                (summaryData.os[heartbeat.os] || 0) + secondsToAdd;
+            }
           }
         }
       }
@@ -350,8 +335,34 @@ export async function calculateStats(userId: string, timeRange: TimeRange) {
     a.date.localeCompare(b.date)
   );
 
+  const returnedOffsetSeconds = midnightOffsetSeconds ?? 0;
+
   return {
     summaries,
-    timezone: userTimezone,
+    offsetSeconds: returnedOffsetSeconds,
+    debug: {
+      serverNow: now,
+      serverTimeISO: new Date(now).toISOString(),
+
+      calculatedUserTodayStartUTC: new Date(
+        Number(todayStartTimestamp)
+      ).toISOString(),
+      calculatedUserTodayEndUTC: new Date(
+        Number(todayEndTimestamp)
+      ).toISOString(),
+      fetchStartTime: new Date(Number(fetchStartTimestamp)).toISOString(),
+      fetchEndTime: new Date(Number(fetchEndTimestamp)).toISOString(),
+      timeRange,
+      heartbeatCount: heartbeats.length,
+
+      tzOffsetSeconds: midnightOffsetSeconds,
+      tzOffsetHours: midnightOffsetSeconds
+        ? midnightOffsetSeconds / 3600
+        : undefined,
+      firstHeartbeatUserHour:
+        heartbeats.length > 0
+          ? new Date(Number(heartbeats[0].timestamp) - offsetMs).getUTCHours()
+          : null,
+    },
   };
 }

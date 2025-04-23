@@ -1,3 +1,6 @@
+-- CreateExtension
+CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -16,7 +19,7 @@ CREATE TABLE "User" (
 -- CreateTable
 CREATE TABLE "Heartbeats" (
     "id" TEXT NOT NULL,
-    "timestamp" TIMESTAMPTZ(6) NOT NULL,
+    "timestamp" BIGINT NOT NULL,
     "userId" TEXT NOT NULL,
     "project" TEXT,
     "editor" TEXT,
@@ -27,7 +30,7 @@ CREATE TABLE "Heartbeats" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "summariesId" TEXT,
 
-    CONSTRAINT "Heartbeats_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Heartbeats_pkey" PRIMARY KEY ("id","timestamp")
 );
 
 -- CreateTable
@@ -36,6 +39,10 @@ CREATE TABLE "Summaries" (
     "userId" TEXT NOT NULL,
     "date" DATE NOT NULL,
     "totalMinutes" INTEGER NOT NULL,
+    "projects" JSONB,
+    "languages" JSONB,
+    "editors" JSONB,
+    "os" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Summaries_pkey" PRIMARY KEY ("id")
@@ -51,10 +58,22 @@ CREATE UNIQUE INDEX "User_githubId_key" ON "User"("githubId");
 CREATE UNIQUE INDEX "User_apiKey_key" ON "User"("apiKey");
 
 -- CreateIndex
-CREATE INDEX "Heartbeats_userId_timestamp_idx" ON "Heartbeats"("userId", "timestamp");
+CREATE INDEX "Heartbeats_userId_timestamp_idx" ON "Heartbeats"("userId", "timestamp" DESC);
 
 -- CreateIndex
-CREATE INDEX "Heartbeats_timestamp_idx" ON "Heartbeats"("timestamp");
+CREATE INDEX "Heartbeats_timestamp_idx" ON "Heartbeats"("timestamp" DESC);
+
+-- CreateIndex
+CREATE INDEX "Heartbeats_userId_project_timestamp_idx" ON "Heartbeats"("userId", "project", "timestamp" DESC);
+
+-- CreateIndex
+CREATE INDEX "Heartbeats_userId_language_timestamp_idx" ON "Heartbeats"("userId", "language", "timestamp" DESC);
+
+-- CreateIndex
+CREATE INDEX "Heartbeats_userId_editor_timestamp_idx" ON "Heartbeats"("userId", "editor", "timestamp" DESC);
+
+-- CreateIndex
+CREATE INDEX "Heartbeats_userId_os_timestamp_idx" ON "Heartbeats"("userId", "os", "timestamp" DESC);
 
 -- CreateIndex
 CREATE INDEX "Heartbeats_branch_idx" ON "Heartbeats"("branch");
@@ -63,7 +82,7 @@ CREATE INDEX "Heartbeats_branch_idx" ON "Heartbeats"("branch");
 CREATE INDEX "Heartbeats_file_idx" ON "Heartbeats"("file");
 
 -- CreateIndex
-CREATE INDEX "Heartbeats_id_idx" ON "Heartbeats"("id");
+CREATE INDEX "Summaries_userId_date_idx" ON "Summaries"("userId", "date" DESC);
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Summaries_userId_date_key" ON "Summaries"("userId", "date");
