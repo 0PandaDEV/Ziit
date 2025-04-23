@@ -39,12 +39,12 @@ const { toasts, hideById } = useToast();
   text-overflow: ellipsis;
 
   &.error {
-    background-color: rgba(255, 0, 0, 0.1);
+    background-color: #301616;
     color: #ff5555;
   }
 
   &.success {
-    background-color: rgba(0, 255, 0, 0.1);
+    background-color: #163016;
     color: #4caf50;
   }
 }
