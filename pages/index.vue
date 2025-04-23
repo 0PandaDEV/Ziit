@@ -461,7 +461,6 @@ function getChartConfig() {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  const userTimezone = stats.value?.timezone || "UTC";
   let labels: string[] = [];
   let data: number[] = [];
 
@@ -481,7 +480,7 @@ function getChartConfig() {
 
       return {
         labels,
-        data: getSingleDayChartData(data, userTimezone),
+        data: getSingleDayChartData(data),
       };
     }
 
@@ -682,8 +681,17 @@ function processSummaries(labels: string[]): number[] {
 
 function getSingleDayChartData(
   result: number[],
-  userTimezone: string
 ): number[] {
+  if (stats.value?.summaries?.length > 0 && stats.value.summaries[0].hourlyData) {
+    const summary = stats.value.summaries[0];
+    
+    for (let hour = 0; hour < 24; hour++) {
+      result[hour] = summary.hourlyData[hour].seconds / 3600;
+    }
+    
+    return result;
+  }
+  
   const relevantHeartbeats = stats.value?.heartbeats;
 
   if (!relevantHeartbeats?.length) return result;
@@ -692,17 +700,13 @@ function getSingleDayChartData(
   let startDate, endDate;
 
   if (timeRange.value === statsLib.TimeRangeEnum.TODAY) {
-    startDate = new Date(
-      now.toLocaleString("en-US", { timeZone: userTimezone })
-    );
+    startDate = new Date(now);
     startDate.setHours(0, 0, 0, 0);
 
-    endDate = new Date(now.toLocaleString("en-US", { timeZone: userTimezone }));
+    endDate = new Date(now);
     endDate.setHours(23, 59, 59, 999);
   } else {
-    const yesterdayDate = new Date(
-      now.toLocaleString("en-US", { timeZone: userTimezone })
-    );
+    const yesterdayDate = new Date(now);
     yesterdayDate.setDate(yesterdayDate.getDate() - 1);
 
     startDate = new Date(yesterdayDate);
@@ -712,20 +716,20 @@ function getSingleDayChartData(
     endDate.setHours(23, 59, 59, 999);
   }
 
-  const utcStartDate = convertToUtc(startDate);
-  const utcEndDate = convertToUtc(endDate);
-
   const filteredHeartbeats = relevantHeartbeats.filter((hb) => {
-    const hbDate = new Date(hb.timestamp);
-    return hbDate >= utcStartDate && hbDate <= utcEndDate;
+    const timestamp = typeof hb.timestamp === 'string' ? parseInt(hb.timestamp) : hb.timestamp;
+    const hbDate = new Date(timestamp);
+    const hbTime = hbDate.getTime();
+    
+    return hbTime >= startDate.getTime() && hbTime <= endDate.getTime();
   });
 
   const heartbeatsByProject = groupHeartbeatsByProject(filteredHeartbeats);
 
   for (const projectKey in heartbeatsByProject) {
     const projectBeats = heartbeatsByProject[projectKey].sort((a, b) => {
-      const aTime = new Date(a.timestamp).getTime();
-      const bTime = new Date(b.timestamp).getTime();
+      const aTime = typeof a.timestamp === 'string' ? parseInt(a.timestamp) : Number(a.timestamp);
+      const bTime = typeof b.timestamp === 'string' ? parseInt(b.timestamp) : Number(b.timestamp);
       return aTime - bTime;
     });
 
@@ -737,11 +741,11 @@ function getSingleDayChartData(
         previousBeat
       );
 
-      const ts = new Date(currentBeat.timestamp);
-      const localTs = new Date(
-        ts.toLocaleString("en-US", { timeZone: userTimezone })
-      );
-      const localHour = localTs.getHours();
+      const timestamp = typeof currentBeat.timestamp === 'string' ? 
+        parseInt(currentBeat.timestamp) : Number(currentBeat.timestamp);
+      
+      const ts = new Date(timestamp);
+      const localHour = ts.getHours();
 
       if (localHour >= 0 && localHour < 24) {
         result[localHour] += durationSeconds / 3600;
@@ -750,6 +754,31 @@ function getSingleDayChartData(
   }
 
   return result;
+}
+
+function calculateInlinedDuration(
+  current: Heartbeat,
+  previous?: Heartbeat
+): number {
+  const keystrokeTimeoutSecs = statsLib.getKeystrokeTimeout() * 60;
+
+  if (!previous) {
+    return HEARTBEAT_INTERVAL_SECONDS;
+  }
+
+  const currentTs = typeof current.timestamp === 'string' ? 
+    parseInt(current.timestamp) : Number(current.timestamp);
+    
+  const previousTs = typeof previous.timestamp === 'string' ? 
+    parseInt(previous.timestamp) : Number(previous.timestamp);
+    
+  const diffSeconds = Math.round((currentTs - previousTs) / 1000);
+
+  if (diffSeconds < keystrokeTimeoutSecs) {
+    return diffSeconds;
+  } else {
+    return HEARTBEAT_INTERVAL_SECONDS;
+  }
 }
 
 function groupHeartbeatsByProject(
@@ -766,57 +795,6 @@ function groupHeartbeatsByProject(
   }
 
   return result;
-}
-
-function convertToUtc(date: Date): Date {
-  const userTimezone = stats.value?.timezone || "UTC";
-  
-  const dateStr = date.toLocaleString("en-US", {
-    timeZone: userTimezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  
-  const [datePart, timePart] = dateStr.split(", ");
-  const [month, day, year] = datePart.split("/");
-  const [hours, minutes, seconds] = timePart.split(":");
-  
-  return new Date(
-    Date.UTC(
-      parseInt(year),
-      parseInt(month) - 1,
-      parseInt(day),
-      parseInt(hours),
-      parseInt(minutes),
-      parseInt(seconds)
-    )
-  );
-}
-
-function calculateInlinedDuration(
-  current: Heartbeat,
-  previous?: Heartbeat
-): number {
-  const keystrokeTimeoutSecs = statsLib.getKeystrokeTimeout() * 60;
-
-  if (!previous) {
-    return HEARTBEAT_INTERVAL_SECONDS;
-  }
-
-  const currentTs = (current.timestamp as Date).getTime();
-  const previousTs = (previous.timestamp as Date).getTime();
-  const diffSeconds = Math.round((currentTs - previousTs) / 1000);
-
-  if (diffSeconds < keystrokeTimeoutSecs) {
-    return diffSeconds;
-  } else {
-    return HEARTBEAT_INTERVAL_SECONDS;
-  }
 }
 
 useSeoMeta({
