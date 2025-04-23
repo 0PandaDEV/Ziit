@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 const apiKeySchema = z.string().uuid();
 
 const heartbeatSchema = z.object({
-  timestamp: z.string().datetime(),
+  timestamp: z.string().datetime().or(z.number()),
   project: z.string().min(1).max(255),
   language: z.string().min(1).max(50),
   editor: z.string().min(1).max(50),
@@ -53,10 +53,14 @@ export default defineEventHandler(async (event: H3Event) => {
     const body = await readBody(event);
     const validatedData = heartbeatSchema.parse(body);
 
+    const timestamp = typeof validatedData.timestamp === 'number' 
+      ? BigInt(validatedData.timestamp) 
+      : BigInt(new Date(validatedData.timestamp).getTime());
+
     const heartbeat = await prisma.heartbeats.create({
       data: {
         userId: user.id,
-        timestamp: new Date(validatedData.timestamp),
+        timestamp,
         project: validatedData.project,
         language: validatedData.language,
         editor: validatedData.editor,
