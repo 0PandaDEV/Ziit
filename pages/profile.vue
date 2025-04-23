@@ -537,13 +537,14 @@ async function importTrackingData() {
     try {
       const formData = new FormData();
       formData.append("file", selectedFile.value);
-
+      toast.success("WakaTime data import started");
+      
       await $fetch("/api/wakatime", {
         method: "POST",
         body: formData,
       });
-
-      toast.success("WakaTime data import started");
+      
+      toast.success("WakaTime data import completed");
       selectedFile.value = null;
       selectedFileName.value = null;
       if (wakaTimeFileInput.value) {
@@ -570,13 +571,14 @@ async function importTrackingData() {
         instanceType: importType.value,
         instanceUrl: wakapiInstanceUrl.value,
       };
-
+      toast.success("WakAPI data import started");
+      
       await $fetch("/api/wakatime", {
         method: "POST",
         body: payload,
       });
-
-      toast.success("WakAPI data import started");
+      
+      toast.success("WakAPI data import completed");
       importApiKey.value = "";
       wakapiInstanceUrl.value = "";
     } catch (error: any) {
