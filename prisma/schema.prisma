@@ -19,9 +19,8 @@ model User {
   githubId          String?      @unique
   githubUsername    String?
   githubAccessToken String?
-  apiKey            String       @unique @default(cuid())
+  apiKey            String       @unique @default(uuid())
   keystrokeTimeout  Int          @default(5)
-  timezone          String       @default("UTC")
   createdAt         DateTime     @default(now())
   heartbeats        Heartbeats[]
   summaries         Summaries[]
@@ -29,7 +28,7 @@ model User {
 
 model Heartbeats {
   id          String     @default(cuid())
-  timestamp   DateTime   @db.Timestamptz(6)
+  timestamp   BigInt
   userId      String
   user        User       @relation(fields: [userId], references: [id])
   project     String?
