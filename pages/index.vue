@@ -8,8 +8,8 @@
       <div class="metrics-tables">
         <div class="section">
           <div class="text">
-            <h2>TOP PROJECTS</h2>
-            <p class="extend" @click="openListModal('Top Projects', sortedProjects)">
+            <h2>PROJECTS</h2>
+            <p class="extend" @click="openListModal('Projects', sortedProjects)">
               <Maximize :size="16" />
               DETAILS
             </p>
@@ -36,8 +36,8 @@
 
         <div class="section">
           <div class="text">
-            <h2>TOP LANGUAGES</h2>
-            <p class="extend" @click="openListModal('Top Languages', languageBreakdown)">
+            <h2>LANGUAGES</h2>
+            <p class="extend" @click="openListModal('Languages', languageBreakdown)">
               <Maximize :size="16" />
               DETAILS
             </p>
