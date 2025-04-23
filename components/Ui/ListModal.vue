@@ -124,7 +124,7 @@ watch(() => props.open, (newOpen) => {
 
     .title {
       font-size: 18px;
-      font-weight: 600;
+      font-weight: 500;
       margin: 0;
       text-transform: uppercase;
       color: var(--text-secondary);
