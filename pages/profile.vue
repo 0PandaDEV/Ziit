@@ -33,35 +33,32 @@
         </div>
       </section>
 
-      <dialog :open="showEmailModal" class="modal">
-        <h2 class="title">Change Email</h2>
-        <form @submit.prevent="changeEmail">
+      <UiModal
+        :open="showEmailModal"
+        title="Change Email"
+        :isLoading="isLoading"
+        @cancel="showEmailModal = false"
+        @save="changeEmail"
+        @close="showEmailModal = false">
+        <template #form-content>
           <UiInput
             type="email"
             v-model="newEmail"
             placeholder="New Email Address"
             required />
-        </form>
-        <div class="modal-buttons">
-          <UiButton
-            type="button"
-            text="Cancel"
-            @click="showEmailModal = false" />
-          <UiButton
-            type="submit"
-            text="Save"
-            :disabled="isLoading"
-            @click="changeEmail" />
-        </div>
-      </dialog>
+        </template>
+      </UiModal>
 
-      <dialog :open="showPasswordModal" class="modal">
-        <h2 class="title">Change Password</h2>
-        <form @submit.prevent="changePassword">
-          <p class="password-requirements">
-            Password must be at least 12 characters and include uppercase,
-            lowercase, numbers, and special characters
-          </p>
+      <UiModal
+        :open="showPasswordModal"
+        title="Change Password"
+        description="Password must be at least 12 characters and include uppercase,
+            lowercase, numbers, and special characters"
+        :isLoading="isLoading"
+        @cancel="showPasswordModal = false"
+        @save="changePassword"
+        @close="showPasswordModal = false">
+        <template #form-content>
           <UiInput
             type="password"
             v-model="newPassword"
@@ -72,19 +69,8 @@
             v-model="confirmPassword"
             placeholder="Confirm Password"
             required />
-        </form>
-        <div class="modal-buttons">
-          <UiButton
-            type="button"
-            text="Cancel"
-            @click="showPasswordModal = false" />
-          <UiButton
-            type="submit"
-            text="Save"
-            :disabled="isLoading"
-            @click="changePassword" />
-        </div>
-      </dialog>
+        </template>
+      </UiModal>
 
       <section class="api-key">
         <h2 class="title">API Key</h2>
@@ -538,12 +524,12 @@ async function importTrackingData() {
       const formData = new FormData();
       formData.append("file", selectedFile.value);
       toast.success("WakaTime data import started");
-      
+
       await $fetch("/api/wakatime", {
         method: "POST",
         body: formData,
       });
-      
+
       toast.success("WakaTime data import completed");
       selectedFile.value = null;
       selectedFileName.value = null;
@@ -572,12 +558,12 @@ async function importTrackingData() {
         instanceUrl: wakapiInstanceUrl.value,
       };
       toast.success("WakAPI data import started");
-      
+
       await $fetch("/api/wakatime", {
         method: "POST",
         body: payload,
       });
-      
+
       toast.success("WakAPI data import completed");
       importApiKey.value = "";
       wakapiInstanceUrl.value = "";
