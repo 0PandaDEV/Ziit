@@ -33,12 +33,18 @@
         v-model="email"
         placeholder="Email"
         type="text"
-        :icon="MailIcon" />
+        :icon="MailIcon"
+        @focus="isInputFocused = true"
+        @blur="isInputFocused = false"
+      />
       <UiInput
         v-model="password"
         placeholder="Password"
         type="password"
-        :icon="KeyRoundIcon" />
+        :icon="KeyRoundIcon"
+        @focus="isInputFocused = true"
+        @blur="isInputFocused = false"
+      />
     </form>
     <div class="buttons">
       <UiButton text="Login" keyName="enter" @click="login" />
@@ -56,6 +62,7 @@ const email = ref("");
 const password = ref("");
 const toast = useToast();
 const route = useRoute();
+const isInputFocused = ref(false);
 
 onMounted(() => {
   if (route.query.error) {
@@ -81,6 +88,7 @@ onMounted(() => {
   }
 
   keyboard.prevent.down([Key.G], async () => {
+    if (isInputFocused.value) return;
     await githubAuth();
   });
 

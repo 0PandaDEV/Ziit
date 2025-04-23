@@ -5,9 +5,9 @@
       :type="type"
       :placeholder="placeholder"
       :value="modelValue"
-      @input="
-        $emit('update:modelValue', ($event.target as HTMLInputElement).value)
-      "
+      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      @focus="$emit('focus')"
+      @blur="$emit('blur')"
       :readonly="locked"
     />
   </div>
@@ -17,12 +17,12 @@
 defineProps({
   placeholder: String,
   type: String,
-  icon: Object,
+  icon: Function,
   modelValue: String,
   locked: Boolean,
 });
 
-defineEmits(["update:modelValue"]);
+defineEmits(["update:modelValue", "focus", "blur"]);
 </script>
 
 <style lang="scss">

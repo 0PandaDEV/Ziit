@@ -37,12 +37,16 @@
         placeholder="Email"
         type="text"
         :icon="MailIcon"
+        @focus="isInputFocused = true"
+        @blur="isInputFocused = false"
       />
       <UiInput
         v-model="password"
         placeholder="Password"
         type="password"
         :icon="KeyRoundIcon"
+        @focus="isInputFocused = true"
+        @blur="isInputFocused = false"
       />
     </form>
     <div class="buttons">
@@ -60,6 +64,7 @@ const error = ref("");
 const email = ref("");
 const password = ref("");
 const toast = useToast();
+const isInputFocused = ref(false);
 
 async function register() {
   error.value = "";
@@ -88,6 +93,7 @@ async function githubAuth() {
 
 onMounted(() => {
   keyboard.prevent.down([Key.G], async () => {
+    if (isInputFocused.value) return;
     await githubAuth();
   });
 
