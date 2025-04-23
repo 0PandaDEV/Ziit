@@ -30,7 +30,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
   let userId: string;
   try {
-    const { payload } = await decrypt(config.pasetoKey, sessionCookie);
+    const { payload } = decrypt(config.pasetoKey, sessionCookie);
     
     if (
       typeof payload !== "object" ||
@@ -68,7 +68,7 @@ export default defineEventHandler(async (event: H3Event) => {
     sameSite: "lax",
   });
 
-  const token = await encrypt(
+  const token = encrypt(
     config.pasetoKey, 
     { 
       userId,

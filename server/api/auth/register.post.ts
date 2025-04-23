@@ -73,7 +73,7 @@ export default defineEventHandler(async (event) => {
       },
     });
 
-    const token = await encrypt(
+    const token = encrypt(
       config.pasetoKey,
       {
         userId: user.id,

@@ -94,7 +94,7 @@ export default defineEventHandler(async (event) => {
 
     if (isLinking && linkSession) {
       try {
-        const { payload } = await decrypt(config.pasetoKey, linkSession);
+        const { payload } = decrypt(config.pasetoKey, linkSession);
         
         if (typeof payload === "object" && payload !== null && "userId" in payload) {
           const userId = payload.userId;
@@ -200,7 +200,7 @@ export default defineEventHandler(async (event) => {
         });
       }
 
-      const token = await encrypt(
+      const token = encrypt(
         config.pasetoKey,
         { 
           userId: user.id,

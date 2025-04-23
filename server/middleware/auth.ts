@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const config = useRuntimeConfig();    
-    const { payload } = await decrypt(config.pasetoKey, sessionCookie);
+    const { payload } = decrypt(config.pasetoKey, sessionCookie);
     
     if (!payload || typeof payload !== "object" || !("userId" in payload)) {
       throw new Error("Invalid token");
