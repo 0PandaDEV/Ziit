@@ -321,6 +321,10 @@ onMounted(async () => {
     }
   );
 
+  keyboard.down([Key.F], async () => {
+    useToast().success("You payed respect to the easter egg");
+  });
+
   if (chartContainer.value) {
     renderChart();
   }

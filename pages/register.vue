@@ -92,7 +92,7 @@ async function githubAuth() {
 }
 
 onMounted(() => {
-  keyboard.prevent.down([Key.G], async () => {
+  keyboard.down([Key.G], async () => {
     if (isInputFocused.value) return;
     await githubAuth();
   });

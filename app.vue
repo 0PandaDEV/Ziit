@@ -6,14 +6,10 @@
 </template>
 
 <script setup lang="ts">
-import { Key, keyboard } from "wrdu-keyboard";
+import { keyboard } from "wrdu-keyboard";
 
 onMounted(async () => {
   keyboard.init();
-
-  keyboard.prevent.down([Key.F], async () => {
-    useToast().success("You payed respect to the easter egg");
-  });
 });
 </script>
 
