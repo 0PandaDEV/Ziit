@@ -1,9 +1,7 @@
-import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
 import { processHeartbeatsByDate } from "~/server/utils/summarize";
 
-const prisma = new PrismaClient();
 interface WakApiUser {
   data: {
     username: string;
@@ -152,18 +150,7 @@ async function fetchRangeHeartbeats(
 
       if (heartbeats.length > 0) {
         heartbeatsByDate.set(dateStr, heartbeats);
-
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { timezone: true },
-        });
-        const userTimezone = user?.timezone || "UTC";
-
-        await processHeartbeatsByDate(
-          userId,
-          heartbeats,
-          userTimezone
-        );
+        await processHeartbeatsByDate(userId, heartbeats);
       }
     } catch (error) {
       console.error(`Error fetching heartbeats for ${dateStr}:`, error);
@@ -180,8 +167,8 @@ function processHeartbeat(heartbeat: WakApiHeartbeat | any, userId: string) {
   return {
     userId: userId,
     timestamp: heartbeat.time
-      ? new Date(heartbeat.time * 1000)
-      : new Date(heartbeat.timestamp),
+      ? BigInt(heartbeat.time * 1000)
+      : BigInt(new Date(heartbeat.timestamp).getTime()),
     project: heartbeat.project || null,
     editor: heartbeat.user_agent_id
       ? extractEditor(heartbeat.user_agent_id)
@@ -368,17 +355,10 @@ export default defineEventHandler(async (event: H3Event) => {
       totalHeartbeats += day.heartbeats.length;
 
       try {
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { keystrokeTimeout: true, timezone: true },
-        });
-
-        const userTimezone = user?.timezone || "UTC";
-
         const processedHeartbeats = day.heartbeats.map((h) => {
           return {
             userId,
-            timestamp: new Date(h.time * 1000),
+            timestamp: BigInt(h.time * 1000),
             project: h.project || null,
             editor: h.user_agent_id ? extractEditor(h.user_agent_id) : null,
             language: h.language || null,
@@ -390,7 +370,7 @@ export default defineEventHandler(async (event: H3Event) => {
           };
         });
 
-        await processHeartbeatsByDate(userId, processedHeartbeats, userTimezone);
+        await processHeartbeatsByDate(userId, processedHeartbeats);
       } catch (error) {
         console.error(`Error saving data for ${day.date}:`, error);
       }
