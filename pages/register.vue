@@ -36,13 +36,13 @@
         v-model="email"
         placeholder="Email"
         type="text"
-        :icon="IconsMail"
+        :icon="MailIcon"
       />
       <UiInput
         v-model="password"
         placeholder="Password"
         type="password"
-        :icon="IconsKey"
+        :icon="KeyRoundIcon"
       />
     </form>
     <div class="buttons">
@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { IconsKey, IconsMail } from "#components";
+import { KeyRoundIcon, MailIcon } from "lucide-vue-next";
 import { Key, keyboard } from "wrdu-keyboard";
 
 const error = ref("");
