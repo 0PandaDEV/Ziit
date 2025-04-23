@@ -131,13 +131,6 @@ export async function fetchStats(): Promise<void> {
     const timezoneOffsetMinutes = now.getTimezoneOffset();
     const timezoneOffsetSeconds = timezoneOffsetMinutes * 60;
     
-    console.log('Browser timezone detection:', {
-      offsetMinutes: timezoneOffsetMinutes,
-      offsetSeconds: timezoneOffsetSeconds,
-      offsetHours: timezoneOffsetMinutes / 60 * -1,
-      detectedTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    });
-    
     const baseUrl = window.location.origin;
     const url = new URL("/api/stats", baseUrl);
     url.searchParams.append("timeRange", state.timeRange);
