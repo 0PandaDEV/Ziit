@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   modules: ["@nuxtjs/sitemap", "nuxt-cron"],
   ssr: true,
   runtimeConfig: {
-    jwtSecret: process.env.NUXT_JWT_SECRET,
+    pasetoKey: process.env.NUXT_PASETO_KEY,
     githubClientId: process.env.NUXT_GITHUB_CLIENT_ID,
     githubClientSecret: process.env.NUXT_GITHUB_CLIENT_SECRET,
     githubRedirectUri: process.env.NUXT_GITHUB_REDIRECT_URI,

@@ -1,5 +1,5 @@
 import { H3Event } from "h3";
-import jwt from "jsonwebtoken";
+import { decrypt, encrypt } from "paseto-ts/v4";
 
 export default defineEventHandler(async (event: H3Event) => {
   const config = useRuntimeConfig();
@@ -30,18 +30,19 @@ export default defineEventHandler(async (event: H3Event) => {
 
   let userId: string;
   try {
-    const decoded = jwt.verify(sessionCookie, config.jwtSecret);
+    const { payload } = await decrypt(config.pasetoKey, sessionCookie);
+    
     if (
-      typeof decoded !== "object" ||
-      decoded === null ||
-      !("userId" in decoded)
+      typeof payload !== "object" ||
+      payload === null ||
+      !("userId" in payload)
     ) {
       throw createError({
         statusCode: 401,
         message: "Invalid token",
       });
     }
-    userId = decoded.userId;
+    userId = payload.userId;
   } catch {
     throw createError({
       statusCode: 401,
@@ -67,9 +68,13 @@ export default defineEventHandler(async (event: H3Event) => {
     sameSite: "lax",
   });
 
-  const token = jwt.sign({ userId }, config.jwtSecret, {
-    expiresIn: "7d",
-  });
+  const token = await encrypt(
+    config.pasetoKey, 
+    { 
+      userId,
+      exp: new Date(Date.now() + 10 * 60 * 1000).toISOString()
+    }
+  );
 
   setCookie(event, "github_link_session", token, {
     httpOnly: true,

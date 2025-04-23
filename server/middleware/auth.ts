@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import { decrypt } from "paseto-ts/v4";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -30,19 +30,15 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const config = useRuntimeConfig();
-    const decoded = jwt.verify(sessionCookie, config.jwtSecret);
-
-    if (
-      typeof decoded !== "object" ||
-      decoded === null ||
-      !("userId" in decoded)
-    ) {
+    const config = useRuntimeConfig();    
+    const { payload } = await decrypt(config.pasetoKey, sessionCookie);
+    
+    if (!payload || typeof payload !== "object" || !("userId" in payload)) {
       throw new Error("Invalid token");
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: payload.userId },
     });
 
     if (!user) {

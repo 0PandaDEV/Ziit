@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import { encrypt } from "paseto-ts/v4";
 import { prisma } from "~~/prisma/prisma";
 import { z } from "zod";
 
@@ -70,17 +70,16 @@ export default defineEventHandler(async (event) => {
       data: {
         email: body.email,
         passwordHash,
-        timezone,
       },
     });
 
-    const token = jwt.sign(
+    const token = await encrypt(
+      config.pasetoKey,
       {
         userId: user.id,
         email: user.email,
-      },
-      config.jwtSecret,
-      { expiresIn: "7d" },
+        exp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      }
     );
 
     setCookie(event, "ziit_session", token, {

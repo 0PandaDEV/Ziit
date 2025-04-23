@@ -1,5 +1,5 @@
 import { prisma } from "~~/prisma/prisma";
-import jwt from "jsonwebtoken";
+import { decrypt, encrypt } from "paseto-ts/v4";
 
 interface GithubTokenResponse {
   access_token: string;
@@ -94,13 +94,10 @@ export default defineEventHandler(async (event) => {
 
     if (isLinking && linkSession) {
       try {
-        const decoded = jwt.verify(linkSession, config.jwtSecret);
-        if (
-          typeof decoded === "object" &&
-          decoded !== null &&
-          "userId" in decoded
-        ) {
-          const userId = decoded.userId;
+        const { payload } = await decrypt(config.pasetoKey, linkSession);
+        
+        if (typeof payload === "object" && payload !== null && "userId" in payload) {
+          const userId = payload.userId;
           let redirectUrl = "/profile?success=github_linked";
 
           await prisma.$transaction(async (tx) => {
@@ -203,9 +200,13 @@ export default defineEventHandler(async (event) => {
         });
       }
 
-      const token = jwt.sign({ userId: user.id }, config.jwtSecret, {
-        expiresIn: "7d",
-      });
+      const token = await encrypt(
+        config.pasetoKey,
+        { 
+          userId: user.id,
+          exp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      );
 
       setCookie(event, "ziit_session", token, {
         httpOnly: true,

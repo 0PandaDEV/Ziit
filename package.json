@@ -20,6 +20,7 @@
     "lucide-vue-next": "0.503.0",
     "nuxt": "3.16.2",
     "nuxt-cron": "1.8.0",
+    "paseto-ts": "^2.0.5",
     "pg": "8.15.5",
     "prisma": "6.6.0",
     "sass-embedded": "1.87.0",
