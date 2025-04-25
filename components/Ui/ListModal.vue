@@ -25,11 +25,15 @@
         :key="item.name"
         class="item"
         :style="{
-          '--percentage': `${calculatePercentage(item.seconds)}%`,
+          '--percentage': `${
+            sortedItems.length > 0 && sortedItems[0].seconds > 0
+              ? ((item.seconds / sortedItems[0].seconds) * 100).toFixed(1)
+              : 0
+          }%`,
         }">
         <div class="name">{{ item.name || "Unknown" }}</div>
-        <div class="time">{{ formatTime(item.seconds) }}</div>
         <div class="percentage">{{ calculatePercentage(item.seconds) }}%</div>
+        <div class="time">{{ formatTime(item.seconds) }}</div>
       </div>
     </div>
   </dialog>
@@ -193,15 +197,15 @@ watch(() => props.open, (newOpen) => {
 
       .time {
         text-align: right;
-        color: var(--text-secondary);
+        color: var(--text);
         font-weight: 500;
+        min-width: 64px;
       }
 
       .percentage {
         text-align: right;
-        color: var(--text);
+        color: var(--text-secondary);
         font-weight: 600;
-        min-width: 48px;
       }
     }
   }

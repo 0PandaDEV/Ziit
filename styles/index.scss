@@ -99,19 +99,19 @@
 
       .time {
         text-align: right;
-        color: var(--text-secondary);
+        color: var(--text);
         font-weight: 500;
         white-space: nowrap;
         position: relative;
         z-index: 1;
+        min-width: 64px;
       }
 
       .percentage {
         text-align: right;
-        color: var(--text);
+        color: var(--text-secondary);
         font-weight: 600;
         white-space: nowrap;
-        min-width: 48px;
         position: relative;
         z-index: 1;
       }

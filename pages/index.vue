@@ -20,16 +20,17 @@
               :key="project.name"
               class="item"
               :style="{
-                '--percentage': `${(
-                  (project.seconds / stats.totalSeconds) *
-                  100
-                ).toFixed(1)}%`,
+                '--percentage': `${
+                  sortedProjects.length > 0 && sortedProjects[0].seconds > 0
+                    ? ((project.seconds / sortedProjects[0].seconds) * 100).toFixed(1)
+                    : 0
+                }%`,
               }">
               <div class="name">{{ project.name }}</div>
-              <div class="time">{{ formatTime(project.seconds) }}</div>
               <div class="percentage">
                 {{ ((project.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
               </div>
+              <div class="time">{{ formatTime(project.seconds) }}</div>
             </div>
           </div>
         </div>
@@ -48,19 +49,18 @@
               :key="language.name"
               class="item"
               :style="{
-                '--percentage': `${(
-                  (language.seconds / stats.totalSeconds) *
-                  100
-                ).toFixed(1)}%`,
+                '--percentage': `${
+                  languageBreakdown.length > 0 && languageBreakdown[0].seconds > 0
+                    ? ((language.seconds / languageBreakdown[0].seconds) * 100).toFixed(1)
+                    : 0
+                }%`,
               }">
               <div class="name">{{ language.name || "Unknown" }}</div>
+              <div class="percentage">
+                {{ ((language.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
+              </div>
               <div class="time">
                 {{ formatTime(language.seconds) }}
-              </div>
-              <div class="percentage">
-                {{
-                  ((language.seconds / stats.totalSeconds) * 100).toFixed(1)
-                }}%
               </div>
             </div>
           </div>
@@ -80,17 +80,18 @@
               :key="editor.name"
               class="item"
               :style="{
-                '--percentage': `${(
-                  (editor.seconds / stats.totalSeconds) *
-                  100
-                ).toFixed(1)}%`,
+                '--percentage': `${
+                  editorBreakdown.length > 0 && editorBreakdown[0].seconds > 0
+                    ? ((editor.seconds / editorBreakdown[0].seconds) * 100).toFixed(1)
+                    : 0
+                }%`,
               }">
               <div class="name">{{ editor.name || "Unknown" }}</div>
-              <div class="time">
-                {{ formatTime(editor.seconds) }}
-              </div>
               <div class="percentage">
                 {{ ((editor.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
+              </div>
+              <div class="time">
+                {{ formatTime(editor.seconds) }}
               </div>
             </div>
           </div>
@@ -110,17 +111,18 @@
               :key="os.name"
               class="item"
               :style="{
-                '--percentage': `${(
-                  (os.seconds / stats.totalSeconds) *
-                  100
-                ).toFixed(1)}%`,
+                '--percentage': `${
+                  osBreakdown.length > 0 && osBreakdown[0].seconds > 0
+                    ? ((os.seconds / osBreakdown[0].seconds) * 100).toFixed(1)
+                    : 0
+                }%`,
               }">
               <div class="name">{{ os.name || "Unknown" }}</div>
-              <div class="time">
-                {{ formatTime(os.seconds) }}
-              </div>
               <div class="percentage">
                 {{ ((os.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
+              </div>
+              <div class="time">
+                {{ formatTime(os.seconds) }}
               </div>
             </div>
           </div>
