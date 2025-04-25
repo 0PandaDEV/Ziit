@@ -1,3 +1,4 @@
+import path from 'path';
 import { H3Event } from "h3";
 import { z } from "zod";
 import { processHeartbeatsByDate } from "~/server/utils/summarize";
@@ -177,7 +178,7 @@ function processHeartbeat(heartbeat: WakApiHeartbeat | any, userId: string) {
     os: heartbeat.user_agent_id
       ? extractOS(heartbeat.user_agent_id)
       : extractOS(heartbeat.entity || ""),
-    file: heartbeat.entity || null,
+    file: heartbeat.entity ? path.basename(heartbeat.entity) : null,
     branch: heartbeat.branch || null,
     createdAt: new Date(),
     summariesId: null
@@ -363,7 +364,7 @@ export default defineEventHandler(async (event: H3Event) => {
             editor: h.user_agent_id ? extractEditor(h.user_agent_id) : null,
             language: h.language || null,
             os: h.entity ? extractOS(h.entity) : null,
-            file: h.entity || null,
+            file: h.entity ? path.basename(h.entity) : null,
             branch: h.branch || null,
             createdAt: new Date(),
             summariesId: null
