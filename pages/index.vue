@@ -14,7 +14,7 @@
               DETAILS
             </p>
           </div>
-          <div class="list">
+          <div v-if="sortedProjects.length > 0" class="list">
             <div
               v-for="project in sortedProjects.slice(0, 8)"
               :key="project.name"
@@ -33,6 +33,7 @@
               <div class="time">{{ formatTime(project.seconds) }}</div>
             </div>
           </div>
+          <p v-else class="no-data">No data available</p>
         </div>
 
         <div class="section">
@@ -43,7 +44,7 @@
               DETAILS
             </p>
           </div>
-          <div class="list">
+          <div v-if="languageBreakdown.length > 0" class="list">
             <div
               v-for="language in languageBreakdown.slice(0, 8)"
               :key="language.name"
@@ -64,6 +65,7 @@
               </div>
             </div>
           </div>
+          <p v-else class="no-data">No data available</p>
         </div>
 
         <div class="section">
@@ -74,7 +76,7 @@
               DETAILS
             </p>
           </div>
-          <div class="list">
+          <div v-if="editorBreakdown.length > 0" class="list">
             <div
               v-for="editor in editorBreakdown.slice(0, 8)"
               :key="editor.name"
@@ -95,6 +97,7 @@
               </div>
             </div>
           </div>
+          <p v-else class="no-data">No data available</p>
         </div>
 
         <div class="section">
@@ -105,7 +108,7 @@
               DETAILS
             </p>
           </div>
-          <div class="list">
+          <div v-if="osBreakdown.length > 0" class="list">
             <div
               v-for="os in osBreakdown.slice(0, 8)"
               :key="os.name"
@@ -126,6 +129,7 @@
               </div>
             </div>
           </div>
+          <p v-else class="no-data">No data available</p>
         </div>
       </div>
     </div>

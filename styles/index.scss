@@ -29,7 +29,6 @@
       gap: 8px;
       display: flex;
       flex-direction: column;
-      height: 326px;
       overflow: hidden;
 
       .text {
@@ -117,5 +116,12 @@
         z-index: 1;
       }
     }
+  }
+
+  .no-data {
+    color: var(--text-secondary);
+    padding: 16px;
+    padding-left: 0;
+    font-style: italic;
   }
 }
