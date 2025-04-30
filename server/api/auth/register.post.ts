@@ -39,9 +39,6 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const timezone =
-    body.timezone && typeof body.timezone === "string" ? body.timezone : "UTC";
-
   try {
     const passwordValidation = passwordSchema.safeParse(body.password);
     if (!passwordValidation.success) {
