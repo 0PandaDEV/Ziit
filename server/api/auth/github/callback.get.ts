@@ -213,7 +213,7 @@ export default defineEventHandler(async (event) => {
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60 * 24 * 7,
         path: "/",
-        sameSite: "lax",
+        sameSite: "strict",
       });
 
       return "/";
