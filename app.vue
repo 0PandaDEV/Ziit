@@ -6,10 +6,20 @@
 </template>
 
 <script setup lang="ts">
-import { keyboard } from "wrdu-keyboard";
+import { Key, useKeyboard } from "@waradu/keyboard";
+
+const keyboard = useKeyboard();
 
 onMounted(async () => {
   keyboard.init();
+
+  keyboard.listen(
+    [Key.F],
+    async () => {
+      useToast().success("You payed respect to the easter egg");
+    },
+    { ignoreIfEditable: true }
+  );
 });
 </script>
 

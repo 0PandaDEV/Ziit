@@ -33,18 +33,12 @@
         v-model="email"
         placeholder="Email"
         type="text"
-        :icon="MailIcon"
-        @focus="isInputFocused = true"
-        @blur="isInputFocused = false"
-      />
+        :icon="MailIcon" />
       <UiInput
         v-model="password"
         placeholder="Password"
         type="password"
-        :icon="KeyRoundIcon"
-        @focus="isInputFocused = true"
-        @blur="isInputFocused = false"
-      />
+        :icon="KeyRoundIcon" />
     </form>
     <div class="buttons">
       <UiButton text="Login" keyName="enter" @click="login" />
@@ -55,14 +49,14 @@
 
 <script setup lang="ts">
 import { KeyRoundIcon, MailIcon } from "lucide-vue-next";
-import { Key, keyboard } from "wrdu-keyboard";
+import { useKeyboard, Key } from "@waradu/keyboard";
 
 const error = ref("");
 const email = ref("");
 const password = ref("");
 const toast = useToast();
 const route = useRoute();
-const isInputFocused = ref(false);
+const keyboard = useKeyboard();
 
 onMounted(() => {
   if (route.query.error) {
@@ -87,14 +81,21 @@ onMounted(() => {
     toast.success(message);
   }
 
-  keyboard.down([Key.G], async () => {
-    if (isInputFocused.value) return;
-    await githubAuth();
-  });
+  keyboard.listen(
+    [Key.G],
+    async () => {
+      await githubAuth();
+    },
+    { ignoreIfEditable: true }
+  );
 
-  keyboard.prevent.down([Key.Enter], async () => {
-    await login();
-  });
+  keyboard.listen(
+    [Key.Enter],
+    async () => {
+      await login();
+    },
+    { prevent: true }
+  );
 });
 
 onUnmounted(() => {

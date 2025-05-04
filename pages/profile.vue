@@ -16,37 +16,84 @@
           </div>
         </div>
         <div class="buttons">
-          <UiButton v-if="!hasGithubAccount" text="Link Github" keyName="L" @click="linkGithub" />
-          <UiButton text="Change Email" keyName="E" @click="showEmailModal = true" />
-          <UiButton text="Change Password" keyName="P" @click="showPasswordModal = true" />
+          <UiButton
+            v-if="!hasGithubAccount"
+            text="Link Github"
+            keyName="L"
+            @click="linkGithub" />
+          <UiButton
+            text="Change Email"
+            keyName="E"
+            @click="showEmailModal = true" />
+          <UiButton
+            text="Change Password"
+            keyName="P"
+            @click="showPasswordModal = true" />
           <UiButton text="Logout" keyName="Alt+L" @click="logout" />
         </div>
       </section>
 
-      <UiModal :open="showEmailModal" title="Change Email" :isLoading="isLoading" @cancel="showEmailModal = false"
-        @save="changeEmail" @close="showEmailModal = false">
+      <UiModal
+        :open="showEmailModal"
+        title="Change Email"
+        :isLoading="isLoading"
+        @cancel="showEmailModal = false"
+        @save="changeEmail"
+        @close="showEmailModal = false">
         <template #form-content>
-          <UiInput type="email" v-model="newEmail" placeholder="New Email Address" required />
+          <UiInput
+            type="email"
+            v-model="newEmail"
+            placeholder="New Email Address"
+            required />
         </template>
       </UiModal>
 
-      <UiModal :open="showPasswordModal" title="Change Password" description="Password must be at least 12 characters and include uppercase,
-            lowercase, numbers, and special characters" :isLoading="isLoading" @cancel="showPasswordModal = false"
-        @save="changePassword" @close="showPasswordModal = false">
+      <UiModal
+        :open="showPasswordModal"
+        title="Change Password"
+        description="Password must be at least 12 characters and include uppercase,
+            lowercase, numbers, and special characters"
+        :isLoading="isLoading"
+        @cancel="showPasswordModal = false"
+        @save="changePassword"
+        @close="showPasswordModal = false">
         <template #form-content>
-          <UiInput type="password" v-model="newPassword" placeholder="New Password" required />
-          <UiInput type="password" v-model="confirmPassword" placeholder="Confirm Password" required />
+          <UiInput
+            type="password"
+            v-model="newPassword"
+            placeholder="New Password"
+            required />
+          <UiInput
+            type="password"
+            v-model="confirmPassword"
+            placeholder="Confirm Password"
+            required />
         </template>
       </UiModal>
 
       <section class="api-key">
         <h2 class="title">API Key</h2>
-        <UiInput :locked="true" :type="showApiKey ? 'text' : 'password'" :modelValue="user?.apiKey" />
+        <UiInput
+          :locked="true"
+          :type="showApiKey ? 'text' : 'password'"
+          :modelValue="user?.apiKey" />
         <div class="buttons">
-          <UiButton v-if="showApiKey" text="Hide API Key" keyName="S" @click="toggleApiKey" />
-          <UiButton v-else text="Show API Key" keyName="S" @click="toggleApiKey" />
+          <UiButton
+            v-if="showApiKey"
+            text="Hide API Key"
+            keyName="S"
+            @click="toggleApiKey" />
+          <UiButton
+            v-else
+            text="Show API Key"
+            keyName="S"
+            @click="toggleApiKey" />
           <UiButton text="Copy API Key" keyName="c" @click="copyApiKey" />
-          <UiButton text="Regenerate API Key" keyName="r" @click="regenerateApiKey" />
+          <UiButton
+            text="Regenerate API Key"
+            keyName="r"
+            @click="regenerateApiKey" />
         </div>
       </section>
 
@@ -54,14 +101,21 @@
         <h2 class="title">Tracking Settings</h2>
         <div class="setting-group">
           <p class="setting-description">Keystroke Timeout (minutes):</p>
-          <UiNumberInput id="keystrokeTimeout" v-model="keystrokeTimeout" :min="1" :max="60"
+          <UiNumberInput
+            id="keystrokeTimeout"
+            v-model="keystrokeTimeout"
+            :min="1"
+            :max="60"
             @update:modelValue="updateKeystrokeTimeout" />
 
           <p>
             In order to work correctly, summaries need to be regenerated after
             changing the keystroke timeout.
           </p>
-          <UiButton text="Regenerate Summaries" keyName="Alt+R" @click="regenerateSummaries" />
+          <UiButton
+            text="Regenerate Summaries"
+            keyName="Alt+R"
+            @click="regenerateSummaries" />
         </div>
       </section>
 
@@ -69,31 +123,52 @@
         <h2 class="title">Time Tracking Data Import</h2>
         <div class="setting-group">
           <div class="radio-group">
-            <UiRadioButton :text="'WakaTime'" :selected="importType === 'wakatime'" :value="'wakatime'"
+            <UiRadioButton
+              :text="'WakaTime'"
+              :selected="importType === 'wakatime'"
+              :value="'wakatime'"
               @update="(val) => (importType = val as ImportType)" />
-            <UiRadioButton :text="'WakAPI'" :selected="importType === 'wakapi'" :value="'wakapi'"
+            <UiRadioButton
+              :text="'WakAPI'"
+              :selected="importType === 'wakapi'"
+              :value="'wakapi'"
               @update="(val) => (importType = val as ImportType)" />
           </div>
 
-          <UiInput :id="importType + 'ApiKey'" type="password" v-model="importApiKey" :placeholder="apiKeyPlaceholder"
+          <UiInput
+            :id="importType + 'ApiKey'"
+            type="password"
+            v-model="importApiKey"
+            :placeholder="apiKeyPlaceholder"
             v-if="importType === 'wakapi'" />
 
-          <UiInput id="wakapiInstanceUrl" type="text" v-model="wakapiInstanceUrl"
-            placeholder="Enter your WakAPI instance URL (e.g. https://wakapi.dev)" v-if="importType === 'wakapi'" />
+          <UiInput
+            id="wakapiInstanceUrl"
+            type="text"
+            v-model="wakapiInstanceUrl"
+            placeholder="Enter your WakAPI instance URL (e.g. https://wakapi.dev)"
+            v-if="importType === 'wakapi'" />
 
           <div v-if="importType === 'wakatime'" class="steps">
             <p>
               1. Go to
-              <a href="https://wakatime.com/settings/account" target="_blank">WakaTime Settings</a>
+              <a href="https://wakatime.com/settings/account" target="_blank"
+                >WakaTime Settings</a
+              >
             </p>
             <p>
               2. Click on <kbd>Export my code stats...</kbd> and select
               Heartbeats
             </p>
-            <p>3. Wait and then download your data</p>
+            <p>3. Wait and then listenload your data</p>
           </div>
 
-          <input type="file" id="wakaTimeFileUpload" ref="wakaTimeFileInput" accept=".json" @change="handleFileChange"
+          <input
+            type="file"
+            id="wakaTimeFileUpload"
+            ref="wakaTimeFileInput"
+            accept=".json"
+            @change="handleFileChange"
             v-if="importType === 'wakatime'" />
         </div>
 
@@ -130,7 +205,7 @@
 <script setup lang="ts">
 import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
-import { Key, keyboard } from "wrdu-keyboard";
+import { useKeyboard, Key } from "@waradu/keyboard";
 import * as statsLib from "~/lib/stats";
 
 const userState = useState<User | null>("user");
@@ -160,6 +235,7 @@ const newEmail = ref("");
 const newPassword = ref("");
 const confirmPassword = ref("");
 const isLoading = ref(false);
+const keyboard = useKeyboard();
 
 const apiKeyPlaceholder = computed(() => {
   return `Enter your ${importType.value === "wakatime" ? "WakaTime" : "WakAPI"} API Key`;
@@ -215,58 +291,90 @@ onMounted(async () => {
     toast.success(message);
   }
 
-  keyboard.prevent.down([Key.L], async () => {
-    if (hasGithubAccount) {
-      await linkGithub();
-    }
-  });
+  keyboard.listen(
+    [Key.L],
+    async () => {
+      if (hasGithubAccount) {
+        await linkGithub();
+      }
+    },
+    { prevent: true }
+  );
 
-  keyboard.prevent.down([Key.E], async () => {
-    showEmailModal.value = true;
-    newEmail.value = user.value?.email || "";
-  });
+  keyboard.listen(
+    [Key.E],
+    async () => {
+      showEmailModal.value = true;
+      newEmail.value = user.value?.email || "";
+    },
+    { prevent: true }
+  );
 
-  keyboard.prevent.down([Key.P], async () => {
-    showPasswordModal.value = true;
-    newPassword.value = "";
-    confirmPassword.value = "";
-  });
+  keyboard.listen(
+    [Key.P],
+    async () => {
+      showPasswordModal.value = true;
+      newPassword.value = "";
+      confirmPassword.value = "";
+    },
+    { prevent: true }
+  );
 
-  keyboard.prevent.down([Key.AltLeft, Key.L], async () => {
-    await logout();
-  });
+  keyboard.listen(
+    [Key.Alt, Key.L],
+    async () => {
+      await logout();
+    },
+    { prevent: true }
+  );
 
-  keyboard.prevent.down([Key.S], async () => {
-    toggleApiKey();
-  });
+  keyboard.listen(
+    [Key.S],
+    async () => {
+      toggleApiKey();
+    },
+    { prevent: true }
+  );
 
-  keyboard.prevent.down([Key.C], async () => {
-    await copyApiKey();
-  });
+  keyboard.listen(
+    [Key.C],
+    async () => {
+      await copyApiKey();
+    },
+    { prevent: true }
+  );
 
-  keyboard.prevent.down([Key.R], async () => {
-    await regenerateApiKey();
-  });
+  keyboard.listen(
+    [Key.R],
+    async () => {
+      await regenerateApiKey();
+    },
+    { prevent: true }
+  );
 
-  keyboard.prevent.down([Key.I], async () => {
-    await importTrackingData();
-  });
+  keyboard.listen(
+    [Key.I],
+    async () => {
+      await importTrackingData();
+    },
+    { prevent: true }
+  );
 
-  keyboard.prevent.down([Key.AltLeft, Key.R], async () => {
-    if (
-      !confirm(
-        "Confirm that you want to regenerate all your summaires which can take a while."
-      )
-    ) {
-      return;
-    }
+  keyboard.listen(
+    [Key.Alt, Key.R],
+    async () => {
+      if (
+        !confirm(
+          "Confirm that you want to regenerate all your summaires which can take a while."
+        )
+      ) {
+        return;
+      }
 
-    await regenerateSummaries();
-  });
-
-  keyboard.down([Key.F], async () => {
-    useToast().success("You payed respect to the easter egg");
-  });
+      await regenerateSummaries();
+    },
+    { prevent: true }
+  );
 });
 
 onUnmounted(() => {

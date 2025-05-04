@@ -9,7 +9,9 @@
         <div class="section">
           <div class="text">
             <h2>PROJECTS</h2>
-            <p class="extend" @click="openListModal('Projects', sortedProjects)">
+            <p
+              class="extend"
+              @click="openListModal('Projects', sortedProjects)">
               <Maximize :size="16" />
               DETAILS
             </p>
@@ -22,7 +24,10 @@
               :style="{
                 '--percentage': `${
                   sortedProjects.length > 0 && sortedProjects[0].seconds > 0
-                    ? ((project.seconds / sortedProjects[0].seconds) * 100).toFixed(1)
+                    ? (
+                        (project.seconds / sortedProjects[0].seconds) *
+                        100
+                      ).toFixed(1)
                     : 0
                 }%`,
               }">
@@ -39,7 +44,9 @@
         <div class="section">
           <div class="text">
             <h2>LANGUAGES</h2>
-            <p class="extend" @click="openListModal('Languages', languageBreakdown)">
+            <p
+              class="extend"
+              @click="openListModal('Languages', languageBreakdown)">
               <Maximize :size="16" />
               DETAILS
             </p>
@@ -51,14 +58,20 @@
               class="item"
               :style="{
                 '--percentage': `${
-                  languageBreakdown.length > 0 && languageBreakdown[0].seconds > 0
-                    ? ((language.seconds / languageBreakdown[0].seconds) * 100).toFixed(1)
+                  languageBreakdown.length > 0 &&
+                  languageBreakdown[0].seconds > 0
+                    ? (
+                        (language.seconds / languageBreakdown[0].seconds) *
+                        100
+                      ).toFixed(1)
                     : 0
                 }%`,
               }">
               <div class="name">{{ language.name || "Unknown" }}</div>
               <div class="percentage">
-                {{ ((language.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
+                {{
+                  ((language.seconds / stats.totalSeconds) * 100).toFixed(1)
+                }}%
               </div>
               <div class="time">
                 {{ formatTime(language.seconds) }}
@@ -71,7 +84,9 @@
         <div class="section">
           <div class="text">
             <h2>EDITORS</h2>
-            <p class="extend" @click="openListModal('Editors', editorBreakdown)">
+            <p
+              class="extend"
+              @click="openListModal('Editors', editorBreakdown)">
               <Maximize :size="16" />
               DETAILS
             </p>
@@ -84,7 +99,10 @@
               :style="{
                 '--percentage': `${
                   editorBreakdown.length > 0 && editorBreakdown[0].seconds > 0
-                    ? ((editor.seconds / editorBreakdown[0].seconds) * 100).toFixed(1)
+                    ? (
+                        (editor.seconds / editorBreakdown[0].seconds) *
+                        100
+                      ).toFixed(1)
                     : 0
                 }%`,
               }">
@@ -103,7 +121,9 @@
         <div class="section">
           <div class="text">
             <h2>OPERATING SYSTEMS</h2>
-            <p class="extend" @click="openListModal('Operating Systems', osBreakdown)">
+            <p
+              class="extend"
+              @click="openListModal('Operating Systems', osBreakdown)">
               <Maximize :size="16" />
               DETAILS
             </p>
@@ -148,7 +168,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { Maximize } from "lucide-vue-next";
 import type { User } from "@prisma/client";
-import { Key, keyboard } from "wrdu-keyboard";
+import { useKeyboard, Key } from "@waradu/keyboard";
 import * as statsLib from "~/lib/stats";
 import type { Heartbeat } from "~/lib/stats";
 import {
@@ -193,6 +213,7 @@ const stats = ref(statsLib.getStats());
 const timeRange = ref(statsLib.getTimeRange());
 const { formatTime } = statsLib;
 const { timeRangeOptions } = useTimeRangeOptions();
+const keyboard = useKeyboard();
 
 watch(
   [() => statsLib.getStats(), () => statsLib.getTimeRange()],
@@ -317,19 +338,16 @@ onMounted(async () => {
   timeRangeOptions.value.forEach(
     (option: { key: string; value: statsLib.TimeRange }) => {
       if (option.key && option.value) {
-        keyboard.prevent.down(
+        keyboard.listen(
           [Key[option.key as keyof typeof Key]],
           async () => {
             statsLib.setTimeRange(option.value);
-          }
+          },
+          { prevent: true }
         );
       }
     }
   );
-
-  keyboard.down([Key.F], async () => {
-    useToast().success("You payed respect to the easter egg");
-  });
 
   if (chartContainer.value) {
     renderChart();
