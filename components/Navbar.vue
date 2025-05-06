@@ -15,6 +15,12 @@
     </NuxtLink>
     <div class="actions">
       <a
+        href="https://docs.ziit.app"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Docs</a
+      >
+      <a
         href="https://github.com/0PandaDEV/Ziit"
         target="_blank"
         rel="noopener noreferrer"
