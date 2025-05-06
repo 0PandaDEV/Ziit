@@ -334,6 +334,8 @@ async function fetchUserData() {
 }
 
 onMounted(async () => {
+  keyboard.init();
+
   await fetchUserData();
   timeRangeOptions.value.forEach(
     (option: { key: string; value: statsLib.TimeRange }) => {

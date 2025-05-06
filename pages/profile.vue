@@ -260,6 +260,7 @@ async function fetchUserData() {
 }
 
 onMounted(async () => {
+  keyboard.init();
   await fetchUserData();
 
   if (user.value) {

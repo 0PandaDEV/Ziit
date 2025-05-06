@@ -59,6 +59,8 @@ const route = useRoute();
 const keyboard = useKeyboard();
 
 onMounted(() => {
+  keyboard.init();
+
   if (route.query.error) {
     const errorMessages: Record<string, string> = {
       invalid_state: "Invalid authentication state, please try again",
