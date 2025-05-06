@@ -9,7 +9,7 @@
 <div align="center">
     <a href="https://ziit.app">Website</a>
     <span> • </span>
-    <a href="https://github.com/0PandaDEV/Ziit/wiki/Deploy">Deploy</a>
+    <a href="https://docs.ziit.app">Docs</a>
     <span> • </span>
     <a href="#features">Features</a>
     <span> • </span>
