@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import { encrypt } from "paseto-ts/v4";
 import { prisma } from "~~/prisma/prisma";
 import { z } from "zod";
+import { createStandardError, handleApiError } from "~/server/utils/error";
 
 const passwordSchema = z
   .string()
@@ -11,7 +12,7 @@ const passwordSchema = z
   .regex(/[0-9]/, "Password must contain at least one number")
   .regex(
     /[^A-Za-z0-9]/,
-    "Password must contain at least one special character",
+    "Password must contain at least one special character"
   );
 
 export default defineEventHandler(async (event) => {
@@ -33,19 +34,16 @@ export default defineEventHandler(async (event) => {
     typeof body.password !== "string"
   ) {
     console.error("Registration error: missing credentials");
-    throw createError({
-      statusCode: 400,
-      message: "Email and Password are required",
-    });
+    throw createStandardError(400, "Email and Password are required");
   }
 
   try {
     const passwordValidation = passwordSchema.safeParse(body.password);
     if (!passwordValidation.success) {
-      throw createError({
-        statusCode: 400,
-        message: passwordValidation.error.errors[0].message,
-      });
+      throw createStandardError(
+        400,
+        passwordValidation.error.errors[0].message
+      );
     }
 
     const existingUser = await prisma.user.findUnique({
@@ -54,10 +52,7 @@ export default defineEventHandler(async (event) => {
 
     if (existingUser) {
       console.error("Registration error: email already in use");
-      throw createError({
-        statusCode: 409,
-        message: "Email already in use",
-      });
+      throw createStandardError(409, "Email already in use");
     }
 
     const saltRounds = 10;
@@ -70,14 +65,11 @@ export default defineEventHandler(async (event) => {
       },
     });
 
-    const token = encrypt(
-      config.pasetoKey,
-      {
-        userId: user.id,
-        email: user.email,
-        exp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      }
-    );
+    const token = encrypt(config.pasetoKey, {
+      userId: user.id,
+      email: user.email,
+      exp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    });
 
     setCookie(event, "ziit_session", token, {
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -89,13 +81,6 @@ export default defineEventHandler(async (event) => {
 
     return sendRedirect(event, "/");
   } catch (error) {
-    console.error(
-      "Registration error:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
-    throw createError({
-      statusCode: 500,
-      message: "Registration failed",
-    });
+    return handleApiError(error, "Registration failed");
   }
 });

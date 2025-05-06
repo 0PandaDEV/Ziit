@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
+import { handleApiError } from "~/server/utils/error";
 
 const prisma = new PrismaClient();
 
@@ -23,13 +24,6 @@ export default defineEventHandler(async (event: H3Event) => {
       apiKey: updatedUser.apiKey,
     };
   } catch (error: any) {
-    console.error(
-      "API Key error:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
-    throw createError({
-      statusCode: 500,
-      message: "Failed to generate API key",
-    });
+    return handleApiError(error, "Failed to generate API key");
   }
 });

@@ -1,5 +1,8 @@
+import { handleApiError } from "~/server/utils/error";
+
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig();
+  try {
+    const config = useRuntimeConfig();
 
   if (config.disableRegistering === "true") {
     throw createError({
@@ -8,20 +11,23 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const state = crypto.randomUUID();
+    const state = crypto.randomUUID();
 
-  setCookie(event, "github_oauth_state", state, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 10,
-    path: "/",
-  });
+    setCookie(event, "github_oauth_state", state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 10,
+      path: "/",
+    });
 
-  const githubAuthUrl = new URL("https://github.com/login/oauth/authorize");
-  githubAuthUrl.searchParams.append("client_id", config.githubClientId);
-  githubAuthUrl.searchParams.append("redirect_uri", config.githubRedirectUri);
-  githubAuthUrl.searchParams.append("state", state);
-  githubAuthUrl.searchParams.append("scope", "read:user user:email");
+    const githubAuthUrl = new URL("https://github.com/login/oauth/authorize");
+    githubAuthUrl.searchParams.append("client_id", config.githubClientId);
+    githubAuthUrl.searchParams.append("redirect_uri", config.githubRedirectUri);
+    githubAuthUrl.searchParams.append("state", state);
+    githubAuthUrl.searchParams.append("scope", "read:user user:email");
 
-  return sendRedirect(event, githubAuthUrl.toString());
+    return sendRedirect(event, githubAuthUrl.toString());
+  } catch (error) {
+    return handleApiError(error, "Failed to initialize GitHub authentication");
+  }
 });

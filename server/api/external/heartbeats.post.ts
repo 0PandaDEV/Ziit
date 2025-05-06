@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
+import { createStandardError, handleApiError } from "~/server/utils/error";
 
 const prisma = new PrismaClient();
 
@@ -21,20 +22,14 @@ export default defineEventHandler(async (event: H3Event) => {
     const authHeader = getHeader(event, "authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       console.error("Heartbeats error: Missing or invalid API key format");
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Unauthorized: Missing or invalid API key",
-      });
+      throw createStandardError(401, "Missing or invalid API key format");
     }
 
     const apiKey = authHeader.substring(7);
     const validationResult = apiKeySchema.safeParse(apiKey);
 
     if (!validationResult.success) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Unauthorized: Invalid API key format",
-      });
+      throw createStandardError(401, "Invalid API key format");
     }
 
     const user = await prisma.user.findUnique({
@@ -44,18 +39,16 @@ export default defineEventHandler(async (event: H3Event) => {
 
     if (!user || user.apiKey !== apiKey) {
       console.error("Heartbeats error: Invalid API key");
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Unauthorized: Invalid API key",
-      });
+      throw createStandardError(401, "Invalid API key");
     }
 
     const body = await readBody(event);
     const validatedData = heartbeatSchema.parse(body);
 
-    const timestamp = typeof validatedData.timestamp === 'number' 
-      ? BigInt(validatedData.timestamp) 
-      : BigInt(new Date(validatedData.timestamp).getTime());
+    const timestamp =
+      typeof validatedData.timestamp === "number"
+        ? BigInt(validatedData.timestamp)
+        : BigInt(new Date(validatedData.timestamp).getTime());
 
     const heartbeat = await prisma.heartbeats.create({
       data: {
@@ -78,23 +71,13 @@ export default defineEventHandler(async (event: H3Event) => {
     if (error instanceof z.ZodError) {
       console.error(
         "Heartbeats error: Validation error",
-        error.errors[0].message,
+        error.errors[0].message
       );
-      throw createError({
-        statusCode: 400,
-        statusMessage: "Bad request: validation failed",
-      });
+      throw createStandardError(400, error.errors[0].message);
     }
     if (error.statusCode) {
       throw error;
     }
-    console.error(
-      "Heartbeats error:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
-    throw createError({
-      statusCode: 500,
-      statusMessage: "Internal server error",
-    });
+    return handleApiError(error, "Failed to process heartbeat");
   }
 });

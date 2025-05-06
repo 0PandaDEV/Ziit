@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
+import { createStandardError, handleApiError } from "~/server/utils/error";
 
 const prisma = new PrismaClient();
 
@@ -10,20 +11,14 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     const authHeader = getHeader(event, "authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Unauthorized: Missing or invalid API key",
-      });
+      throw createStandardError(401, "Missing or invalid API key");
     }
 
     const apiKey = authHeader.substring(7);
     const validationResult = apiKeySchema.safeParse(apiKey);
 
     if (!validationResult.success) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Unauthorized: Invalid API key format",
-      });
+      throw createStandardError(401, "Invalid API key format");
     }
 
     const user = await prisma.user.findUnique({
@@ -39,20 +34,11 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (!user) {
-      throw createError({
-        statusCode: 404,
-        message: "User not found",
-      });
+      throw createStandardError(404, "User not found");
     }
 
     return user;
   } catch (error: any) {
-    throw createError({
-      statusCode:
-        error instanceof Error && "statusCode" in error
-          ? (error as any).statusCode
-          : 500,
-      message: "Failed to fetch user data",
-    });
+    return handleApiError(error, "Failed to fetch user data");
   }
 });

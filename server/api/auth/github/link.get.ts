@@ -1,5 +1,6 @@
 import { H3Event } from "h3";
 import { decrypt, encrypt } from "paseto-ts/v4";
+import { handleApiError } from "~/server/utils/error";
 
 export default defineEventHandler(async (event: H3Event) => {
   const config = useRuntimeConfig();
@@ -31,7 +32,7 @@ export default defineEventHandler(async (event: H3Event) => {
   let userId: string;
   try {
     const { payload } = decrypt(config.pasetoKey, sessionCookie);
-    
+
     if (
       typeof payload !== "object" ||
       payload === null ||
@@ -68,13 +69,10 @@ export default defineEventHandler(async (event: H3Event) => {
     sameSite: "lax",
   });
 
-  const token = encrypt(
-    config.pasetoKey, 
-    { 
-      userId,
-      exp: new Date(Date.now() + 10 * 60 * 1000).toISOString()
-    }
-  );
+  const token = encrypt(config.pasetoKey, {
+    userId,
+    exp: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+  });
 
   setCookie(event, "github_link_session", token, {
     httpOnly: true,
@@ -90,5 +88,9 @@ export default defineEventHandler(async (event: H3Event) => {
   githubAuthUrl.searchParams.append("state", state);
   githubAuthUrl.searchParams.append("scope", "read:user user:email");
 
-  return sendRedirect(event, githubAuthUrl.toString());
+  try {
+    return { url: githubAuthUrl.toString() };
+  } catch (error) {
+    return handleApiError(error, "Failed to generate GitHub auth URL");
+  }
 });

@@ -2,6 +2,7 @@ import path from 'path';
 import { H3Event } from "h3";
 import { z } from "zod";
 import { processHeartbeatsByDate } from "~/server/utils/summarize";
+import { createStandardError, handleApiError } from "~/server/utils/error";
 
 interface WakApiUser {
   data: {
@@ -195,10 +196,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const validationResult = wakaApiRequestSchema.safeParse(body);
     if (!validationResult.success) {
-      throw createError({
-        statusCode: 400,
-        message: `Invalid request data: ${validationResult.error.message}`,
-      });
+      throw createStandardError(400, `Invalid request data: ${validationResult.error.message}`);
     }
 
     const { apiKey, instanceType, instanceUrl } = validationResult.data;
@@ -208,19 +206,12 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (instanceType === "wakatime") {
-      throw createError({
-        statusCode: 400,
-        message:
-          "For WakaTime import, please export your data from WakaTime dashboard and upload the file",
-      });
+      throw createStandardError(400, "For WakaTime import, please export your data from WakaTime dashboard and upload the file");
     }
 
     if (instanceType === "wakapi" && !instanceUrl) {
       console.error("No instance URL provided for WakAPI");
-      throw createError({
-        statusCode: 400,
-        message: "Instance URL is required for WakAPI",
-      });
+      throw createStandardError(400, "Instance URL is required for WakAPI");
     }
 
     const headers = {
@@ -245,10 +236,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     if (!userResponse?.data?.username) {
       console.error("Failed to fetch user data from WakAPI");
-      throw createError({
-        statusCode: 400,
-        message: "Failed to fetch user data",
-      });
+      throw createStandardError(400, "Failed to fetch user data");
     }
 
     username = userResponse.data.username;
@@ -275,10 +263,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
       if (!allTimeResponse?.data?.range) {
         console.error("Invalid response from all_time_since_today endpoint");
-        throw createError({
-          statusCode: 500,
-          message: "Failed to fetch activity date range",
-        });
+        throw createStandardError(500, "Failed to fetch activity date range");
       }
 
       const startDate = new Date(allTimeResponse.data.range.start_date);
@@ -307,11 +292,7 @@ export default defineEventHandler(async (event: H3Event) => {
       );
       return { success: true, imported: heartbeatsByDate.size };
     } catch (error) {
-      console.error("Error during import process:", error);
-      throw createError({
-        statusCode: 500,
-        message: "Import process failed",
-      });
+      return handleApiError(error, "Failed to import activity data");
     }
   }
 
@@ -321,10 +302,7 @@ export default defineEventHandler(async (event: H3Event) => {
   );
 
   if (!fileData || !fileData.data) {
-    throw createError({
-      statusCode: 400,
-      message: "No file uploaded or file content is missing",
-    });
+    throw createStandardError(400, "No file uploaded or file content is missing");
   }
 
   try {
@@ -333,10 +311,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const validationResult = wakaTimeExportSchema.safeParse(parsedData);
     if (!validationResult.success) {
-      throw createError({
-        statusCode: 400,
-        message: `Invalid WakaTime export format: ${validationResult.error.message}`,
-      });
+      throw createStandardError(400, `Invalid WakaTime export format: ${validationResult.error.message}`);
     }
 
     const wakaData = validationResult.data;
@@ -380,11 +355,7 @@ export default defineEventHandler(async (event: H3Event) => {
     console.log("Database update complete");
     return { success: true, imported: totalHeartbeats };
   } catch (error) {
-    console.error("Error processing uploaded file:", error);
-    throw createError({
-      statusCode: 500,
-      message: "Failed to process uploaded file",
-    });
+    return handleApiError(error, "Failed to process uploaded file");
   }
 });
 

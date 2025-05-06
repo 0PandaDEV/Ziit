@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
+import { createStandardError, handleApiError } from "~/server/utils/error";
 
 const prisma = new PrismaClient();
 
@@ -13,27 +14,23 @@ const heartbeatSchema = z.object({
   editor: z.string().min(1).max(50),
   os: z.string().min(1).max(50),
   branch: z.string().max(255).optional(),
-  file: z.string().max(255).optional(),
+  file: z.string().max(255),
 });
+
+const batchSchema = z.array(heartbeatSchema).min(1).max(100);
 
 export default defineEventHandler(async (event: H3Event) => {
   try {
     const authHeader = getHeader(event, "authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Unauthorized: Missing or invalid API key",
-      });
+      throw createStandardError(401, "Missing or invalid API key");
     }
 
     const apiKey = authHeader.substring(7);
     const validationResult = apiKeySchema.safeParse(apiKey);
 
     if (!validationResult.success) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Unauthorized: Invalid API key format",
-      });
+      throw createStandardError(401, "Invalid API key format");
     }
 
     const user = await prisma.user.findUnique({
@@ -42,14 +39,11 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (!user || user.apiKey !== apiKey) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Unauthorized: Invalid API key",
-      });
+      throw createStandardError(401, "Invalid API key");
     }
 
     const body = await readBody(event);
-    const heartbeats = z.array(heartbeatSchema).parse(body);
+    const heartbeats = batchSchema.parse(body);
 
     const createdHeartbeats = await prisma.$transaction(
       heartbeats.map((heartbeat) => {
@@ -79,18 +73,11 @@ export default defineEventHandler(async (event: H3Event) => {
     };
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: `Bad request: ${error.errors[0].message}`,
-      });
+      throw createStandardError(400, error.errors[0].message);
     }
     if (error.statusCode) {
       throw error;
     }
-    console.error("Error processing heartbeats:", error);
-    throw createError({
-      statusCode: 500,
-      message: "Failed to process heartbeats",
-    });
+    return handleApiError(error, "Failed to process heartbeats");
   }
 });

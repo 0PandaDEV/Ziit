@@ -1,5 +1,6 @@
 import { prisma } from "~~/prisma/prisma";
 import { decrypt, encrypt } from "paseto-ts/v4";
+import { createStandardError, handleApiError } from "~/server/utils/error";
 
 interface GithubTokenResponse {
   access_token: string;
@@ -25,8 +26,13 @@ interface GithubEmail {
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
   const query = getQuery(event);
-
+  const code = query.code as string;
   const state = query.state as string;
+
+  if (!code) {
+    throw createStandardError(400, "No authorization code provided");
+  }
+
   const storedState = getCookie(event, "github_oauth_state");
 
   if (!state || state !== storedState) {
@@ -40,12 +46,6 @@ export default defineEventHandler(async (event) => {
   deleteCookie(event, "github_oauth_state");
   deleteCookie(event, "github_link_account");
   deleteCookie(event, "github_link_session");
-
-  const code = query.code as string;
-  if (!code) {
-    console.error("GitHub Callback error: No code provided");
-    return sendRedirect(event, "/login?error=no_code");
-  }
 
   try {
     const tokenResponse = await $fetch<GithubTokenResponse>(
@@ -220,8 +220,7 @@ export default defineEventHandler(async (event) => {
     });
 
     return sendRedirect(event, result);
-  } catch {
-    console.error("GitHub OAuth error");
-    return sendRedirect(event, "/login?error=github_auth_failed");
+  } catch (error) {
+    return handleApiError(error, "GitHub authentication failed");
   }
 });

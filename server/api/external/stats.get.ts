@@ -4,6 +4,7 @@ import { TimeRangeEnum } from "~/lib/stats";
 import type { TimeRange } from "~/lib/stats";
 import { z } from "zod";
 import { calculateStats } from "~/server/utils/stats";
+import { createStandardError, handleApiError } from "~/server/utils/error";
 
 const prisma = new PrismaClient();
 
@@ -13,20 +14,14 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     const authHeader = getHeader(event, "authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Unauthorized: Missing or invalid API key",
-      });
+      throw createStandardError(401, "Missing or invalid API key");
     }
 
     const apiKey = authHeader.substring(7);
     const validationResult = apiKeySchema.safeParse(apiKey);
 
     if (!validationResult.success) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Unauthorized: Invalid API key format",
-      });
+      throw createStandardError(401, "Invalid API key format");
     }
 
     const user = await prisma.user.findUnique({
@@ -35,10 +30,7 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (!user || user.apiKey !== apiKey) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: "Unauthorized: Invalid API key",
-      });
+      throw createStandardError(401, "Invalid API key");
     }
 
     const query = getQuery(event);
@@ -46,17 +38,11 @@ export default defineEventHandler(async (event: H3Event) => {
     const midnightOffsetSeconds = query.midnightOffsetSeconds ? Number(query.midnightOffsetSeconds) : undefined;
 
     if (!Object.values(TimeRangeEnum).includes(timeRange as any)) {
-      throw createError({
-        statusCode: 400,
-        message: "Invalid timeRange value",
-      });
+      throw createStandardError(400, `Invalid timeRange value: ${timeRange}`);
     }
 
     return await calculateStats(user.id, timeRange as TimeRange, midnightOffsetSeconds);
   } catch (error: any) {
-    throw createError({
-      statusCode: error.statusCode || 500,
-      message: "Failed to fetch statistics",
-    });
+    return handleApiError(error, "Failed to fetch statistics");
   }
 });
