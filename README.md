@@ -3,7 +3,7 @@
 </p>
 
 <h3 align="center">
-   The swiss army knife of coding time tracking.
+   The Swiss army knife of code time tracking.
 </h3>
 
 <div align="center">
