@@ -53,6 +53,8 @@ export type Summary = {
   languages: StatRecord;
   editors: StatRecord;
   os: StatRecord;
+  files: StatRecord;
+  branches: StatRecord;
   hourlyData: HourlyData[];
 };
 
@@ -71,6 +73,8 @@ type StatsResult = {
   languages: StatRecord;
   editors: StatRecord;
   os: StatRecord;
+  files: StatRecord;
+  branches: StatRecord;
   summaries: Summary[];
   heartbeats: Heartbeat[];
   offsetSeconds: number;
@@ -91,6 +95,8 @@ const initialStats: StatsResult = {
   languages: {},
   editors: {},
   os: {},
+  files: {},
+  branches: {},
   summaries: [],
   heartbeats: [],
   offsetSeconds: 0,
@@ -188,6 +194,8 @@ function processHeartbeats(apiResponse: any): StatsResult {
   const calculatedLanguages: StatRecord = {};
   const calculatedEditors: StatRecord = {};
   const calculatedOs: StatRecord = {};
+  const calculatedFiles: StatRecord = {};
+  const calculatedBranches: StatRecord = {};
 
   const dailyData = apiResponse.summaries || [];
   const summaries = apiResponse.summaries || [];
@@ -196,13 +204,11 @@ function processHeartbeats(apiResponse: any): StatsResult {
     calculatedTotalSeconds += day.totalSeconds;
 
     Object.entries(day.projects).forEach(([project, seconds]) => {
-      calculatedProjects[project] =
-        (calculatedProjects[project] || 0) + seconds;
+      calculatedProjects[project] = (calculatedProjects[project] || 0) + seconds;
     });
 
     Object.entries(day.languages).forEach(([language, seconds]) => {
-      calculatedLanguages[language] =
-        (calculatedLanguages[language] || 0) + seconds;
+      calculatedLanguages[language] = (calculatedLanguages[language] || 0) + seconds;
     });
 
     Object.entries(day.editors).forEach(([editor, seconds]) => {
@@ -212,6 +218,14 @@ function processHeartbeats(apiResponse: any): StatsResult {
     Object.entries(day.os).forEach(([os, seconds]) => {
       calculatedOs[os] = (calculatedOs[os] || 0) + seconds;
     });
+
+    Object.entries(day.files).forEach(([file, seconds]) => {
+      calculatedFiles[file] = (calculatedFiles[file] || 0) + seconds;
+    });
+
+    Object.entries(day.branches).forEach(([branch, seconds]) => {
+      calculatedBranches[branch] = (calculatedBranches[branch] || 0) + seconds;
+    });
   });
 
   return {
@@ -220,6 +234,8 @@ function processHeartbeats(apiResponse: any): StatsResult {
     languages: calculatedLanguages,
     editors: calculatedEditors,
     os: calculatedOs,
+    files: calculatedFiles,
+    branches: calculatedBranches,
     summaries,
     heartbeats: allParsedHeartbeats,
     offsetSeconds: apiResponse.offsetSeconds || 0,

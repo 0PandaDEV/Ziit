@@ -167,6 +167,8 @@ export async function calculateStats(
         languages: true,
         editors: true,
         os: true,
+        files: true,
+        branches: true,
       },
       orderBy: {
         date: "asc",
@@ -190,6 +192,8 @@ export async function calculateStats(
             ? JSON.parse(JSON.stringify(summary.editors))
             : {},
           os: summary.os ? JSON.parse(JSON.stringify(summary.os)) : {},
+          files: summary.files ? JSON.parse(JSON.stringify(summary.files)) : {},
+          branches: summary.branches ? JSON.parse(JSON.stringify(summary.branches)) : {},
           hourlyData: Array(24)
             .fill(null)
             .map(() => ({ seconds: 0 })),
@@ -229,6 +233,8 @@ export async function calculateStats(
           languages: {},
           editors: {},
           os: {},
+          files: {},
+          branches: {},
           hourlyData: Array(24)
             .fill(null)
             .map(() => ({ seconds: 0 })),
@@ -318,6 +324,14 @@ export async function calculateStats(
             if (heartbeat.os) {
               summaryData.os[heartbeat.os] =
                 (summaryData.os[heartbeat.os] || 0) + secondsToAdd;
+            }
+            if (heartbeat.file) {
+              summaryData.files[heartbeat.file] =
+                (summaryData.files[heartbeat.file] || 0) + secondsToAdd;
+            }
+            if (heartbeat.branch) {
+              summaryData.branches[heartbeat.branch] =
+                (summaryData.branches[heartbeat.branch] || 0) + secondsToAdd;
             }
           }
         }

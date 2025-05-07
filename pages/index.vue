@@ -117,7 +117,41 @@
           </div>
           <p v-else class="no-data">No data available</p>
         </div>
-
+        
+        <div class="section">
+          <div class="text">
+            <h2>FILES</h2>
+            <p
+              class="extend"
+              @click="openListModal('Files', fileBreakdown)">
+              <Maximize :size="16" />
+              DETAILS
+            </p>
+          </div>
+          <div v-if="fileBreakdown.length > 0" class="list">
+            <div
+              v-for="file in fileBreakdown.slice(0, 8)"
+              :key="file.name"
+              class="item"
+              :style="{
+                '--percentage': `${
+                  fileBreakdown.length > 0 && fileBreakdown[0].seconds > 0
+                    ? ((file.seconds / fileBreakdown[0].seconds) * 100).toFixed(1)
+                    : 0
+                }%`,
+              }">
+              <div class="name">{{ file.name || "Unknown" }}</div>
+              <div class="percentage">
+                {{ ((file.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
+              </div>
+              <div class="time">
+                {{ formatTime(file.seconds) }}
+              </div>
+            </div>
+          </div>
+          <p v-else class="no-data">No data available</p>
+        </div>
+        
         <div class="section">
           <div class="text">
             <h2>OPERATING SYSTEMS</h2>
@@ -146,6 +180,41 @@
               </div>
               <div class="time">
                 {{ formatTime(os.seconds) }}
+              </div>
+            </div>
+          </div>
+          <p v-else class="no-data">No data available</p>
+        </div>
+
+
+        <div class="section">
+          <div class="text">
+            <h2>BRANCHES</h2>
+            <p
+              class="extend"
+              @click="openListModal('Branches', branchBreakdown)">
+              <Maximize :size="16" />
+              DETAILS
+            </p>
+          </div>
+          <div v-if="branchBreakdown.length > 0" class="list">
+            <div
+              v-for="branch in branchBreakdown.slice(0, 8)"
+              :key="branch.name"
+              class="item"
+              :style="{
+                '--percentage': `${
+                  branchBreakdown.length > 0 && branchBreakdown[0].seconds > 0
+                    ? ((branch.seconds / branchBreakdown[0].seconds) * 100).toFixed(1)
+                    : 0
+                }%`,
+              }">
+              <div class="name">{{ branch.name || "Unknown" }}</div>
+              <div class="percentage">
+                {{ ((branch.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
+              </div>
+              <div class="time">
+                {{ formatTime(branch.seconds) }}
               </div>
             </div>
           </div>
@@ -305,6 +374,32 @@ const osBreakdown = computed(() => {
   );
 
   return osArray.sort((a, b) => b.seconds - a.seconds);
+});
+
+const fileBreakdown = computed(() => {
+  if (!stats.value || !stats.value.files) return [];
+
+  const files: ItemWithTime[] = Object.entries(stats.value.files).map(
+    ([name, seconds]) => ({
+      name: name || "Unknown",
+      seconds: seconds as number,
+    })
+  );
+
+  return files.sort((a, b) => b.seconds - a.seconds);
+});
+
+const branchBreakdown = computed(() => {
+  if (!stats.value || !stats.value.branches) return [];
+
+  const branches: ItemWithTime[] = Object.entries(stats.value.branches).map(
+    ([name, seconds]) => ({
+      name: name || "Unknown",
+      seconds: seconds as number,
+    })
+  );
+
+  return branches.sort((a, b) => b.seconds - a.seconds);
 });
 
 function openListModal(title: string, items: ItemWithTime[]) {
