@@ -62,6 +62,8 @@ model Summaries {
   languages    Json?
   editors      Json?
   os           Json?
+  files        Json?
+  branches     Json?
   heartbeats   Heartbeats[]
   createdAt    DateTime     @default(now())
 

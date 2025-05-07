@@ -42,9 +42,11 @@ export function calculateCategoryTimes(
   const editorsTime: Record<string, number> = {};
   const languagesTime: Record<string, number> = {};
   const osTime: Record<string, number> = {};
+  const filesTime: Record<string, number> = {};
+  const branchesTime: Record<string, number> = {};
 
   if (heartbeats.length === 0) {
-    return { projectsTime, editorsTime, languagesTime, osTime };
+    return { projectsTime, editorsTime, languagesTime, osTime, filesTime, branchesTime };
   }
 
   const sortedHeartbeats = [...heartbeats].sort(
@@ -56,6 +58,8 @@ export function calculateCategoryTimes(
   let lastEditor: string | null = null;
   let lastLanguage: string | null = null;
   let lastOs: string | null = null;
+  let lastFile: string | null = null;
+  let lastBranch: string | null = null;
 
   const IDLE_THRESHOLD_MS = idleThresholdMinutes * 60 * 1000;
 
@@ -65,6 +69,8 @@ export function calculateCategoryTimes(
     const currentEditor = heartbeat.editor || null;
     const currentLanguage = heartbeat.language || null;
     const currentOs = heartbeat.os || null;
+    const currentFile = heartbeat.file || null;
+    const currentBranch = heartbeat.branch || null;
 
     if (lastTimestamp) {
       const timeDiff = currentTimestamp - lastTimestamp;
@@ -73,22 +79,27 @@ export function calculateCategoryTimes(
         const secondsDiff = timeDiff / 1000;
 
         if (lastProject) {
-          projectsTime[lastProject] =
-            (projectsTime[lastProject] || 0) + secondsDiff;
+          projectsTime[lastProject] = (projectsTime[lastProject] || 0) + secondsDiff;
         }
 
         if (lastEditor) {
-          editorsTime[lastEditor] =
-            (editorsTime[lastEditor] || 0) + secondsDiff;
+          editorsTime[lastEditor] = (editorsTime[lastEditor] || 0) + secondsDiff;
         }
 
         if (lastLanguage) {
-          languagesTime[lastLanguage] =
-            (languagesTime[lastLanguage] || 0) + secondsDiff;
+          languagesTime[lastLanguage] = (languagesTime[lastLanguage] || 0) + secondsDiff;
         }
 
         if (lastOs) {
           osTime[lastOs] = (osTime[lastOs] || 0) + secondsDiff;
+        }
+
+        if (lastFile) {
+          filesTime[lastFile] = (filesTime[lastFile] || 0) + secondsDiff;
+        }
+
+        if (lastBranch) {
+          branchesTime[lastBranch] = (branchesTime[lastBranch] || 0) + secondsDiff;
         }
       }
     }
@@ -98,6 +109,8 @@ export function calculateCategoryTimes(
     lastEditor = currentEditor;
     lastLanguage = currentLanguage;
     lastOs = currentOs;
+    lastFile = currentFile;
+    lastBranch = currentBranch;
   }
 
   Object.keys(projectsTime).forEach((key) => {
@@ -116,7 +129,15 @@ export function calculateCategoryTimes(
     osTime[key] = Math.round(osTime[key]);
   });
 
-  return { projectsTime, editorsTime, languagesTime, osTime };
+  Object.keys(filesTime).forEach((key) => {
+    filesTime[key] = Math.round(filesTime[key]);
+  });
+
+  Object.keys(branchesTime).forEach((key) => {
+    branchesTime[key] = Math.round(branchesTime[key]);
+  });
+
+  return { projectsTime, editorsTime, languagesTime, osTime, filesTime, branchesTime };
 }
 
 export async function createOrUpdateSummary(
@@ -257,7 +278,7 @@ export async function createOrUpdateSummary(
       idleThresholdMinutes
     );
 
-    const { projectsTime, editorsTime, languagesTime, osTime } =
+    const { projectsTime, editorsTime, languagesTime, osTime, filesTime, branchesTime } =
       calculateCategoryTimes(allHeartbeatsForDay, idleThresholdMinutes);
 
     const summary = await prisma.summaries.upsert({
@@ -273,6 +294,8 @@ export async function createOrUpdateSummary(
         editors: editorsTime,
         languages: languagesTime,
         os: osTime,
+        files: filesTime,
+        branches: branchesTime,
       },
       create: {
         userId,
@@ -282,6 +305,8 @@ export async function createOrUpdateSummary(
         editors: editorsTime,
         languages: languagesTime,
         os: osTime,
+        files: filesTime,
+        branches: branchesTime,
       },
     });
 
