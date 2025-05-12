@@ -13,21 +13,19 @@
     "@nuxtjs/sitemap": "7.2.10",
     "@prisma/client": "6.7.0",
     "@types/bcrypt": "5.0.2",
-    "@types/jsonwebtoken": "9.0.9",
-    "@waradu/keyboard": "^4.2.0",
-    "bcrypt": "5.1.1",
+    "@waradu/keyboard": "4.2.0",
+    "bcrypt": "6.0.0",
     "chart.js": "4.4.9",
-    "jsonwebtoken": "9.0.2",
-    "lucide-vue-next": "0.507.0",
-    "nuxt": "3.17.1",
+    "lucide-vue-next": "0.509.0",
+    "nuxt": "3.17.2",
     "nuxt-cron": "1.8.0",
     "paseto-ts": "2.0.5",
     "pg": "8.15.6",
     "prisma": "6.7.0",
-    "sass-embedded": "1.87.0",
+    "sass-embedded": "1.88.0",
     "vue": "3.5.13",
     "vue-router": "4.5.1",
-    "zod": "3.24.3"
+    "zod": "3.24.4"
   },
   "devDependencies": {
     "prettier": "3.5.3"
