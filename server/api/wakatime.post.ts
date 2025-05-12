@@ -334,7 +334,7 @@ export default defineEventHandler(async (event: H3Event) => {
         const processedHeartbeats = day.heartbeats.map((h) => {
           return {
             userId,
-            timestamp: BigInt(h.time * 1000),
+            timestamp: BigInt(Math.floor(h.time * 1000)),
             project: h.project || null,
             editor: h.user_agent_id ? extractEditor(h.user_agent_id) : null,
             language: h.language || null,
