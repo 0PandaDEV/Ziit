@@ -1,0 +1,212 @@
+openapi: 3.0.3
+info:
+  title: Ziit API
+  description: |-
+    This is the API documentation for Ziit, a coding activity tracker.
+    The API allows you to submit coding activity heartbeats, retrieve statistics, and access user information.
+  version: 1.0.0
+  contact:
+    email: support@ziit.app
+  license:
+    name: GNU Affero General Public License v3.0
+    url: https://www.gnu.org/licenses/agpl-3.0.en.html
+servers:
+  - url: https://ziit.app
+    description: Production Server
+tags:
+  - name: API Routes
+    description: External API endpoints for tracking coding activity
+paths:
+  /api/external/heartbeats:
+    post:
+      tags:
+        - API Routes
+      summary: Heartbeats
+      description: Submit a single coding activity heartbeat to track your work
+      operationId: submitHeartbeat
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Heartbeat'
+      responses:
+        '200':
+          description: Heartbeat successfully recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  id:
+                    type: string
+        '400':
+          description: Validation error
+        '401':
+          description: Invalid or missing API key
+  /api/external/batch:
+    post:
+      tags:
+        - API Routes
+      summary: Batch
+      description: Submit multiple coding activity heartbeats in a single batch request (max 100)
+      operationId: submitBatchHeartbeats
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Heartbeat'
+              minItems: 1
+              maxItems: 100
+      responses:
+        '200':
+          description: Batch heartbeats successfully recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  ids:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: Validation error
+        '401':
+          description: Invalid or missing API key
+  /api/external/stats:
+    get:
+      tags:
+        - API Routes
+      summary: Stats
+      description: Retrieve user coding statistics for a specific time range
+      operationId: getUserStats
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: timeRange
+          required: false
+          schema:
+            type: string
+            enum:
+              - today
+              - yesterday
+              - week
+              - month
+              - month_to_date
+              - last_month
+              - year_to_date
+              - last_12_months
+              - all_time
+            default: today
+        - in: query
+          name: midnightOffsetSeconds
+          required: false
+          schema:
+            type: integer
+          description: Offset in seconds from midnight for day boundaries
+      responses:
+        '200':
+          description: Statistics successfully retrieved
+        '400':
+          description: Invalid timeRange value
+        '401':
+          description: Invalid or missing API key
+  /api/external/user:
+    get:
+      tags:
+        - API Routes
+      summary: User
+      description: Retrieve user account information using API key
+      operationId: getUserInfo
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User information successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid or missing API key
+        '404':
+          description: User not found
+components:
+  schemas:
+    Heartbeat:
+      type: object
+      required:
+        - timestamp
+        - project
+        - language
+        - editor
+        - os
+        - file
+      properties:
+        timestamp:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: number
+          example: "2023-10-15T14:30:00Z"
+        project:
+          type: string
+          maxLength: 255
+          example: "my-awesome-project"
+        language:
+          type: string
+          maxLength: 50
+          example: "javascript"
+        editor:
+          type: string
+          maxLength: 50
+          example: "vscode"
+        os:
+          type: string
+          maxLength: 50
+          example: "macos"
+        branch:
+          type: string
+          maxLength: 255
+          example: "main"
+        file:
+          type: string
+          maxLength: 255
+          example: "App.js"
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          example: "user@example.com"
+        githubId:
+          type: string
+        githubUsername:
+          type: string
+        apiKey:
+          type: string
+          format: uuid
+        keystrokeTimeout:
+          type: integer
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: UUIDd
