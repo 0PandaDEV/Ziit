@@ -18,6 +18,8 @@
     <a href="https://discord.gg/Y7SbYphVw9">Discord</a>
 </div>
 
+<br>
+
 > [!CAUTION]
 > Ziit is nearing the relase of v1.0.0 you can track the progress [here](https://github.com/0PandaDEV/Ziit/milestone/1).
 
