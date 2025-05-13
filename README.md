@@ -38,7 +38,7 @@ Ziit (pronounced "tseet") is an open source, self-hostable alternative to WakaTi
 
 ## Preview
 
-![Screenshot 2025-04-17 at 16-53-09 Ziit - Coding Statistics](https://github.com/user-attachments/assets/ea0c7fff-35ce-4322-a689-5309a5633f59)
+![Ziit](https://github.com/user-attachments/assets/bf8e8d72-3181-47e7-924f-537c74f68819)
 
 ## Features
 
