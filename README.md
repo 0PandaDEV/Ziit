@@ -7,13 +7,11 @@
 </h3>
 
 <div align="center">
-    <a href="https://ziit.app">Website</a>
-    <span> • </span>
     <a href="https://docs.ziit.app">Docs</a>
     <span> • </span>
     <a href="#features">Features</a>
     <span> • </span>
-    <a href="https://github.com/0pandadev/ziit/issues">Issues</a>
+    <a href="https://ziit.app">Public Instance</a>
     <span> • </span>
     <a href="https://discord.gg/Y7SbYphVw9">Discord</a>
 </div>
@@ -34,7 +32,7 @@
 
 ## What is Ziit?
 
-Ziit (pronounced "tseet") is an open source, self-hostable alternative to WakaTime that provides a clean, minimal dashboard for viewing coding statistics while ensuring privacy by keeping your data on your own server. It tracks coding activity through editor integrations, collecting data about projects, languages, os, editor and time spent coding, with an intuitive dashboard similar to Plausible Analytics.
+Ziit (pronounced "tseet") is an open source, self-hostable alternative to WakaTime that provides a clean, minimal and fast dashboard for viewing coding statistics while ensuring privacy by keeping your data on your own server. It tracks coding activity through an IDE extension, collecting data about projects, languages, editors, files, branches, os, and time spent coding, with an intuitive dashboard similar to Plausible Analytics.
 
 ## Preview
 
@@ -52,14 +50,13 @@ Ziit (pronounced "tseet") is an open source, self-hostable alternative to WakaTi
 
 ## How to use Ziit
 
-First [setup an instance](https://github.com/0PandaDEV/Ziit/wiki/Deploy) or sign up on the public one <https://ziit.app> then install the extension by searching for "Ziit".
+First [setup an instance](https://docs.ziit.app/deploy) or sign up on the public one <https://ziit.app> then install the extension by searching for "Ziit" in your favorite IDE.
 
-The extension is available on:
+Supported IDE's:
 
-- [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=pandadev.ziit)
-- [OpenVSX Registry](https://open-vsx.org/extension/pandadev/ziit)
+- [VS Code (Including all forks)](https://docs.ziit.app/extensions/vscode)
 
-For an extension setup guide follow the one in your profile on your instance or <https://ziit.app/profile> at the bottom of the page.
+For more details on how to setup the IDE extensions checkout the [docs](https://docs.ziit.app/extensions).
 
 ## Development
 
@@ -76,14 +73,14 @@ For an extension setup guide follow the one in your profile on your instance or 
    bun i
    ```
 
-1. **Database Migrations:**
+2. **Database Migrations:**
    Apply database schema changes.
 
    ```bash
    bunx prisma migrate dev
    ```
 
-2. **Run the development server:**
+3. **Run the development server:**
    The server will start on `http://localhost:3000`.
 
    ```bash
