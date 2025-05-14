@@ -4,11 +4,6 @@ import { z } from "zod";
 import { processHeartbeatsByDate } from "~/server/utils/summarize";
 import { createStandardError, handleApiError } from "~/server/utils/error";
 
-interface WakApiUser {
-  data: {
-    username: string;
-  };
-}
 
 interface WakApiHeartbeat {
   id: string;
@@ -40,8 +35,8 @@ const wakaApiRequestSchema = z.object({
 const wakaTimeExportSchema = z.object({
   user: z
     .object({
-      username: z.string(),
-      display_name: z.string(),
+      username: z.string().nullable().optional(),
+      display_name: z.string().nullable().optional(),
     })
     .passthrough(),
   range: z.object({
@@ -69,7 +64,7 @@ const wakaTimeExportSchema = z.object({
 
 async function fetchRangeHeartbeats(
   baseUrl: string,
-  username: string,
+  userIdentifier: string,
   headers: any,
   startDate: Date,
   endDate: Date,
@@ -123,7 +118,7 @@ async function fetchRangeHeartbeats(
     }
 
     try {
-      const heartbeatsUrl = `${baseUrl}/users/${username}/heartbeats`;
+      const heartbeatsUrl = `${baseUrl}/users/${userIdentifier}/heartbeats`;
       const heartbeatsResponse = await $fetch<{
         data: WakApiHeartbeat[];
       }>(heartbeatsUrl, {
@@ -222,30 +217,16 @@ export default defineEventHandler(async (event: H3Event) => {
       Authorization: "Basic [REDACTED]",
     });
 
-    let username = "current";
+    const userIdentifier = "current";
     let baseUrl = instanceUrl!.endsWith("/")
       ? instanceUrl!.slice(0, -1)
       : instanceUrl!;
     baseUrl = `${baseUrl}/api/compat/wakatime/v1`;
 
-    console.log("Fetching WakAPI user info from:", baseUrl);
-
-    const userResponse = await $fetch<WakApiUser>(`${baseUrl}/users/current`, {
-      headers,
-    });
-
-    if (!userResponse?.data?.username) {
-      console.error("Failed to fetch user data from WakAPI");
-      throw createStandardError(400, "Failed to fetch user data");
-    }
-
-    username = userResponse.data.username;
-    console.log("Received WakAPI user info:", username);
-
-    console.log("Fetching summary of all activity...");
+    console.log("Using WakAPI with baseUrl:", baseUrl);
 
     try {
-      const allTimeUrl = `${baseUrl}/users/${username}/all_time_since_today`;
+      const allTimeUrl = `${baseUrl}/users/${userIdentifier}/all_time_since_today`;
       console.log(`Requesting all-time summary from: ${allTimeUrl}`);
 
       const allTimeResponse = await $fetch<{
@@ -275,7 +256,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
       const heartbeatsByDate = await fetchRangeHeartbeats(
         baseUrl,
-        username,
+        userIdentifier,
         headers,
         startDate,
         endDate,
