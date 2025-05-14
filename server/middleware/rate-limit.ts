@@ -7,6 +7,7 @@ const rateLimits = {
   auth: { limit: 5, window: 1800000 },
   external: { limit: 100, window: 30000 },
   stats: { limit: 50, window: 60000 },
+  wakatime: { limit: 2, window: 1800000 },
 };
 
 export default defineEventHandler(async (event) => {
@@ -23,6 +24,8 @@ export default defineEventHandler(async (event) => {
     limitConfig = rateLimits.external;
   } else if (path.startsWith("/api/stats")) {
     limitConfig = rateLimits.stats;
+  } else if (path.startsWith("/api/wakatime")) {
+    limitConfig = rateLimits.wakatime;
   }
 
   const key = `rate-limit:${ip}:${path}`;
