@@ -1,6 +1,6 @@
 import { defineCronHandler } from "#nuxt/cron";
 import { PrismaClient } from "@prisma/client";
-import { processHeartbeatsByDate } from "~/server/utils/summarize";
+import { processSummariesByDate } from "~/server/utils/summarize";
 
 const prisma = new PrismaClient();
 
@@ -45,7 +45,7 @@ export default defineCronHandler(
       });
 
       for (const userId in userHeartbeats) {
-        await processHeartbeatsByDate(
+        await processSummariesByDate(
           userId,
           userHeartbeats[userId]
         );

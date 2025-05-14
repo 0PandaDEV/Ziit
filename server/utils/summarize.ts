@@ -346,6 +346,99 @@ export async function createOrUpdateSummary(
   }
 }
 
+export async function createOrUpdateSummaryForCron(
+  userId: string,
+  dateStr: string,
+  heartbeats: Heartbeats[]
+) {
+  if (heartbeats.length === 0) return null;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { keystrokeTimeout: true },
+    });
+
+    const idleThresholdMinutes = user?.keystrokeTimeout || 5;
+
+    const startOfDay = new Date(dateStr);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(dateStr);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const totalMinutes = calculateTotalMinutesFromHeartbeats(
+      heartbeats,
+      idleThresholdMinutes
+    );
+
+    const { projectsTime, editorsTime, languagesTime, osTime, filesTime, branchesTime } =
+      calculateCategoryTimes(heartbeats, idleThresholdMinutes);
+
+    const summary = await prisma.summaries.upsert({
+      where: {
+        userId_date: {
+          userId,
+          date: new Date(dateStr),
+        },
+      },
+      update: {
+        totalMinutes,
+        projects: projectsTime,
+        editors: editorsTime,
+        languages: languagesTime,
+        os: osTime,
+        files: filesTime,
+        branches: branchesTime,
+      },
+      create: {
+        userId,
+        date: new Date(dateStr),
+        totalMinutes,
+        projects: projectsTime,
+        editors: editorsTime,
+        languages: languagesTime,
+        os: osTime,
+        files: filesTime,
+        branches: branchesTime,
+      },
+    });
+
+    if (heartbeats.length > 0) {
+      const heartbeatsToUpdate = heartbeats.filter(
+        (h) => h.summariesId !== summary.id
+      );
+
+      if (heartbeatsToUpdate.length > 0) {
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < heartbeatsToUpdate.length; i += BATCH_SIZE) {
+          const batch = heartbeatsToUpdate.slice(i, i + BATCH_SIZE);
+
+          await Promise.all(
+            batch.map((heartbeat) =>
+              prisma.heartbeats.update({
+                where: {
+                  id_timestamp: {
+                    id: heartbeat.id,
+                    timestamp: heartbeat.timestamp,
+                  },
+                },
+                data: {
+                  summariesId: summary.id,
+                },
+              })
+            )
+          );
+        }
+      }
+    }
+
+    return summary;
+  } catch (error) {
+    console.error(`Error saving data for ${dateStr}:`, error);
+    return null;
+  }
+}
+
 export async function processHeartbeatsByDate(
   userId: string,
   heartbeats: any[]
@@ -367,6 +460,30 @@ export async function processHeartbeatsByDate(
 
   for (const [dateStr, dateHeartbeats] of heartbeatsByDate.entries()) {
     await createOrUpdateSummary(userId, dateStr, dateHeartbeats);
+  }
+}
+
+export async function processSummariesByDate(
+  userId: string,
+  heartbeats: Heartbeats[]
+) {
+  if (heartbeats.length === 0) return;
+
+  const heartbeatsByDate = new Map<string, Heartbeats[]>();
+
+  heartbeats.forEach((heartbeat) => {
+    const date = new Date(Number(heartbeat.timestamp));
+    const dateKey = date.toISOString().split("T")[0];
+
+    if (!heartbeatsByDate.has(dateKey)) {
+      heartbeatsByDate.set(dateKey, []);
+    }
+
+    heartbeatsByDate.get(dateKey)!.push(heartbeat);
+  });
+
+  for (const [dateStr, dateHeartbeats] of heartbeatsByDate.entries()) {
+    await createOrUpdateSummaryForCron(userId, dateStr, dateHeartbeats);
   }
 }
 
