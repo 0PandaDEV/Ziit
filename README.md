@@ -18,8 +18,8 @@
 
 <br>
 
-> [!CAUTION]
-> Ziit is nearing the relase of v1.0.0 you can track the progress [here](https://github.com/0PandaDEV/Ziit/milestone/1).
+> [!IMPORTANT]
+> Ziit has just reached the first stable version [v1.0.0](https://github.com/0PandaDEV/Ziit/releases/tag/v1.0.0) if you find a bug or have an idea please [create an issue](https://github.com/0PandaDEV/Ziit/issues/new).
 
 <details>
   <summary><kbd>Star History</kbd></summary>
