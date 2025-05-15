@@ -1,10 +1,17 @@
-name: Nightly Docker Build
+name: Docker Build
 
 on:
   push:
     branches:
       - main
+    tags:
+      - '*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker image tag'
+        required: true
+        default: 'nightly'
 
 jobs:
   build-and-push:
@@ -41,7 +48,7 @@ jobs:
             ghcr.io/${{ github.repository }}
             ${{ github.repository }}
           tags: |
-            type=raw,value=nightly
+            type=raw,value=${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_type == 'tag' && github.ref_name || 'nightly' }}
             type=sha,format=short
 
       - name: Build and push Docker image
