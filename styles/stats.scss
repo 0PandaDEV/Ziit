@@ -1,0 +1,37 @@
+main {
+  height: 100dvh;
+  width: 100dvw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-direction: column;
+}
+
+.container {
+  display: flex;
+  gap: 128px;
+
+  .numbers,
+  .top {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+
+    .item {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+
+      p {
+        color: var(--text-secondary);
+      }
+
+      h2{
+        font-size: 64px;
+        font-family: ChivoMono;
+        font-weight: 400;
+      }
+    }
+  }
+}

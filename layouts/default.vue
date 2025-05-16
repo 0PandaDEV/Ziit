@@ -7,8 +7,7 @@
     </div>
     <div
       class="fade-bottom"
-      :class="{ 'home-page': $route.path === '/' }"
-    ></div>
+      :class="{ 'home-page': $route.path === '/' }"></div>
     <div class="bottombar" v-if="$route.path === '/'">
       <p class="coding-time">{{ formattedTime }}</p>
       <UiSelect v-model="selectedTimeRange" :items="timeRangeOptions" />

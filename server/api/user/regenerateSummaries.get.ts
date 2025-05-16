@@ -7,7 +7,14 @@ export default defineEventHandler(async (event: H3Event) => {
     const userId = event.context.user.id;
     const result = await regenerateSummariesForUser(userId);
     return result;
-  } catch (error) {
-    return handleApiError(error, "Failed to regenerate summaries");
+  } catch (error: any) {
+    if (error && typeof error === "object" && error.statusCode) throw error;
+    const userId = event.context.user.id;
+    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred during summary regeneration.";
+    throw handleApiError(
+      500,
+      `Failed to regenerate summaries for user ${userId}: ${detailedMessage}`,
+      "Failed to regenerate summaries. Please try again."
+    );
   }
 });

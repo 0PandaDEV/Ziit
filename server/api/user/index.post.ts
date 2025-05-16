@@ -30,7 +30,9 @@ export default defineEventHandler(async (event: H3Event) => {
     const validatedData = userSettingsSchema.safeParse(body);
 
     if (!validatedData.success) {
-      throw handleApiError(400, `Invalid user settings data for user ${event.context.user.id}: ${validatedData.error.message}`, "Invalid user settings data: " + validatedData.error.message );
+      const errorDetail = `Invalid user settings data for user ${event.context.user.id}: ${validatedData.error.message}`;
+      const clientMessage = validatedData.error.errors[0]?.message || "Invalid user settings data.";
+      throw handleApiError(400, errorDetail, clientMessage );
     }
 
     const updateData: {
@@ -49,7 +51,8 @@ export default defineEventHandler(async (event: H3Event) => {
       });
 
       if (existingUser && existingUser.id !== event.context.user.id) {
-        throw handleApiError(409, `User settings update failed for user ${event.context.user.id}: Email ${validatedData.data.email} already in use by another account.`);
+        const errorDetail = `User settings update failed for user ${event.context.user.id}: Email ${validatedData.data.email} already in use by another account.`;
+        throw handleApiError(409, errorDetail);
       }
 
       updateData.email = validatedData.data.email;
@@ -75,6 +78,14 @@ export default defineEventHandler(async (event: H3Event) => {
 
     return { success: true };
   } catch (error: any) {
-    return handleApiError(error, `Failed to update user settings for user ${event.context.user.id}`);
+    if (error && typeof error === 'object' && '__h3_error__' in error) {
+      throw error;
+    }
+    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred while updating user settings.";
+    throw handleApiError(
+      500,
+      `Failed to update user settings for user ${event.context.user.id}: ${detailedMessage}`,
+      "Failed to update user settings. Please try again."
+    );
   }
 });

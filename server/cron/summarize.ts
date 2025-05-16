@@ -45,11 +45,10 @@ export default defineCronHandler(
       });
 
       for (const userId in userHeartbeats) {
-        await processSummariesByDate(
-          userId,
-          userHeartbeats[userId]
-        );
+        await processSummariesByDate(userId, userHeartbeats[userId]);
       }
+
+      await generatePublicStats(now);
 
       console.log(
         `Summarization complete. Processed ${heartbeatsToSummarize.length} heartbeats.`
@@ -63,3 +62,107 @@ export default defineCronHandler(
     runOnInit: true,
   }
 );
+
+async function generatePublicStats(date: Date) {
+  try {
+    const statsDate = new Date(date);
+    statsDate.setHours(0, 0, 0, 0);
+
+    const existingStats = await prisma.stats.findUnique({
+      where: { date: statsDate },
+    });
+
+    if (existingStats) {
+      return;
+    }
+
+    const totalUsers = await prisma.user.count();
+    const totalHeartbeats = await prisma.heartbeats.count();
+
+    const summariesAggregate = await prisma.summaries.aggregate({
+      _sum: {
+        totalMinutes: true,
+      },
+    });
+
+    const totalHours = Math.floor(
+      Number(summariesAggregate._sum.totalMinutes || 0) / 60
+    );
+
+    const topEditorResult = await prisma.heartbeats.groupBy({
+      by: ["editor"],
+      _count: {
+        editor: true,
+      },
+      where: {
+        editor: {
+          not: null,
+        },
+      },
+      orderBy: {
+        _count: {
+          editor: "desc",
+        },
+      },
+      take: 1,
+    });
+
+    const topLanguageResult = await prisma.heartbeats.groupBy({
+      by: ["language"],
+      _count: {
+        language: true,
+      },
+      where: {
+        language: {
+          not: null,
+        },
+      },
+      orderBy: {
+        _count: {
+          language: "desc",
+        },
+      },
+      take: 1,
+    });
+
+    const topOSResult = await prisma.heartbeats.groupBy({
+      by: ["os"],
+      _count: {
+        os: true,
+      },
+      where: {
+        os: {
+          not: null,
+        },
+      },
+      orderBy: {
+        _count: {
+          os: "desc",
+        },
+      },
+      take: 1,
+    });
+
+    const topEditor = topEditorResult[0]?.editor || "Unknown";
+    const topLanguage = topLanguageResult[0]?.language || "Unknown";
+    const topOS = topOSResult[0]?.os || "Unknown";
+
+    await prisma.stats.create({
+      data: {
+        date: statsDate,
+        totalHours,
+        totalUsers: BigInt(totalUsers),
+        totalHeartbeats,
+        topEditor,
+        topLanguage,
+        topOS,
+      },
+    });
+
+    console.log(
+      `Generated public stats for ${statsDate.toISOString().split("T")[0]}`
+    );
+  } catch (error) {
+    console.error("Error generating public stats:", error);
+  }
+}

@@ -91,6 +91,7 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     return { url: githubAuthUrl.toString() };
   } catch (error) {
-    return handleApiError(error, "Failed to generate GitHub auth URL");
+    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred while generating GitHub auth URL.";
+    throw handleApiError(500, `Failed to generate GitHub auth URL: ${detailedMessage}`, "Could not initiate GitHub linking. Please try again.");
   }
 });

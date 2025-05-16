@@ -24,6 +24,7 @@ export default defineEventHandler(async (event: H3Event) => {
       apiKey: updatedUser.apiKey,
     };
   } catch (error: any) {
-    return handleApiError(error, "Failed to generate API key");
+    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred while generating API key.";
+    throw handleApiError(500, `Failed to generate API key for user ${event.context.user.id}: ${detailedMessage}`, "Failed to generate API key. Please try again.");
   }
 });

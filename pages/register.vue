@@ -63,7 +63,6 @@ const isInputFocused = ref(false);
 const keyboard = useKeyboard();
 
 async function register() {
-  error.value = "";
   try {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
