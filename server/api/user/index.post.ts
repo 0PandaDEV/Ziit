@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
 import bcrypt from "bcrypt";
-import { createStandardError, handleApiError } from "~/server/utils/error";
+import { handleApiError } from "~/server/utils/error";
 
 const prisma = new PrismaClient();
 
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event: H3Event) => {
     const validatedData = userSettingsSchema.safeParse(body);
 
     if (!validatedData.success) {
-      throw createStandardError(400, "Invalid user settings data: " + validatedData.error.message);
+      throw handleApiError(400, `Invalid user settings data for user ${event.context.user.id}: ${validatedData.error.message}`, "Invalid user settings data: " + validatedData.error.message );
     }
 
     const updateData: {
@@ -49,7 +49,7 @@ export default defineEventHandler(async (event: H3Event) => {
       });
 
       if (existingUser && existingUser.id !== event.context.user.id) {
-        throw createStandardError(409, "Email already in use");
+        throw handleApiError(409, `User settings update failed for user ${event.context.user.id}: Email ${validatedData.data.email} already in use by another account.`);
       }
 
       updateData.email = validatedData.data.email;
@@ -75,6 +75,6 @@ export default defineEventHandler(async (event: H3Event) => {
 
     return { success: true };
   } catch (error: any) {
-    return handleApiError(error, "Failed to update user settings");
+    return handleApiError(error, `Failed to update user settings for user ${event.context.user.id}`);
   }
 });

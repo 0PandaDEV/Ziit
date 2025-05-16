@@ -2,11 +2,11 @@ import bcrypt from "bcrypt";
 import { encrypt } from "paseto-ts/v4";
 import { prisma } from "~~/prisma/prisma";
 import { z } from "zod";
-import { createStandardError, handleApiError } from "~/server/utils/error";
+import { handleApiError } from "~/server/utils/error";
 
 const passwordSchema = z
   .string()
-  .min(12, "Password must be at least 8 characters")
+  .min(12, "Password must be at least 12 characters")
   .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
   .regex(/[a-z]/, "Password must contain at least one lowercase letter")
   .regex(/[0-9]/, "Password must contain at least one number")
@@ -34,15 +34,16 @@ export default defineEventHandler(async (event) => {
     typeof body.password !== "string"
   ) {
     console.error("Registration error: missing credentials");
-    throw createStandardError(400, "Email and Password are required");
+    throw handleApiError(400, "Registration attempt with missing email or password.");
   }
 
   try {
     const passwordValidation = passwordSchema.safeParse(body.password);
     if (!passwordValidation.success) {
-      throw createStandardError(
+      throw handleApiError(
         400,
-        passwordValidation.error.errors[0].message
+        `Password validation failed for email ${body.email}: ${passwordValidation.error.errors[0].message}`,
+        passwordValidation.error.errors[0].message 
       );
     }
 
@@ -52,7 +53,7 @@ export default defineEventHandler(async (event) => {
 
     if (existingUser) {
       console.error("Registration error: email already in use");
-      throw createStandardError(409, "Email already in use");
+      throw handleApiError(409, `Registration attempt with existing email: ${body.email}.`);
     }
 
     const saltRounds = 10;

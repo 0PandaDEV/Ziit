@@ -2,7 +2,7 @@ import path from 'path';
 import { H3Event } from "h3";
 import { z } from "zod";
 import { processHeartbeatsByDate } from "~/server/utils/summarize";
-import { createStandardError, handleApiError } from "~/server/utils/error";
+import { handleApiError } from "~/server/utils/error";
 
 
 interface WakApiHeartbeat {
@@ -191,7 +191,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const validationResult = wakaApiRequestSchema.safeParse(body);
     if (!validationResult.success) {
-      throw createStandardError(400, `Invalid request data: ${validationResult.error.message}`);
+      throw handleApiError(400, `Invalid WakaTime API request data for user ${userId}: ${validationResult.error.message}`);
     }
 
     const { apiKey, instanceType, instanceUrl } = validationResult.data;
@@ -201,12 +201,12 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (instanceType === "wakatime") {
-      throw createStandardError(400, "For WakaTime import, please export your data from WakaTime dashboard and upload the file");
+      throw handleApiError(400, `WakaTime import attempt via API for user ${userId}, but file upload is required.`);
     }
 
     if (instanceType === "wakapi" && !instanceUrl) {
       console.error("No instance URL provided for WakAPI");
-      throw createStandardError(400, "Instance URL is required for WakAPI");
+      throw handleApiError(400, `WakAPI instance URL missing for user ${userId}.`);
     }
 
     const headers = {
@@ -244,7 +244,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
       if (!allTimeResponse?.data?.range) {
         console.error("Invalid response from all_time_since_today endpoint");
-        throw createStandardError(500, "Failed to fetch activity date range");
+        throw handleApiError(500, `Failed to fetch activity date range from WakAPI for user ${userId}. Response: ${JSON.stringify(allTimeResponse)}`);
       }
 
       const startDate = new Date(allTimeResponse.data.range.start_date);
@@ -283,7 +283,7 @@ export default defineEventHandler(async (event: H3Event) => {
   );
 
   if (!fileData || !fileData.data) {
-    throw createStandardError(400, "No file uploaded or file content is missing");
+    throw handleApiError(400, `No file uploaded or file content is missing for WakaTime import by user ${userId}.`);
   }
 
   try {
@@ -292,7 +292,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const validationResult = wakaTimeExportSchema.safeParse(parsedData);
     if (!validationResult.success) {
-      throw createStandardError(400, `Invalid WakaTime export format: ${validationResult.error.message}`);
+      throw handleApiError(400, `Invalid WakaTime export format for user ${userId}: ${validationResult.error.message}`);
     }
 
     const wakaData = validationResult.data;

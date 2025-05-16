@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
-import { createStandardError, handleApiError } from "~/server/utils/error";
+import { handleApiError } from "~/server/utils/error";
 
 const prisma = new PrismaClient();
 
@@ -22,7 +22,7 @@ export default defineEventHandler(async (event: H3Event) => {
       console.error(
         `User error: User not found for ID ${event.context.user.id}`,
       );
-      throw createStandardError(404, `User not found for ID ${event.context.user.id}`);
+      throw handleApiError(404, `User not found for ID ${event.context.user.id}`);
     }
 
     return user;

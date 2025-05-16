@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
-import { createStandardError, handleApiError } from "~/server/utils/error";
+import { handleApiError } from "~/server/utils/error";
 
 const prisma = new PrismaClient();
 
@@ -11,14 +11,14 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     const authHeader = getHeader(event, "authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw createStandardError(401, "Missing or invalid API key");
+      throw handleApiError(401, "External User API: Missing or invalid API key format in header.");
     }
 
     const apiKey = authHeader.substring(7);
     const validationResult = apiKeySchema.safeParse(apiKey);
 
     if (!validationResult.success) {
-      throw createStandardError(401, "Invalid API key format");
+      throw handleApiError(401, `External User API: Invalid API key format. Key prefix: ${apiKey.substring(0,4)}...`);
     }
 
     const user = await prisma.user.findUnique({
@@ -34,11 +34,12 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (!user) {
-      throw createStandardError(404, "User not found");
+      throw handleApiError(404, `External User API: User not found for API key prefix: ${apiKey.substring(0,4)}...`);
     }
 
     return user;
   } catch (error: any) {
-    return handleApiError(error, "Failed to fetch user data");
+    const apiKeyPrefix = getHeader(event, "authorization")?.substring(7,11);
+    return handleApiError(error, `External User API: Failed to fetch user data. API Key prefix: ${apiKeyPrefix}...`);
   }
 });

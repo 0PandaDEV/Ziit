@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
-import { createStandardError, handleApiError } from "~/server/utils/error";
+import { handleApiError } from "~/server/utils/error";
 
 const prisma = new PrismaClient();
 
@@ -23,14 +23,14 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     const authHeader = getHeader(event, "authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw createStandardError(401, "Missing or invalid API key");
+      throw handleApiError(401, "Batch API error: Missing or invalid API key format in header.");
     }
 
     const apiKey = authHeader.substring(7);
     const validationResult = apiKeySchema.safeParse(apiKey);
 
     if (!validationResult.success) {
-      throw createStandardError(401, "Invalid API key format");
+      throw handleApiError(401, `Batch API error: Invalid API key format. Key: ${apiKey.substring(0, 4)}...`);
     }
 
     const user = await prisma.user.findUnique({
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (!user || user.apiKey !== apiKey) {
-      throw createStandardError(401, "Invalid API key");
+      throw handleApiError(401, `Batch API error: Invalid API key. Key: ${apiKey.substring(0, 4)}...`);
     }
 
     const body = await readBody(event);
@@ -73,11 +73,11 @@ export default defineEventHandler(async (event: H3Event) => {
     };
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      throw createStandardError(400, error.errors[0].message);
+      throw handleApiError(400, `Batch API error: Validation error. Details: ${error.errors[0].message}`);
     }
     if (error.statusCode) {
       throw error;
     }
-    return handleApiError(error, "Failed to process heartbeats");
+    return handleApiError(error, `Batch API error: Failed to process heartbeats. API Key prefix: ${getHeader(event, "authorization")?.substring(7,11)}...`); 
   }
 });

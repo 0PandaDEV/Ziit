@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { encrypt } from "paseto-ts/v4";
 import { prisma } from "~~/prisma/prisma";
 import { z } from "zod";
-import { createStandardError, handleApiError } from "~/server/utils/error";
+import { handleApiError } from "~/server/utils/error";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email format"),
@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
 
   if (!validation.success) {
     console.error("Login error: invalid input", validation.error.errors);
-    throw createStandardError(400, validation.error.errors[0].message || "Email and password are required");
+    throw handleApiError(400, `Login validation failed for email ${body.email}. Errors: ${JSON.stringify(validation.error.errors)}`, validation.error.errors[0].message || "Email and password are required");
   }
 
   try {
@@ -29,14 +29,14 @@ export default defineEventHandler(async (event) => {
 
     if (!user || !user.passwordHash) {
       console.error("Login error: invalid credentials");
-      throw createStandardError(401, "Invalid email or password");
+      throw handleApiError(401, `Invalid login attempt for email: ${email}. User not found or no password hash.` , "Invalid email or password");
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
       console.error("Login error: invalid credentials");
-      throw createStandardError(401, "Invalid email or password");
+      throw handleApiError(401, `Invalid login attempt for email: ${email}. Password mismatch.` , "Invalid email or password");
     }
 
     const token = encrypt(
