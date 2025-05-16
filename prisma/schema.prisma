@@ -70,3 +70,17 @@ model Summaries {
   @@unique([userId, date])
   @@index([userId, date(sort: Desc)])
 }
+
+model Stats {
+  id              String   @id @default(cuid())
+  date            DateTime @db.Date
+  totalHours      Int
+  totalUsers      BigInt
+  totalHeartbeats Int
+  topEditor       String
+  topLanguage     String
+  topOS           String
+  createdAt       DateTime @default(now())
+
+  @@unique([date])
+}
