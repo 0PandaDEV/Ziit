@@ -34,16 +34,21 @@ export default defineEventHandler(async (event) => {
     typeof body.password !== "string"
   ) {
     console.error("Registration error: missing credentials");
-    throw handleApiError(400, "Registration attempt with missing email or password.");
+    throw handleApiError(
+      400,
+      "Registration attempt with missing email or password.",
+      "Email and password are required."
+    );
   }
 
   try {
     const passwordValidation = passwordSchema.safeParse(body.password);
     if (!passwordValidation.success) {
+      const errorDetail = `Password validation failed for email ${body.email}: ${passwordValidation.error.errors[0].message}`;
       throw handleApiError(
         400,
-        `Password validation failed for email ${body.email}: ${passwordValidation.error.errors[0].message}`,
-        passwordValidation.error.errors[0].message 
+        errorDetail,
+        passwordValidation.error.errors[0].message
       );
     }
 
@@ -53,7 +58,10 @@ export default defineEventHandler(async (event) => {
 
     if (existingUser) {
       console.error("Registration error: email already in use");
-      throw handleApiError(409, `Registration attempt with existing email: ${body.email}.`);
+      throw handleApiError(
+        409,
+        `Registration attempt with existing email: ${body.email}.`
+      );
     }
 
     const saltRounds = 10;
@@ -82,6 +90,14 @@ export default defineEventHandler(async (event) => {
 
     return sendRedirect(event, "/");
   } catch (error) {
-    return handleApiError(error, "Registration failed");
+    const detailedMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown error occurred during registration.";
+    return handleApiError(
+      500,
+      `Registration failed: ${detailedMessage}`,
+      "An unexpected error occurred during registration. Please try again."
+    );
   }
 });

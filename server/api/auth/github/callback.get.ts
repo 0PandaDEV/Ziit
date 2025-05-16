@@ -221,6 +221,7 @@ export default defineEventHandler(async (event) => {
 
     return sendRedirect(event, result);
   } catch (error) {
-    return handleApiError(error, "GitHub authentication failed");
+    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred during GitHub authentication.";
+    return handleApiError(500, `GitHub authentication failed: ${detailedMessage}`, "GitHub authentication failed. Please try again.");
   }
 });

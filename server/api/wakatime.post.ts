@@ -191,7 +191,8 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const validationResult = wakaApiRequestSchema.safeParse(body);
     if (!validationResult.success) {
-      throw handleApiError(400, `Invalid WakaTime API request data for user ${userId}: ${validationResult.error.message}`);
+      const errorDetail = `Invalid WakaTime API request data for user ${userId}: ${validationResult.error.errors[0].message}`;
+      throw handleApiError(400, errorDetail, validationResult.error.errors[0].message || "Invalid API request data.");
     }
 
     const { apiKey, instanceType, instanceUrl } = validationResult.data;
@@ -201,12 +202,14 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (instanceType === "wakatime") {
-      throw handleApiError(400, `WakaTime import attempt via API for user ${userId}, but file upload is required.`);
+      const errorDetail = `WakaTime import attempt via API for user ${userId}, but file upload is required.`;
+      throw handleApiError(400, errorDetail, "File upload is required for WakaTime import.");
     }
 
     if (instanceType === "wakapi" && !instanceUrl) {
       console.error("No instance URL provided for WakAPI");
-      throw handleApiError(400, `WakAPI instance URL missing for user ${userId}.`);
+      const errorDetail = `WakAPI instance URL missing for user ${userId}.`;
+      throw handleApiError(400, errorDetail, "WakAPI instance URL is missing.");
     }
 
     const headers = {
@@ -244,7 +247,8 @@ export default defineEventHandler(async (event: H3Event) => {
 
       if (!allTimeResponse?.data?.range) {
         console.error("Invalid response from all_time_since_today endpoint");
-        throw handleApiError(500, `Failed to fetch activity date range from WakAPI for user ${userId}. Response: ${JSON.stringify(allTimeResponse)}`);
+        const errorDetail = `Failed to fetch activity date range from WakAPI for user ${userId}. Response: ${JSON.stringify(allTimeResponse)}`;
+        throw handleApiError(500, errorDetail, "Failed to fetch activity date range from WakAPI.");
       }
 
       const startDate = new Date(allTimeResponse.data.range.start_date);
@@ -273,7 +277,11 @@ export default defineEventHandler(async (event: H3Event) => {
       );
       return { success: true, imported: heartbeatsByDate.size };
     } catch (error) {
-      return handleApiError(error, "Failed to import activity data");
+      if (error && typeof error === 'object' && '__h3_error__' in error) {
+        throw error;
+      }
+      const detailedMessage = error instanceof Error ? error.message : "Unknown error during WakAPI import.";
+      return handleApiError(500, `Failed to import activity data via WakAPI for user ${userId}: ${detailedMessage}`, "Failed to import activity data. Please try again.");
     }
   }
 
@@ -283,7 +291,8 @@ export default defineEventHandler(async (event: H3Event) => {
   );
 
   if (!fileData || !fileData.data) {
-    throw handleApiError(400, `No file uploaded or file content is missing for WakaTime import by user ${userId}.`);
+    const errorDetail = `No file uploaded or file content is missing for WakaTime import by user ${userId}.`;
+    throw handleApiError(400, errorDetail, "No file uploaded or file content is missing.");
   }
 
   try {
@@ -292,7 +301,8 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const validationResult = wakaTimeExportSchema.safeParse(parsedData);
     if (!validationResult.success) {
-      throw handleApiError(400, `Invalid WakaTime export format for user ${userId}: ${validationResult.error.message}`);
+      const errorDetail = `Invalid WakaTime export format for user ${userId}: ${validationResult.error.errors[0].message}`;
+      throw handleApiError(400, errorDetail, validationResult.error.errors[0].message || "Invalid file format.");
     }
 
     const wakaData = validationResult.data;
@@ -336,7 +346,11 @@ export default defineEventHandler(async (event: H3Event) => {
     console.log("Database update complete");
     return { success: true, imported: totalHeartbeats };
   } catch (error) {
-    return handleApiError(error, "Failed to process uploaded file");
+    if (error && typeof error === 'object' && '__h3_error__' in error) {
+      throw error;
+    }
+    const detailedMessage = error instanceof Error ? error.message : "Unknown error during WakaTime file import.";
+    return handleApiError(500, `Failed to process uploaded WakaTime file for user ${userId}: ${detailedMessage}`, "Failed to process uploaded file. Please try again.");
   }
 });
 
