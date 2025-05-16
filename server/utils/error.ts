@@ -14,6 +14,7 @@ const standardMessages: Record<ErrorStatusCode, string> = {
 
 export function createStandardError(
   statusCode: ErrorStatusCode,
+  userMessage?: string,
   detailedMessage?: string
 ) {
   if (detailedMessage) {
@@ -22,7 +23,7 @@ export function createStandardError(
 
   return createError({
     statusCode,
-    message: standardMessages[statusCode],
+    message: (!userMessage ? standardMessages[statusCode] : userMessage),
   });
 }
 
@@ -30,14 +31,14 @@ export function handleApiError(
   error: unknown,
   defaultMsg = "Unknown error"
 ): never {
-  const detailedMessage = error instanceof Error ? error.message : defaultMsg;
+  const message = error instanceof Error ? error.message : defaultMsg;
 
-  console.error("API Error:", detailedMessage);
+  console.error("API Error:", message);
 
   const statusCode =
     error instanceof Error && "statusCode" in error
       ? ((error as any).statusCode as ErrorStatusCode)
       : 500;
 
-  throw createStandardError(statusCode, detailedMessage);
+  throw createStandardError(statusCode, message);
 }
