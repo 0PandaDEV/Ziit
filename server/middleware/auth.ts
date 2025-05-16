@@ -10,6 +10,7 @@ export default defineEventHandler(async (event) => {
   if (
     path.startsWith("/api/external/") ||
     path.startsWith("/api/auth/") ||
+    path.startsWith("/api/public") ||
     path === "/login" ||
     path === "/register"
   ) {
@@ -30,9 +31,9 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const config = useRuntimeConfig();    
+    const config = useRuntimeConfig();
     const { payload } = decrypt(config.pasetoKey, sessionCookie);
-    
+
     if (!payload || typeof payload !== "object" || !("userId" in payload)) {
       throw new Error("Invalid token");
     }
