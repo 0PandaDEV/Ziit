@@ -1,4 +1,4 @@
-import { createError } from "h3";
+import { createError, H3Error } from "h3";
 
 type ErrorStatusCode = 400 | 401 | 403 | 404 | 409 | 429 | 500;
 
@@ -12,33 +12,53 @@ const standardMessages: Record<ErrorStatusCode, string> = {
   500: "Internal Server Error",
 };
 
-export function createStandardError(
-  statusCode: ErrorStatusCode,
-  userMessage?: string,
-  detailedMessage?: string
-) {
-  if (detailedMessage) {
-    console.error(`Error ${statusCode}: ${detailedMessage}`);
+export function handleApiError(
+  errorOrStatusCode: unknown | ErrorStatusCode,
+  detailedMessage?: string,
+  frontendMessage?: string
+): H3Error {
+  let statusCode: ErrorStatusCode;
+  let logMessage: string;
+  let clientResponseMessage: string;
+
+  if (
+    errorOrStatusCode instanceof H3Error ||
+    errorOrStatusCode instanceof Error ||
+    typeof errorOrStatusCode === "number"
+  ) {
+    statusCode =
+      typeof errorOrStatusCode === "number"
+        ? (errorOrStatusCode as ErrorStatusCode)
+        : ((errorOrStatusCode as any).statusCode as ErrorStatusCode) || 500;
+
+    logMessage =
+      detailedMessage ||
+      (errorOrStatusCode instanceof H3Error
+        ? errorOrStatusCode.statusMessage
+        : null) ||
+      (errorOrStatusCode instanceof Error ? errorOrStatusCode.message : null) ||
+      standardMessages[statusCode] ||
+      "Unknown error";
+
+    clientResponseMessage =
+      frontendMessage ||
+      (errorOrStatusCode instanceof Error ? errorOrStatusCode.message : null) ||
+      standardMessages[statusCode] ||
+      standardMessages[500];
+
+    console.error(
+      `Error ${statusCode}: ${logMessage}${errorOrStatusCode instanceof H3Error ? " (H3Error)" : errorOrStatusCode instanceof Error ? " (Generic Error)" : ""}`
+    );
+  } else {
+    statusCode = 500;
+    logMessage = detailedMessage || "An unknown error occurred";
+    clientResponseMessage = frontendMessage || standardMessages[statusCode];
+    console.error(`Error ${statusCode}: ${logMessage} (Unknown Error Type)`);
   }
 
   return createError({
     statusCode,
-    message: (!userMessage ? standardMessages[statusCode] : userMessage),
+    message: clientResponseMessage,
+    statusMessage: logMessage,
   });
-}
-
-export function handleApiError(
-  error: unknown,
-  defaultMsg = "Unknown error"
-): never {
-  const message = error instanceof Error ? error.message : defaultMsg;
-
-  console.error("API Error:", message);
-
-  const statusCode =
-    error instanceof Error && "statusCode" in error
-      ? ((error as any).statusCode as ErrorStatusCode)
-      : 500;
-
-  throw createStandardError(statusCode, message);
 }

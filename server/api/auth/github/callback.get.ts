@@ -1,6 +1,6 @@
 import { prisma } from "~~/prisma/prisma";
 import { decrypt, encrypt } from "paseto-ts/v4";
-import { createStandardError, handleApiError } from "~/server/utils/error";
+import { handleApiError } from "~/server/utils/error";
 
 interface GithubTokenResponse {
   access_token: string;
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
   const state = query.state as string;
 
   if (!code) {
-    throw createStandardError(400, "No authorization code provided");
+    throw handleApiError(400, "GitHub callback error: No authorization code provided.");
   }
 
   const storedState = getCookie(event, "github_oauth_state");
@@ -89,7 +89,7 @@ export default defineEventHandler(async (event) => {
 
     if (!primaryEmail) {
       console.error("GitHub Callback error: No primary email found");
-      return sendRedirect(event, "/login?error=no_email");
+      throw handleApiError(500, `GitHub callback error: No primary email found for GitHub user ID ${githubUser.id}. Emails received: ${JSON.stringify(emails)}`, "Could not retrieve email from GitHub");
     }
 
     if (isLinking && linkSession) {
