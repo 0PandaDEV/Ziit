@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
     path.startsWith("/api/external/") ||
     path.startsWith("/api/auth/") ||
     path.startsWith("/api/public") ||
+    path === "/stats" ||
     path === "/login" ||
     path === "/register"
   ) {
