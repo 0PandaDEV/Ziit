@@ -13,52 +13,19 @@ const standardMessages: Record<ErrorStatusCode, string> = {
 };
 
 export function handleApiError(
-  errorOrStatusCode: unknown | ErrorStatusCode,
-  detailedMessage?: string,
+  statusCode: ErrorStatusCode,
+  detailedMessage: string,
   frontendMessage?: string
 ): H3Error {
-  let statusCode: ErrorStatusCode;
-  let logMessage: string;
-  let clientResponseMessage: string;
+  const clientResponseMessage = frontendMessage || standardMessages[statusCode] || standardMessages[500];
 
-  if (
-    errorOrStatusCode instanceof H3Error ||
-    errorOrStatusCode instanceof Error ||
-    typeof errorOrStatusCode === "number"
-  ) {
-    statusCode =
-      typeof errorOrStatusCode === "number"
-        ? (errorOrStatusCode as ErrorStatusCode)
-        : ((errorOrStatusCode as any).statusCode as ErrorStatusCode) || 500;
-
-    logMessage =
-      detailedMessage ||
-      (errorOrStatusCode instanceof H3Error
-        ? errorOrStatusCode.statusMessage
-        : null) ||
-      (errorOrStatusCode instanceof Error ? errorOrStatusCode.message : null) ||
-      standardMessages[statusCode] ||
-      "Unknown error";
-
-    clientResponseMessage =
-      frontendMessage ||
-      (errorOrStatusCode instanceof Error ? errorOrStatusCode.message : null) ||
-      standardMessages[statusCode] ||
-      standardMessages[500];
-
-    console.error(
-      `Error ${statusCode}: ${logMessage}${errorOrStatusCode instanceof H3Error ? " (H3Error)" : errorOrStatusCode instanceof Error ? " (Generic Error)" : ""}`
-    );
-  } else {
-    statusCode = 500;
-    logMessage = detailedMessage || "An unknown error occurred";
-    clientResponseMessage = frontendMessage || standardMessages[statusCode];
-    console.error(`Error ${statusCode}: ${logMessage} (Unknown Error Type)`);
-  }
+  console.error(
+    `Error ${statusCode}: ${detailedMessage}`
+  );
 
   return createError({
     statusCode,
     message: clientResponseMessage,
-    statusMessage: logMessage,
+    statusMessage: clientResponseMessage,
   });
 }
