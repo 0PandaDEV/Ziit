@@ -38,12 +38,13 @@ export default defineEventHandler(async () => {
       lastUpdated: latestStats?.createdAt || new Date(),
       source: latestStats ? "mixed" : "live",
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error && typeof error === "object" && error.statusCode) throw error;
     const detailedMessage =
       error instanceof Error
         ? error.message
         : "An unknown error occurred fetching stats";
-    return handleApiError(
+    throw handleApiError(
       500,
       `Failed to fetch public stats: ${detailedMessage}`,
       "Failed to fetch stats"

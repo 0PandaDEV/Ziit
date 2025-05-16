@@ -276,12 +276,12 @@ export default defineEventHandler(async (event: H3Event) => {
         `Successfully imported data from ${heartbeatsByDate.size} days with activity`
       );
       return { success: true, imported: heartbeatsByDate.size };
-    } catch (error) {
+    } catch (error: any) {
       if (error && typeof error === 'object' && '__h3_error__' in error) {
         throw error;
       }
       const detailedMessage = error instanceof Error ? error.message : "Unknown error during WakAPI import.";
-      return handleApiError(500, `Failed to import activity data via WakAPI for user ${userId}: ${detailedMessage}`, "Failed to import activity data. Please try again.");
+      throw handleApiError(500, `Failed to import activity data via WakAPI for user ${userId}: ${detailedMessage}`, "Failed to import activity data. Please try again.");
     }
   }
 
@@ -345,12 +345,12 @@ export default defineEventHandler(async (event: H3Event) => {
 
     console.log("Database update complete");
     return { success: true, imported: totalHeartbeats };
-  } catch (error) {
+  } catch (error: any) {
     if (error && typeof error === 'object' && '__h3_error__' in error) {
       throw error;
     }
     const detailedMessage = error instanceof Error ? error.message : "Unknown error during WakaTime file import.";
-    return handleApiError(500, `Failed to process uploaded WakaTime file for user ${userId}: ${detailedMessage}`, "Failed to process uploaded file. Please try again.");
+    throw handleApiError(500, `Failed to process uploaded WakaTime file for user ${userId}: ${detailedMessage}`, "Failed to process uploaded file. Please try again.");
   }
 });
 

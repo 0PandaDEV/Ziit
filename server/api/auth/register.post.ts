@@ -89,12 +89,15 @@ export default defineEventHandler(async (event) => {
     });
 
     return sendRedirect(event, "/");
-  } catch (error) {
+  } catch (error: any) {
+    if (error && typeof error === "object" && error.statusCode) {
+      throw error;
+    }
     const detailedMessage =
       error instanceof Error
         ? error.message
         : "An unknown error occurred during registration.";
-    return handleApiError(
+    throw handleApiError(
       500,
       `Registration failed: ${detailedMessage}`,
       "An unexpected error occurred during registration. Please try again."

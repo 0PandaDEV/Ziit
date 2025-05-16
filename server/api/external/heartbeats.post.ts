@@ -68,6 +68,7 @@ export default defineEventHandler(async (event: H3Event) => {
       id: heartbeat.id,
     };
   } catch (error: any) {
+    if (error && typeof error === "object" && error.statusCode) throw error;
     if (error instanceof z.ZodError) {
       console.error(
         "Heartbeats error: Validation error",
@@ -75,11 +76,8 @@ export default defineEventHandler(async (event: H3Event) => {
       );
       throw handleApiError(400, `Heartbeat API error: Validation error. Details: ${error.errors[0].message}`);
     }
-    if (error.statusCode && typeof error.message === 'string' && typeof error.statusMessage === 'string') {
-      throw error;
-    }
     const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred processing heartbeat.";
     const apiKeyPrefix = getHeader(event, "authorization")?.substring(7,11) || "UNKNOWN";
-    return handleApiError(500, `Heartbeat API error: Failed to process heartbeat. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`, "Failed to process your request.");
+    throw handleApiError(500, `Heartbeat API error: Failed to process heartbeat. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`, "Failed to process your request.");
   }
 });

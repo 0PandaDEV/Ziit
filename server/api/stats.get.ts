@@ -23,12 +23,11 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     return await calculateStats(userId, timeRange, midnightOffsetSeconds);
-  } catch (error: unknown) {
-    console.error("Stats error occurred:", error);
+  } catch (error: any) {
+    if (error && typeof error === "object" && error.statusCode) throw error;
     const detailedMessageBase = error instanceof Error ? error.message : "Unknown error in stats endpoint";
     const detailedMessage = `Stats endpoint failed for user ${userId}. Original error: ${detailedMessageBase}`;
-    
-    return handleApiError(
+    throw handleApiError(
       500,
       detailedMessage,
       "Failed to retrieve statistics."

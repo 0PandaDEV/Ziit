@@ -59,9 +59,12 @@ export default defineEventHandler(async (event) => {
     });
 
     await sendRedirect(event, "/");
-  } catch (error) {
+  } catch (error: any) {
+    if (error && typeof error === "object" && error.statusCode) {
+      throw error;
+    }
     const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred during login.";
     console.error(`[LOGIN_ERROR] Full error: ${detailedMessage}`, error);
-    return handleApiError(500, `Authentication failed: ${detailedMessage}`, "Authentication failed. Please try again.");
+    throw handleApiError(500, `Authentication failed: ${detailedMessage}`, "Authentication failed. Please try again.");
   }
 });

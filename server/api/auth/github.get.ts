@@ -27,8 +27,9 @@ export default defineEventHandler(async (event) => {
     githubAuthUrl.searchParams.append("scope", "read:user user:email");
 
     return sendRedirect(event, githubAuthUrl.toString());
-  } catch (error) {
+  } catch (error: any) {
+    if (error && typeof error === "object" && error.statusCode) throw error;
     const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred during GitHub auth initialization.";
-    return handleApiError(500, `Failed to initialize GitHub authentication: ${detailedMessage}`, "Could not initiate GitHub authentication. Please try again.");
+    throw handleApiError(500, `Failed to initialize GitHub authentication: ${detailedMessage}`, "Could not initiate GitHub authentication. Please try again.");
   }
 });

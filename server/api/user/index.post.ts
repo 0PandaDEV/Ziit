@@ -82,6 +82,10 @@ export default defineEventHandler(async (event: H3Event) => {
       throw error;
     }
     const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred while updating user settings.";
-    return handleApiError(500, `Failed to update user settings for user ${event.context.user.id}: ${detailedMessage}`, "Failed to update user settings. Please try again.");
+    throw handleApiError(
+      500,
+      `Failed to update user settings for user ${event.context.user.id}: ${detailedMessage}`,
+      "Failed to update user settings. Please try again."
+    );
   }
 });

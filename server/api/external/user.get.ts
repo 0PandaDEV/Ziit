@@ -39,11 +39,9 @@ export default defineEventHandler(async (event: H3Event) => {
 
     return user;
   } catch (error: any) {
-    if (error.statusCode && typeof error.message === 'string' && typeof error.statusMessage === 'string') {
-      throw error;
-    }
+    if (error && typeof error === "object" && error.statusCode) throw error;
     const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred fetching external user data.";
     const apiKeyPrefix = getHeader(event, "authorization")?.substring(7,11) || "UNKNOWN";
-    return handleApiError(500, `External User API: Failed to fetch user data. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`, "Failed to fetch user data.");
+    throw handleApiError(500, `External User API: Failed to fetch user data. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`, "Failed to fetch user data.");
   }
 });
