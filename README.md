@@ -55,6 +55,7 @@ First [setup an instance](https://docs.ziit.app/deploy) or sign up on the public
 Supported IDE's:
 
 - [VS Code (Including all forks)](https://docs.ziit.app/extensions/vscode)
+- [JetBrains (Waiting for approval)](https://plugins.jetbrains.com/plugin/27391-ziit)
 
 For more details on how to setup the IDE extensions checkout the [docs](https://docs.ziit.app/extensions).
 
@@ -80,7 +81,10 @@ For more details on how to setup the IDE extensions checkout the [docs](https://
    bunx prisma migrate dev
    ```
 
-3. **Run the development server:**
+3. **Set the environment variables:**
+   It is imporatnt that you make a `.env` using the [.env.example](https://github.com/0PandaDEV/Ziit/blob/main/.env.example) as a template and set the correct values. All the instructions needed are in the example file.
+
+4. **Run the development server:**
    The server will start on `http://localhost:3000`.
 
    ```bash
