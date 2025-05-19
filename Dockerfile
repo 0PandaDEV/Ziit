@@ -1,4 +1,4 @@
-FROM oven/bun:latest
+FROM --platform=$BUILDPLATFORM oven/bun:latest
 
 WORKDIR /ziit
 
