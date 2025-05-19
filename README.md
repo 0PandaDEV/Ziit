@@ -19,7 +19,7 @@
 <br>
 
 > [!IMPORTANT]
-> Ziit has just reached the first stable version [v1.0.0](https://github.com/0PandaDEV/Ziit/releases/tag/v1.0.0) if you find a bug or have an idea please [create an issue](https://github.com/0PandaDEV/Ziit/issues/new).
+> Vote for Ziit on [AlternativeTo](https://alternativeto.net/software/ziit/about/), [ProductHunt](https://www.producthunt.com/posts/ziit) to help me promote it.
 
 <details>
   <summary><kbd>Star History</kbd></summary>
@@ -32,7 +32,7 @@
 
 ## What is Ziit?
 
-Ziit (pronounced "tseet") is an open source, self-hostable alternative to WakaTime that provides a clean, minimal and fast dashboard for viewing coding statistics while ensuring privacy by keeping your data on your own server. It tracks coding activity through an IDE extension, collecting data about projects, languages, editors, files, branches, os, and time spent coding, with an intuitive dashboard similar to Plausible Analytics.
+Ziit (pronounced "tseet") is an open source, self-hostable alternative to WakaTime that provides a clean, minimal and fast dashboard for viewing coding statistics while ensuring privacy by keeping your data on your own server. It tracks coding activity through an IDE extension, collecting data about projects, languages, editors, files, branches, OS, and time spent coding, with an intuitive dashboard similar to Plausible Analytics.
 
 ## Preview
 
