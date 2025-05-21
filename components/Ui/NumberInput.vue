@@ -89,19 +89,19 @@ const updateValue = (value) => {
 };
 
 const startIncrement = () => {
-  updateValue(Number(model.value) + 1);
+  updateValue(Number(props.modelValue) + 1);
   repeatInterval.value = setTimeout(() => {
     repeatInterval.value = setInterval(() => {
-      updateValue(Number(model.value) + 1);
+      updateValue(Number(props.modelValue) + 1);
     }, repeatDelay);
   }, repeatTimeout);
 };
 
 const startDecrement = () => {
-  updateValue(Number(model.value) - 1);
+  updateValue(Number(props.modelValue) - 1);
   repeatInterval.value = setTimeout(() => {
     repeatInterval.value = setInterval(() => {
-      updateValue(Number(model.value) - 1);
+      updateValue(Number(props.modelValue) - 1);
     }, repeatDelay);
   }, repeatTimeout);
 };
