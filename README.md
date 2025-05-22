@@ -13,6 +13,8 @@
     <span> • </span>
     <a href="https://ziit.app">Public Instance</a>
     <span> • </span>
+    <a href="https://ziit.app/stats">Public Stats</a>
+    <span> • </span>
     <a href="https://discord.gg/Y7SbYphVw9">Discord</a>
 </div>
 
