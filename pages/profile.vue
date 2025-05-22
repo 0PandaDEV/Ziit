@@ -299,7 +299,7 @@ onMounted(async () => {
         await linkGithub();
       }
     },
-    { prevent: true }
+    { prevent: true, ignoreIfEditable: true }
   );
 
   keyboard.listen(
@@ -308,7 +308,7 @@ onMounted(async () => {
       showEmailModal.value = true;
       newEmail.value = user.value?.email || "";
     },
-    { prevent: true }
+    { prevent: true, ignoreIfEditable: true }
   );
 
   keyboard.listen(
@@ -318,7 +318,7 @@ onMounted(async () => {
       newPassword.value = "";
       confirmPassword.value = "";
     },
-    { prevent: true }
+    { prevent: true, ignoreIfEditable: true }
   );
 
   keyboard.listen(
@@ -326,7 +326,7 @@ onMounted(async () => {
     async () => {
       await logout();
     },
-    { prevent: true }
+    { prevent: true, ignoreIfEditable: true }
   );
 
   keyboard.listen(
@@ -334,7 +334,7 @@ onMounted(async () => {
     async () => {
       toggleApiKey();
     },
-    { prevent: true }
+    { prevent: true, ignoreIfEditable: true }
   );
 
   keyboard.listen(
@@ -342,7 +342,7 @@ onMounted(async () => {
     async () => {
       await copyApiKey();
     },
-    { prevent: true }
+    { prevent: true, ignoreIfEditable: true }
   );
 
   keyboard.listen(
@@ -350,7 +350,7 @@ onMounted(async () => {
     async () => {
       await regenerateApiKey();
     },
-    { prevent: true }
+    { prevent: true, ignoreIfEditable: true }
   );
 
   keyboard.listen(
@@ -358,7 +358,7 @@ onMounted(async () => {
     async () => {
       await importTrackingData();
     },
-    { prevent: true }
+    { prevent: true, ignoreIfEditable: true }
   );
 
   keyboard.listen(
@@ -374,7 +374,7 @@ onMounted(async () => {
 
       await regenerateSummaries();
     },
-    { prevent: true }
+    { prevent: true, ignoreIfEditable: true }
   );
 });
 
