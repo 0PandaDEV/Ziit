@@ -17,7 +17,7 @@ const heartbeatSchema = z.object({
   file: z.string().max(255),
 });
 
-const batchSchema = z.array(heartbeatSchema).min(1).max(100);
+const batchSchema = z.array(heartbeatSchema).min(1).max(1000);
 
 export default defineEventHandler(async (event: H3Event) => {
   try {
