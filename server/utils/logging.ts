@@ -17,10 +17,11 @@ export function handleApiError(
   detailedMessage: string,
   frontendMessage?: string
 ): H3Error {
-  const clientResponseMessage = frontendMessage || standardMessages[statusCode] || standardMessages[500];
+  const clientResponseMessage =
+    frontendMessage || standardMessages[statusCode] || standardMessages[500];
 
   console.error(
-    `Error ${statusCode}: ${detailedMessage}`
+    `${new Date().toISOString()} Error ${statusCode}: ${detailedMessage}`
   );
 
   return createError({
@@ -28,4 +29,8 @@ export function handleApiError(
     message: clientResponseMessage,
     statusMessage: clientResponseMessage,
   });
+}
+
+export function log(...message: any[]) {
+  console.log(new Date().toISOString(), ...message);
 }

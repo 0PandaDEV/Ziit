@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
 import bcrypt from "bcrypt";
-import { handleApiError } from "~/server/utils/error";
+import { handleApiError} from "~/server/utils/logging";
 
 const prisma = new PrismaClient();
 

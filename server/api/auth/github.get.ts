@@ -1,4 +1,4 @@
-import { handleApiError } from "~/server/utils/error";
+import { handleApiError} from "~/server/utils/logging";
 
 export default defineEventHandler(async (event) => {
   try {

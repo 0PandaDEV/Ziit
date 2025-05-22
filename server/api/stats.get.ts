@@ -1,7 +1,7 @@
 import { H3Event } from "h3";
 import { TimeRangeEnum } from "~/lib/stats";
 import type { TimeRange } from "~/lib/stats";
-import { handleApiError } from "~/server/utils/error";
+import { handleApiError} from "~/server/utils/logging";
 import { calculateStats } from "~/server/utils/stats";
 
 export default defineEventHandler(async (event: H3Event) => {

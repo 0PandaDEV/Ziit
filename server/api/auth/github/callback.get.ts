@@ -1,6 +1,6 @@
 import { prisma } from "~~/prisma/prisma";
 import { decrypt, encrypt } from "paseto-ts/v4";
-import { handleApiError } from "~/server/utils/error";
+import { handleApiError} from "~/server/utils/logging";
 
 interface GithubTokenResponse {
   access_token: string;

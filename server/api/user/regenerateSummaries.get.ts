@@ -1,6 +1,6 @@
 import { H3Event } from "h3";
 import { regenerateSummariesForUser } from "~/server/utils/summarize";
-import { handleApiError } from "~/server/utils/error";
+import { handleApiError} from "~/server/utils/logging";
 
 export default defineEventHandler(async (event: H3Event) => {
   try {

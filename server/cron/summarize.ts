@@ -1,6 +1,7 @@
 import { defineCronHandler } from "#nuxt/cron";
 import { PrismaClient } from "@prisma/client";
 import { processSummariesByDate } from "~/server/utils/summarize";
+import { log } from "../utils/logging";
 
 const prisma = new PrismaClient();
 
@@ -50,7 +51,7 @@ export default defineCronHandler(
 
       await generatePublicStats(now);
 
-      console.log(
+      log(
         `Summarization complete. Processed ${heartbeatsToSummarize.length} heartbeats.`
       );
     } catch (error) {
@@ -159,7 +160,7 @@ async function generatePublicStats(date: Date) {
       },
     });
 
-    console.log(
+    log(
       `Generated public stats for ${statsDate.toISOString().split("T")[0]}`
     );
   } catch (error) {

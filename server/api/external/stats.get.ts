@@ -4,7 +4,7 @@ import { TimeRangeEnum } from "~/lib/stats";
 import type { TimeRange } from "~/lib/stats";
 import { z } from "zod";
 import { calculateStats } from "~/server/utils/stats";
-import { handleApiError } from "~/server/utils/error";
+import { handleApiError} from "~/server/utils/logging";
 
 const prisma = new PrismaClient();
 

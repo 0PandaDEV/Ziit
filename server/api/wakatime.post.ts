@@ -1,9 +1,8 @@
-import path from 'path';
+import path from "path";
 import { H3Event } from "h3";
 import { z } from "zod";
 import { processHeartbeatsByDate } from "~/server/utils/summarize";
-import { handleApiError } from "~/server/utils/error";
-
+import { handleApiError, log } from "~/server/utils/logging";
 
 interface WakApiHeartbeat {
   id: string;
@@ -70,7 +69,7 @@ async function fetchRangeHeartbeats(
   endDate: Date,
   userId: string
 ) {
-  console.log(
+  log(
     `Fetching heartbeats from ${startDate.toISOString()} to ${endDate.toISOString()}`
   );
 
@@ -98,7 +97,7 @@ async function fetchRangeHeartbeats(
     allDateStrings.push(tomorrowStr);
   }
 
-  console.log(
+  log(
     `Generated ${allDateStrings.length} dates to check based on date range, including tomorrow to ensure all heartbeats are captured`
   );
 
@@ -112,7 +111,7 @@ async function fetchRangeHeartbeats(
     const dateStr = allDateStrings[i];
 
     if (i % progressUpdateInterval === 0 || i === allDateStrings.length - 1) {
-      console.log(
+      log(
         `Processing date ${i + 1}/${allDateStrings.length}: ${dateStr} (${Math.round(((i + 1) / allDateStrings.length) * 100)}% complete)`
       );
     }
@@ -130,13 +129,13 @@ async function fetchRangeHeartbeats(
 
       if (!heartbeatsResponse?.data || heartbeatsResponse.data.length === 0) {
         if (i % progressUpdateInterval === 0) {
-          console.log(`No heartbeats found for ${dateStr}`);
+          log(`No heartbeats found for ${dateStr}`);
         }
         continue;
       }
 
       if (i % progressUpdateInterval === 0) {
-        console.log(
+        log(
           `Found ${heartbeatsResponse.data.length} heartbeats for ${dateStr}`
         );
       }
@@ -156,7 +155,7 @@ async function fetchRangeHeartbeats(
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 
-  console.log(`Completed processing all ${allDateStrings.length} dates`);
+  log(`Completed processing all ${allDateStrings.length} dates`);
   return heartbeatsByDate;
 }
 
@@ -177,13 +176,13 @@ function processHeartbeat(heartbeat: WakApiHeartbeat | any, userId: string) {
     file: heartbeat.entity ? path.basename(heartbeat.entity) : null,
     branch: heartbeat.branch || null,
     createdAt: new Date(),
-    summariesId: null
+    summariesId: null,
   };
 }
 
 export default defineEventHandler(async (event: H3Event) => {
   const userId = event.context.user.id;
-  console.log("Processing for user ID:", userId);
+  log("Processing for user ID:", userId);
 
   const formData = await readMultipartFormData(event);
   if (!formData || formData.length === 0) {
@@ -192,18 +191,26 @@ export default defineEventHandler(async (event: H3Event) => {
     const validationResult = wakaApiRequestSchema.safeParse(body);
     if (!validationResult.success) {
       const errorDetail = `Invalid WakaTime API request data for user ${userId}: ${validationResult.error.errors[0].message}`;
-      throw handleApiError(400, errorDetail, validationResult.error.errors[0].message || "Invalid API request data.");
+      throw handleApiError(
+        400,
+        errorDetail,
+        validationResult.error.errors[0].message || "Invalid API request data."
+      );
     }
 
     const { apiKey, instanceType, instanceUrl } = validationResult.data;
-    console.log("Received request with:", {
+    log("Received request with:", {
       instanceType,
       instanceUrl: instanceUrl ? "provided" : "not provided",
     });
 
     if (instanceType === "wakatime") {
       const errorDetail = `WakaTime import attempt via API for user ${userId}, but file upload is required.`;
-      throw handleApiError(400, errorDetail, "File upload is required for WakaTime import.");
+      throw handleApiError(
+        400,
+        errorDetail,
+        "File upload is required for WakaTime import."
+      );
     }
 
     if (instanceType === "wakapi" && !instanceUrl) {
@@ -215,7 +222,7 @@ export default defineEventHandler(async (event: H3Event) => {
     const headers = {
       Authorization: `Basic ${Buffer.from(apiKey).toString("base64")}`,
     };
-    console.log("Using headers:", {
+    log("Using headers:", {
       ...headers,
       Authorization: "Basic [REDACTED]",
     });
@@ -226,11 +233,11 @@ export default defineEventHandler(async (event: H3Event) => {
       : instanceUrl!;
     baseUrl = `${baseUrl}/api/compat/wakatime/v1`;
 
-    console.log("Using WakAPI with baseUrl:", baseUrl);
+    log("Using WakAPI with baseUrl:", baseUrl);
 
     try {
       const allTimeUrl = `${baseUrl}/users/${userIdentifier}/all_time_since_today`;
-      console.log(`Requesting all-time summary from: ${allTimeUrl}`);
+      log(`Requesting all-time summary from: ${allTimeUrl}`);
 
       const allTimeResponse = await $fetch<{
         data: {
@@ -243,18 +250,22 @@ export default defineEventHandler(async (event: H3Event) => {
         headers,
       });
 
-      console.log("Received all-time summary response");
+      log("Received all-time summary response");
 
       if (!allTimeResponse?.data?.range) {
         console.error("Invalid response from all_time_since_today endpoint");
         const errorDetail = `Failed to fetch activity date range from WakAPI for user ${userId}. Response: ${JSON.stringify(allTimeResponse)}`;
-        throw handleApiError(500, errorDetail, "Failed to fetch activity date range from WakAPI.");
+        throw handleApiError(
+          500,
+          errorDetail,
+          "Failed to fetch activity date range from WakAPI."
+        );
       }
 
       const startDate = new Date(allTimeResponse.data.range.start_date);
       const endDate = new Date();
 
-      console.log(
+      log(
         `Found activity range: ${startDate.toISOString()} to ${endDate.toISOString()}`
       );
 
@@ -268,31 +279,42 @@ export default defineEventHandler(async (event: H3Event) => {
       );
 
       if (heartbeatsByDate.size === 0) {
-        console.log("No days with activity found");
+        log("No days with activity found");
         return { success: true, message: "No data to import" };
       }
 
-      console.log(
+      log(
         `Successfully imported data from ${heartbeatsByDate.size} days with activity`
       );
       return { success: true, imported: heartbeatsByDate.size };
     } catch (error: any) {
-      if (error && typeof error === 'object' && '__h3_error__' in error) {
+      if (error && typeof error === "object" && "__h3_error__" in error) {
         throw error;
       }
-      const detailedMessage = error instanceof Error ? error.message : "Unknown error during WakAPI import.";
-      throw handleApiError(500, `Failed to import activity data via WakAPI for user ${userId}: ${detailedMessage}`, "Failed to import activity data. Please try again.");
+      const detailedMessage =
+        error instanceof Error
+          ? error.message
+          : "Unknown error during WakAPI import.";
+      throw handleApiError(
+        500,
+        `Failed to import activity data via WakAPI for user ${userId}: ${detailedMessage}`,
+        "Failed to import activity data. Please try again."
+      );
     }
   }
 
-  console.log("Processing WakaTime exported file upload");
+  log("Processing WakaTime exported file upload");
   const fileData = formData.find(
     (item) => item.name === "file" && item.filename
   );
 
   if (!fileData || !fileData.data) {
     const errorDetail = `No file uploaded or file content is missing for WakaTime import by user ${userId}.`;
-    throw handleApiError(400, errorDetail, "No file uploaded or file content is missing.");
+    throw handleApiError(
+      400,
+      errorDetail,
+      "No file uploaded or file content is missing."
+    );
   }
 
   try {
@@ -302,12 +324,16 @@ export default defineEventHandler(async (event: H3Event) => {
     const validationResult = wakaTimeExportSchema.safeParse(parsedData);
     if (!validationResult.success) {
       const errorDetail = `Invalid WakaTime export format for user ${userId}: ${validationResult.error.errors[0].message}`;
-      throw handleApiError(400, errorDetail, validationResult.error.errors[0].message || "Invalid file format.");
+      throw handleApiError(
+        400,
+        errorDetail,
+        validationResult.error.errors[0].message || "Invalid file format."
+      );
     }
 
     const wakaData = validationResult.data;
 
-    console.log(
+    log(
       `Parsing WakaTime export with ${wakaData.days.length} days of data`
     );
 
@@ -316,7 +342,7 @@ export default defineEventHandler(async (event: H3Event) => {
     for (const day of wakaData.days) {
       if (!day.heartbeats || day.heartbeats.length === 0) continue;
 
-      console.log(
+      log(
         `Processing ${day.heartbeats.length} heartbeats for ${day.date}`
       );
       totalHeartbeats += day.heartbeats.length;
@@ -333,7 +359,7 @@ export default defineEventHandler(async (event: H3Event) => {
             file: h.entity ? path.basename(h.entity) : null,
             branch: h.branch || null,
             createdAt: new Date(),
-            summariesId: null
+            summariesId: null,
           };
         });
 
@@ -343,14 +369,21 @@ export default defineEventHandler(async (event: H3Event) => {
       }
     }
 
-    console.log("Database update complete");
+    log("Database update complete");
     return { success: true, imported: totalHeartbeats };
   } catch (error: any) {
-    if (error && typeof error === 'object' && '__h3_error__' in error) {
+    if (error && typeof error === "object" && "__h3_error__" in error) {
       throw error;
     }
-    const detailedMessage = error instanceof Error ? error.message : "Unknown error during WakaTime file import.";
-    throw handleApiError(500, `Failed to process uploaded WakaTime file for user ${userId}: ${detailedMessage}`, "Failed to process uploaded file. Please try again.");
+    const detailedMessage =
+      error instanceof Error
+        ? error.message
+        : "Unknown error during WakaTime file import.";
+    throw handleApiError(
+      500,
+      `Failed to process uploaded WakaTime file for user ${userId}: ${detailedMessage}`,
+      "Failed to process uploaded file. Please try again."
+    );
   }
 });
 
@@ -387,7 +420,6 @@ function extractEditor(userAgent: string) {
 
   if (userAgent.includes("Unknown/")) return "Unknown";
 
-  console.log("Failed to parse editor from:", userAgent);
   return null;
 }
 
