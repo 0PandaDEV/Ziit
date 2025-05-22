@@ -1,9 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
-import { handleApiError} from "~/server/utils/logging";
+import { handleApiError } from "~/server/utils/logging";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: ["warn", "error"],
+});
 
 const apiKeySchema = z.string().uuid();
 
@@ -17,20 +19,26 @@ const heartbeatSchema = z.object({
   file: z.string().max(255),
 });
 
-const batchSchema = z.array(heartbeatSchema).min(1).max(1000);
+const batchSchema = z.array(heartbeatSchema).min(1).max(2000);
 
 export default defineEventHandler(async (event: H3Event) => {
   try {
     const authHeader = getHeader(event, "authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw handleApiError(401, "Batch API error: Missing or invalid API key format in header.");
+      throw handleApiError(
+        401,
+        "Batch API error: Missing or invalid API key format in header."
+      );
     }
 
     const apiKey = authHeader.substring(7);
     const validationResult = apiKeySchema.safeParse(apiKey);
 
     if (!validationResult.success) {
-      throw handleApiError(401, `Batch API error: Invalid API key format. Key: ${apiKey.substring(0, 4)}...`);
+      throw handleApiError(
+        401,
+        `Batch API error: Invalid API key format. Key: ${apiKey.substring(0, 4)}...`
+      );
     }
 
     const user = await prisma.user.findUnique({
@@ -39,45 +47,60 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (!user || user.apiKey !== apiKey) {
-      throw handleApiError(401, `Batch API error: Invalid API key. Key: ${apiKey.substring(0, 4)}...`);
+      throw handleApiError(
+        401,
+        `Batch API error: Invalid API key. Key: ${apiKey.substring(0, 4)}...`
+      );
     }
 
     const body = await readBody(event);
     const heartbeats = batchSchema.parse(body);
 
-    const createdHeartbeats = await prisma.$transaction(
-      heartbeats.map((heartbeat) => {
-        const timestamp = typeof heartbeat.timestamp === 'number' 
-          ? BigInt(heartbeat.timestamp) 
+    const heartbeatsData = heartbeats.map((heartbeat) => {
+      const timestamp =
+        typeof heartbeat.timestamp === "number"
+          ? BigInt(heartbeat.timestamp)
           : BigInt(new Date(heartbeat.timestamp).getTime());
-          
-        return prisma.heartbeats.create({
-          data: {
-            userId: user.id,
-            timestamp,
-            project: heartbeat.project,
-            language: heartbeat.language,
-            editor: heartbeat.editor,
-            os: heartbeat.os,
-            branch: heartbeat.branch,
-            file: heartbeat.file,
-          },
-        });
-      }),
-    );
+
+      return {
+        userId: user.id,
+        timestamp,
+        project: heartbeat.project,
+        language: heartbeat.language,
+        editor: heartbeat.editor,
+        os: heartbeat.os,
+        branch: heartbeat.branch,
+        file: heartbeat.file,
+      };
+    });
+
+    const result = await prisma.heartbeats.createMany({
+      data: heartbeatsData,
+      skipDuplicates: true,
+    });
 
     return {
       success: true,
-      count: createdHeartbeats.length,
-      ids: createdHeartbeats.map((h) => h.id),
+      count: result.count,
     };
   } catch (error: any) {
     if (error && typeof error === "object" && error.statusCode) throw error;
     if (error instanceof z.ZodError) {
-      throw handleApiError(400, `Batch API error: Validation error. Details: ${error.errors[0].message}`);
+      throw handleApiError(
+        400,
+        `Batch API error: Validation error. Details: ${error.errors[0].message}`
+      );
     }
-    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred processing batch heartbeats.";
-    const apiKeyPrefix = getHeader(event, "authorization")?.substring(7,11) || "UNKNOWN";
-    throw handleApiError(500, `Batch API error: Failed to process heartbeats. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`, "Failed to process your request.");
+    const detailedMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown error occurred processing batch heartbeats.";
+    const apiKeyPrefix =
+      getHeader(event, "authorization")?.substring(7, 11) || "UNKNOWN";
+    throw handleApiError(
+      500,
+      `Batch API error: Failed to process heartbeats. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`,
+      "Failed to process your request."
+    );
   }
 });

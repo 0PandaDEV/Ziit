@@ -3,7 +3,9 @@ import { PrismaClient } from "@prisma/client";
 import { processSummariesByDate } from "~/server/utils/summarize";
 import { log } from "../utils/logging";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: ['warn', 'error'],
+});
 
 export default defineCronHandler(
   "daily",
@@ -13,46 +15,64 @@ export default defineCronHandler(
       now.setHours(0, 0, 0, 0);
       const nowTimestamp = BigInt(now.getTime());
 
-      const heartbeatsToSummarize = await prisma.heartbeats.findMany({
-        where: {
-          timestamp: { lt: nowTimestamp },
-          summariesId: null,
-        },
-        orderBy: {
-          timestamp: "asc",
-        },
-        include: {
-          user: {
-            select: {
-              keystrokeTimeout: true,
+      const BATCH_SIZE = 5000;
+      let processedCount = 0;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const heartbeatsToSummarize = await prisma.heartbeats.findMany({
+          where: {
+            timestamp: { lt: nowTimestamp },
+            summariesId: null,
+          },
+          orderBy: {
+            timestamp: "asc",
+          },
+          include: {
+            user: {
+              select: {
+                keystrokeTimeout: true,
+              },
             },
           },
-        },
-      });
-
-      const userHeartbeats: Record<
-        string,
-        Array<(typeof heartbeatsToSummarize)[0]>
-      > = {};
-
-      heartbeatsToSummarize.forEach((heartbeat) => {
-        const userId = heartbeat.userId;
-
-        if (!userHeartbeats[userId]) {
-          userHeartbeats[userId] = [];
+          take: BATCH_SIZE,
+        });
+        
+        if (heartbeatsToSummarize.length === 0) {
+          hasMore = false;
+          break;
         }
+        
+        processedCount += heartbeatsToSummarize.length;
 
-        userHeartbeats[userId].push(heartbeat);
-      });
+        const userHeartbeats: Record<
+          string,
+          Array<(typeof heartbeatsToSummarize)[0]>
+        > = {};
 
-      for (const userId in userHeartbeats) {
-        await processSummariesByDate(userId, userHeartbeats[userId]);
+        heartbeatsToSummarize.forEach((heartbeat) => {
+          const userId = heartbeat.userId;
+
+          if (!userHeartbeats[userId]) {
+            userHeartbeats[userId] = [];
+          }
+
+          userHeartbeats[userId].push(heartbeat);
+        });
+
+        for (const userId in userHeartbeats) {
+          await processSummariesByDate(userId, userHeartbeats[userId]);
+        }
+        
+        if (heartbeatsToSummarize.length < BATCH_SIZE) {
+          hasMore = false;
+        }
       }
 
       await generatePublicStats(now);
 
       log(
-        `Summarization complete. Processed ${heartbeatsToSummarize.length} heartbeats.`
+        `Summarization complete. Processed ${processedCount} heartbeats.`
       );
     } catch (error) {
       console.error("Error in summarization cron job", error);

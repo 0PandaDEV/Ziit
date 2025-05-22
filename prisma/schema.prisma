@@ -9,7 +9,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("NUXT_DATABASE_URL")
-  extensions = [pg_stat_statements]
+  extensions = [pg_stat_statements, timescaledb]
 }
 
 model User {
@@ -26,6 +26,7 @@ model User {
   summaries         Summaries[]
 }
 
+/// @timescaledb:hypertable(time_column: timestamp)
 model Heartbeats {
   id          String     @default(cuid())
   timestamp   BigInt

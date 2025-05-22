@@ -1,7 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import type { Heartbeats } from "@prisma/client";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: ['warn', 'error'],
+});
 
 export function calculateTotalMinutesFromHeartbeats(
   heartbeats: Heartbeats[],
@@ -192,7 +194,8 @@ export async function createOrUpdateSummary(
       if (newHeartbeats.length === 0) {
         return null;
       }
-      const BATCH_SIZE = 1000;
+      
+      const BATCH_SIZE = 2000;
       for (let i = 0; i < newHeartbeats.length; i += BATCH_SIZE) {
         const batch = newHeartbeats.slice(i, i + BATCH_SIZE);
         await prisma.heartbeats.createMany({
@@ -241,7 +244,7 @@ export async function createOrUpdateSummary(
     );
 
     if (newHeartbeatsForImport.length > 0) {
-      const BATCH_SIZE = 1000;
+      const BATCH_SIZE = 2000;
       for (let i = 0; i < newHeartbeatsForImport.length; i += BATCH_SIZE) {
         const batch = newHeartbeatsForImport.slice(i, i + BATCH_SIZE);
         await prisma.heartbeats.createMany({
@@ -316,25 +319,21 @@ export async function createOrUpdateSummary(
       );
 
       if (heartbeatsToUpdate.length > 0) {
-        const BATCH_SIZE = 500;
+        const BATCH_SIZE = 1000;
         for (let i = 0; i < heartbeatsToUpdate.length; i += BATCH_SIZE) {
           const batch = heartbeatsToUpdate.slice(i, i + BATCH_SIZE);
-
-          await Promise.all(
-            batch.map((heartbeat) =>
-              prisma.heartbeats.update({
-                where: {
-                  id_timestamp: {
-                    id: heartbeat.id,
-                    timestamp: heartbeat.timestamp,
-                  },
-                },
-                data: {
-                  summariesId: summary.id,
-                },
-              })
-            )
-          );
+          
+          for (const heartbeat of batch) {
+            await prisma.heartbeats.updateMany({
+              where: {
+                id: heartbeat.id,
+                timestamp: heartbeat.timestamp,
+              },
+              data: {
+                summariesId: summary.id,
+              },
+            });
+          }
         }
       }
     }
