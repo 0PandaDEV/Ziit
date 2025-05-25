@@ -45,4 +45,19 @@ export default defineNuxtConfig({
       },
     },
   },
+  sitemap: {
+    defaults: {
+      lastmod: new Date().toISOString(),
+      priority: 0.9,
+      changefreq: "weekly",
+    },
+    urls: [
+      {
+        loc: "/stats",
+        lastmod: new Date().toISOString(),
+        priority: 1,
+        changefreq: "daily",
+      },
+    ],
+  },
 });
