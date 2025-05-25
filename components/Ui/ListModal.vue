@@ -3,20 +3,7 @@
     <div class="header">
       <h2 class="title">{{ title }}</h2>
       <button class="close-button" @click="$emit('close')">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="lucide lucide-x">
-          <path d="M18 6 6 18" />
-          <path d="m6 6 12 12" />
-        </svg>
+        <LucideX />
       </button>
     </div>
     <div class="list-content" ref="listContentRef">
@@ -42,6 +29,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { PropType } from "vue";
+import { LucideX } from "lucide-vue-next";
 
 type Item = {
   name: string;
@@ -84,11 +72,14 @@ const calculatePercentage = (seconds: number): string => {
   return ((seconds / props.totalSeconds) * 100).toFixed(1);
 };
 
-watch(() => props.open, (newOpen) => {
-  if (!newOpen && listContentRef.value) {
-    listContentRef.value.scrollTop = 0;
+watch(
+  () => props.open,
+  (newOpen) => {
+    if (!newOpen && listContentRef.value) {
+      listContentRef.value.scrollTop = 0;
+    }
   }
-});
+);
 </script>
 
 <style scoped lang="scss">
@@ -210,4 +201,4 @@ watch(() => props.open, (newOpen) => {
     }
   }
 }
-</style> 
+</style>

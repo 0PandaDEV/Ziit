@@ -26,15 +26,15 @@
     </div>
     <div class="selected-item">
       {{ selectedItem ? selectedItem.label : placeholder }}
-      <ChevronsDownUpIcon :size="16" v-if="isOpen" />
-      <ChevronsUpDownIcon :size="16" v-else />
+      <LucideChevronsDownUp :size="16" v-if="isOpen" />
+      <LucideChevronsUpDown :size="16" v-else />
     </div>
   </div>
 </template>
 
 <script setup lang="ts" generic="T">
 import { ref, computed } from "vue";
-import { ChevronsDownUpIcon, ChevronsUpDownIcon } from "lucide-vue-next";
+import { LucideChevronsDownUp, LucideChevronsUpDown } from "lucide-vue-next";
 
 interface SelectItem<V> {
   label: string;

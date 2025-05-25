@@ -33,12 +33,12 @@
         v-model="email"
         placeholder="Email"
         type="text"
-        :icon="MailIcon" />
+        :icon="LucideMail" />
       <UiInput
         v-model="password"
         placeholder="Password"
         type="password"
-        :icon="KeyRoundIcon" />
+        :icon="LucideKeyRound" />
     </form>
     <div class="buttons">
       <UiButton text="Login" keyName="enter" @click="login" />
@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { KeyRoundIcon, MailIcon } from "lucide-vue-next";
+import { LucideKeyRound, LucideMail } from "lucide-vue-next";
 import { useKeyboard, Key } from "@waradu/keyboard";
 
 const error = ref("");

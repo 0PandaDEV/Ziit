@@ -12,7 +12,7 @@
             <p
               class="extend"
               @click="openListModal('Projects', sortedProjects)">
-              <Maximize :size="16" />
+              <LucideMaximize :size="16" />
               DETAILS
             </p>
           </div>
@@ -47,7 +47,7 @@
             <p
               class="extend"
               @click="openListModal('Languages', languageBreakdown)">
-              <Maximize :size="16" />
+              <LucideMaximize :size="16" />
               DETAILS
             </p>
           </div>
@@ -87,7 +87,7 @@
             <p
               class="extend"
               @click="openListModal('Editors', editorBreakdown)">
-              <Maximize :size="16" />
+              <LucideMaximize :size="16" />
               DETAILS
             </p>
           </div>
@@ -117,14 +117,12 @@
           </div>
           <p v-else class="no-data">No data available</p>
         </div>
-        
+
         <div class="section">
           <div class="text">
             <h2>FILES</h2>
-            <p
-              class="extend"
-              @click="openListModal('Files', fileBreakdown)">
-              <Maximize :size="16" />
+            <p class="extend" @click="openListModal('Files', fileBreakdown)">
+              <LucideMaximize :size="16" />
               DETAILS
             </p>
           </div>
@@ -136,7 +134,9 @@
               :style="{
                 '--percentage': `${
                   fileBreakdown.length > 0 && fileBreakdown[0].seconds > 0
-                    ? ((file.seconds / fileBreakdown[0].seconds) * 100).toFixed(1)
+                    ? ((file.seconds / fileBreakdown[0].seconds) * 100).toFixed(
+                        1
+                      )
                     : 0
                 }%`,
               }">
@@ -151,14 +151,14 @@
           </div>
           <p v-else class="no-data">No data available</p>
         </div>
-        
+
         <div class="section">
           <div class="text">
             <h2>OPERATING SYSTEMS</h2>
             <p
               class="extend"
               @click="openListModal('Operating Systems', osBreakdown)">
-              <Maximize :size="16" />
+              <LucideMaximize :size="16" />
               DETAILS
             </p>
           </div>
@@ -186,14 +186,13 @@
           <p v-else class="no-data">No data available</p>
         </div>
 
-
         <div class="section">
           <div class="text">
             <h2>BRANCHES</h2>
             <p
               class="extend"
               @click="openListModal('Branches', branchBreakdown)">
-              <Maximize :size="16" />
+              <LucideMaximize :size="16" />
               DETAILS
             </p>
           </div>
@@ -205,7 +204,10 @@
               :style="{
                 '--percentage': `${
                   branchBreakdown.length > 0 && branchBreakdown[0].seconds > 0
-                    ? ((branch.seconds / branchBreakdown[0].seconds) * 100).toFixed(1)
+                    ? (
+                        (branch.seconds / branchBreakdown[0].seconds) *
+                        100
+                      ).toFixed(1)
                     : 0
                 }%`,
               }">
@@ -235,7 +237,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { Maximize } from "lucide-vue-next";
+import { LucideMaximize } from "lucide-vue-next";
 import type { User } from "@prisma/client";
 import { useKeyboard, Key } from "@waradu/keyboard";
 import * as statsLib from "~/lib/stats";
