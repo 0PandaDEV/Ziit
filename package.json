@@ -13,6 +13,7 @@
     "@nuxtjs/sitemap": "7.3.0",
     "@prisma/client": "6.8.2",
     "@types/bcrypt": "5.0.2",
+    "@vite-pwa/nuxt": "1.0.1",
     "@waradu/keyboard": "4.2.0",
     "bcrypt": "6.0.0",
     "chart.js": "4.4.9",

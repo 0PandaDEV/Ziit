@@ -2,7 +2,7 @@
 export default defineNuxtConfig({
   compatibilityDate: "2025-04-09",
   devtools: { enabled: false },
-  modules: ["@nuxtjs/sitemap", "nuxt-cron"],
+  modules: ["@nuxtjs/sitemap", "nuxt-cron", "@vite-pwa/nuxt"],
   ssr: true,
   runtimeConfig: {
     pasetoKey: process.env.NUXT_PASETO_KEY,
@@ -59,5 +59,36 @@ export default defineNuxtConfig({
         changefreq: "daily",
       },
     ],
+  },
+  pwa: {
+    manifest: {
+      name: "Ziit",
+      short_name: "Ziit",
+      description:
+        "Ziit is a platform for sharing and discovering coding statistics.",
+      theme_color: "#191919",
+      background_color: "#191919",
+      display: "standalone",
+      orientation: "portrait",
+      icons: [
+        {
+          src: "/pwa-192x192.png",
+          sizes: "192x192",
+          type: "image/png",
+        },
+        {
+          src: "/pwa-512x512.png",
+          sizes: "512x512",
+          type: "image/png",
+        },
+      ],
+    },
+    devOptions: {
+      enabled: true,
+      suppressWarnings: true,
+      navigateFallback: "/",
+      navigateFallbackAllowlist: [/^\/$/],
+      type: "module",
+    },
   },
 });
