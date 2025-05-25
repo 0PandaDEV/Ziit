@@ -1,3 +1,5 @@
+# MAJOR DATA LOSS ON ZIIT.APP ROLLBACK TO 22 MAY MIDNIGHT UTC HAS BEEN DONE.
+
 <p align="center">
    <img src="https://github.com/user-attachments/assets/bc6a1efd-2a7a-473a-8f09-ae75cafeba84"/>
 </p>
