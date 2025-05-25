@@ -13,7 +13,9 @@ export default defineEventHandler(async (event) => {
     path.startsWith("/api/public") ||
     path === "/stats" ||
     path === "/login" ||
-    path === "/register"
+    path === "/register" ||
+    path === "/sitemap.xml" ||
+    path === "/robots.txt"
   ) {
     return;
   }
