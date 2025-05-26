@@ -26,7 +26,6 @@ model User {
   summaries         Summaries[]
 }
 
-/// @timescaledb:hypertable(time_column: timestamp)
 model Heartbeats {
   id          String     @default(cuid())
   timestamp   BigInt
