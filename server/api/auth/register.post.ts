@@ -33,7 +33,6 @@ export default defineEventHandler(async (event) => {
     typeof body.email !== "string" ||
     typeof body.password !== "string"
   ) {
-    console.error("Registration error: missing credentials");
     throw handleApiError(
       400,
       "Registration attempt with missing email or password.",
@@ -57,7 +56,6 @@ export default defineEventHandler(async (event) => {
     });
 
     if (existingUser) {
-      console.error("Registration error: email already in use");
       throw handleApiError(
         409,
         `Registration attempt with existing email: ${body.email}.`

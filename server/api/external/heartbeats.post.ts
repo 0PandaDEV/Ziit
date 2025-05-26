@@ -23,7 +23,6 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     const authHeader = getHeader(event, "authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.error("Heartbeats error: Missing or invalid API key format");
       throw handleApiError(401, "Heartbeat API error: Missing or invalid API key format in header.");
     }
 
@@ -40,7 +39,6 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (!user || user.apiKey !== apiKey) {
-      console.error("Heartbeats error: Invalid API key");
       throw handleApiError(401, `Heartbeat API error: Invalid API key. Key: ${apiKey.substring(0,4)}...`);
     }
 
@@ -72,10 +70,6 @@ export default defineEventHandler(async (event: H3Event) => {
   } catch (error: any) {
     if (error && typeof error === "object" && error.statusCode) throw error;
     if (error instanceof z.ZodError) {
-      console.error(
-        "Heartbeats error: Validation error",
-        error.errors[0].message
-      );
       throw handleApiError(400, `Heartbeat API error: Validation error. Details: ${error.errors[0].message}`);
     }
     const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred processing heartbeat.";

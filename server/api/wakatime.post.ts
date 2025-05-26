@@ -2,7 +2,7 @@ import path from "path";
 import { H3Event } from "h3";
 import { z } from "zod";
 import { processHeartbeatsByDate } from "~/server/utils/summarize";
-import { handleApiError, log } from "~/server/utils/logging";
+import { handleApiError, handleLog } from "~/server/utils/logging";
 
 interface WakApiHeartbeat {
   id: string;
@@ -69,7 +69,7 @@ async function fetchRangeHeartbeats(
   endDate: Date,
   userId: string
 ) {
-  log(
+  handleLog(
     `Fetching heartbeats from ${startDate.toISOString()} to ${endDate.toISOString()}`
   );
 
@@ -97,7 +97,7 @@ async function fetchRangeHeartbeats(
     allDateStrings.push(tomorrowStr);
   }
 
-  log(
+  handleLog(
     `Generated ${allDateStrings.length} dates to check based on date range, including tomorrow to ensure all heartbeats are captured`
   );
 
@@ -111,7 +111,7 @@ async function fetchRangeHeartbeats(
     const dateStr = allDateStrings[i];
 
     if (i % progressUpdateInterval === 0 || i === allDateStrings.length - 1) {
-      log(
+      handleLog(
         `Processing date ${i + 1}/${allDateStrings.length}: ${dateStr} (${Math.round(((i + 1) / allDateStrings.length) * 100)}% complete)`
       );
     }
@@ -129,13 +129,13 @@ async function fetchRangeHeartbeats(
 
       if (!heartbeatsResponse?.data || heartbeatsResponse.data.length === 0) {
         if (i % progressUpdateInterval === 0) {
-          log(`No heartbeats found for ${dateStr}`);
+          handleLog(`No heartbeats found for ${dateStr}`);
         }
         continue;
       }
 
       if (i % progressUpdateInterval === 0) {
-        log(
+        handleLog(
           `Found ${heartbeatsResponse.data.length} heartbeats for ${dateStr}`
         );
       }
@@ -149,13 +149,13 @@ async function fetchRangeHeartbeats(
         await processHeartbeatsByDate(userId, heartbeats);
       }
     } catch (error) {
-      console.error(`Error fetching heartbeats for ${dateStr}:`, error);
+      handleApiError(500, `Error fetching heartbeats for ${dateStr} for user ${userId}: ${error instanceof Error ? error.message : String(error)}`, "An error occurred while fetching some activity data. The import may be incomplete.");
     }
 
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 
-  log(`Completed processing all ${allDateStrings.length} dates`);
+  handleLog(`Completed processing all ${allDateStrings.length} dates`);
   return heartbeatsByDate;
 }
 
@@ -182,7 +182,7 @@ function processHeartbeat(heartbeat: WakApiHeartbeat | any, userId: string) {
 
 export default defineEventHandler(async (event: H3Event) => {
   const userId = event.context.user.id;
-  log("Processing for user ID:", userId);
+  handleLog("Processing for user ID:", userId);
 
   const formData = await readMultipartFormData(event);
   if (!formData || formData.length === 0) {
@@ -199,7 +199,7 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const { apiKey, instanceType, instanceUrl } = validationResult.data;
-    log("Received request with:", {
+    handleLog("Received request with:", {
       instanceType,
       instanceUrl: instanceUrl ? "provided" : "not provided",
     });
@@ -214,7 +214,6 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     if (instanceType === "wakapi" && !instanceUrl) {
-      console.error("No instance URL provided for WakAPI");
       const errorDetail = `WakAPI instance URL missing for user ${userId}.`;
       throw handleApiError(400, errorDetail, "WakAPI instance URL is missing.");
     }
@@ -222,7 +221,7 @@ export default defineEventHandler(async (event: H3Event) => {
     const headers = {
       Authorization: `Basic ${Buffer.from(apiKey).toString("base64")}`,
     };
-    log("Using headers:", {
+    handleLog("Using headers:", {
       ...headers,
       Authorization: "Basic [REDACTED]",
     });
@@ -233,11 +232,11 @@ export default defineEventHandler(async (event: H3Event) => {
       : instanceUrl!;
     baseUrl = `${baseUrl}/api/compat/wakatime/v1`;
 
-    log("Using WakAPI with baseUrl:", baseUrl);
+    handleLog("Using WakAPI with baseUrl:", baseUrl);
 
     try {
       const allTimeUrl = `${baseUrl}/users/${userIdentifier}/all_time_since_today`;
-      log(`Requesting all-time summary from: ${allTimeUrl}`);
+      handleLog(`Requesting all-time summary from: ${allTimeUrl}`);
 
       const allTimeResponse = await $fetch<{
         data: {
@@ -250,10 +249,9 @@ export default defineEventHandler(async (event: H3Event) => {
         headers,
       });
 
-      log("Received all-time summary response");
+      handleLog("Received all-time summary response");
 
       if (!allTimeResponse?.data?.range) {
-        console.error("Invalid response from all_time_since_today endpoint");
         const errorDetail = `Failed to fetch activity date range from WakAPI for user ${userId}. Response: ${JSON.stringify(allTimeResponse)}`;
         throw handleApiError(
           500,
@@ -265,7 +263,7 @@ export default defineEventHandler(async (event: H3Event) => {
       const startDate = new Date(allTimeResponse.data.range.start_date);
       const endDate = new Date();
 
-      log(
+      handleLog(
         `Found activity range: ${startDate.toISOString()} to ${endDate.toISOString()}`
       );
 
@@ -279,11 +277,11 @@ export default defineEventHandler(async (event: H3Event) => {
       );
 
       if (heartbeatsByDate.size === 0) {
-        log("No days with activity found");
+        handleLog("No days with activity found");
         return { success: true, message: "No data to import" };
       }
 
-      log(
+      handleLog(
         `Successfully imported data from ${heartbeatsByDate.size} days with activity`
       );
       return { success: true, imported: heartbeatsByDate.size };
@@ -303,7 +301,7 @@ export default defineEventHandler(async (event: H3Event) => {
     }
   }
 
-  log("Processing WakaTime exported file upload");
+  handleLog("Processing WakaTime exported file upload");
   const fileData = formData.find(
     (item) => item.name === "file" && item.filename
   );
@@ -333,7 +331,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const wakaData = validationResult.data;
 
-    log(
+    handleLog(
       `Parsing WakaTime export with ${wakaData.days.length} days of data`
     );
 
@@ -342,7 +340,7 @@ export default defineEventHandler(async (event: H3Event) => {
     for (const day of wakaData.days) {
       if (!day.heartbeats || day.heartbeats.length === 0) continue;
 
-      log(
+      handleLog(
         `Processing ${day.heartbeats.length} heartbeats for ${day.date}`
       );
       totalHeartbeats += day.heartbeats.length;
@@ -365,11 +363,11 @@ export default defineEventHandler(async (event: H3Event) => {
 
         await processHeartbeatsByDate(userId, processedHeartbeats);
       } catch (error) {
-        console.error(`Error saving data for ${day.date}:`, error);
+        handleApiError(500, `Error processing or saving heartbeats for date ${day.date} during WakaTime export for user ${userId}: ${error instanceof Error ? error.message : String(error)}`, "An error occurred while processing a day's data from the WakaTime export. The import may be incomplete.");
       }
     }
 
-    log("Database update complete");
+    handleLog("Database update complete");
     return { success: true, imported: totalHeartbeats };
   } catch (error: any) {
     if (error && typeof error === "object" && "__h3_error__" in error) {

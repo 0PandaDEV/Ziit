@@ -31,6 +31,10 @@ export function handleApiError(
   });
 }
 
-export function log(...message: any[]) {
+export function handleLog(...message: any[]) {
   console.log(new Date().toISOString(), ...message);
+}
+
+export function handleError(...message: any[]) {
+  console.error(new Date().toISOString(), ...message);
 }

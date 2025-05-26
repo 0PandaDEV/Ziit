@@ -166,7 +166,6 @@ export async function fetchStats(): Promise<void> {
     state.status = "success";
     statsRef.value = state.data;
   } catch (err: unknown) {
-    console.error("Error fetching stats:", err);
     state.error = err instanceof Error ? err : new Error(String(err));
     state.data = { ...initialStats };
     state.status = "error";

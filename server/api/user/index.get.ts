@@ -19,9 +19,6 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (!user) {
-      console.error(
-        `User error: User not found for ID ${event.context.user.id}`,
-      );
       throw handleApiError(404, `User not found for ID ${event.context.user.id}`, "User not found.");
     }
 

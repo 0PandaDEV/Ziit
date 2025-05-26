@@ -76,7 +76,6 @@ async function register() {
     });
     await navigateTo("/");
   } catch (e: any) {
-    console.error("Register failed", error);
     error.value = e.data?.message || "Register failed";
     toast.error(error.value);
   }

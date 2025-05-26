@@ -116,7 +116,6 @@ async function login() {
     });
     await navigateTo("/");
   } catch (e: any) {
-    console.error("Login failed", error);
     error.value = e.data?.message || "Login failed";
     toast.error(error.value);
   }

@@ -88,7 +88,6 @@ export default defineEventHandler(async (event) => {
       emails.find((email) => email.primary)?.email || emails[0]?.email;
 
     if (!primaryEmail) {
-      console.error("GitHub Callback error: No primary email found");
       throw handleApiError(500, `GitHub callback error: No primary email found for GitHub user ID ${githubUser.id}. Emails received: ${JSON.stringify(emails)}`, "Could not retrieve email from GitHub");
     }
 
