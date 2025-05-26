@@ -1,34 +1,54 @@
-import { createError } from "h3";
+import { createError, getRequestIP, setResponseHeaders } from "h3";
+import type { H3Event } from "h3";
+import { useStorage } from "#imports";
 
 const storage = useStorage();
 
-const rateLimits = {
+type RateLimitProfile = { limit: number; window: number };
+type PathMapping = { path: string; profile: keyof typeof profiles };
+
+const profiles = {
   default: { limit: 50, window: 60000 },
   auth: { limit: 5, window: 1800000 },
   external: { limit: 100, window: 30000 },
   stats: { limit: 50, window: 60000 },
   wakatime: { limit: 2, window: 1800000 },
+} as const;
+
+const RATE_LIMIT_CONFIG = {
+  profiles,
+  pathMappings: [
+    { path: "/api/auth", profile: "auth" },
+    { path: "/api/external", profile: "external" },
+    { path: "/api/stats", profile: "stats" },
+    { path: "/api/wakatime", profile: "wakatime" },
+  ] as PathMapping[],
+  defaultProfile: "default" as keyof typeof profiles,
+  apiOnly: true,
+  storageKeyPrefix: "rate-limit",
 };
 
-export default defineEventHandler(async (event) => {
-  if (!event.path.startsWith("/api")) return;
+function getRateLimitProfile(path: string): RateLimitProfile {
+  for (const mapping of RATE_LIMIT_CONFIG.pathMappings) {
+    if (path.startsWith(mapping.path)) {
+      return RATE_LIMIT_CONFIG.profiles[mapping.profile];
+    }
+  }
+  return RATE_LIMIT_CONFIG.profiles[RATE_LIMIT_CONFIG.defaultProfile];
+}
 
-  const ip = getRequestIP(event);
-  const path = event.path;
+export default defineEventHandler(async (event: H3Event) => {
+  const path = (event.path || event.node?.req?.url || "/") as string;
 
-  let limitConfig = rateLimits.default;
-
-  if (path.startsWith("/api/auth")) {
-    limitConfig = rateLimits.auth;
-  } else if (path.startsWith("/api/external")) {
-    limitConfig = rateLimits.external;
-  } else if (path.startsWith("/api/stats")) {
-    limitConfig = rateLimits.stats;
-  } else if (path.startsWith("/api/wakatime")) {
-    limitConfig = rateLimits.wakatime;
+  if (RATE_LIMIT_CONFIG.apiOnly && !path.startsWith("/api")) {
+    return;
   }
 
-  const key = `rate-limit:${ip}:${path}`;
+  const ip = getRequestIP(event, { xForwardedFor: true });
+
+  const limitConfig = getRateLimitProfile(path);
+  const key = `${RATE_LIMIT_CONFIG.storageKeyPrefix}:${ip}:${path}`;
+
   const current = ((await storage.getItem(key)) as {
     count: number;
     reset: number;
