@@ -1,22 +1,21 @@
 import { decrypt } from "paseto-ts/v4";
 import { PrismaClient } from "@prisma/client";
+import type { H3Event } from "h3";
 
 const prisma = new PrismaClient();
 
-export default defineEventHandler(async (event) => {
-  const path = getRequestURL(event).pathname;
-  const sessionCookie = getCookie(event, "ziit_session");
+const AUTH_CONFIG = {
+  publicApiPaths: ["/api/external/", "/api/auth/", "/api/public"],
+  publicPages: ["/stats", "/login", "/register", "/sitemap.xml", "/robots.txt"],
+  sessionCookieName: "ziit_session",
+  loginRedirectPath: "/login",
+};
 
-  if (
-    path.startsWith("/api/external/") ||
-    path.startsWith("/api/auth/") ||
-    path.startsWith("/api/public") ||
-    path === "/stats" ||
-    path === "/login" ||
-    path === "/register" ||
-    path === "/sitemap.xml" ||
-    path === "/robots.txt"
-  ) {
+export default defineEventHandler(async (event: H3Event) => {
+  const path = getRequestURL(event).pathname;
+  const sessionCookie = getCookie(event, AUTH_CONFIG.sessionCookieName);
+
+  if (isPublicPath(path)) {
     return;
   }
 
@@ -30,7 +29,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (!sessionCookie) {
-    return sendRedirect(event, "/login");
+    return sendRedirect(event, AUTH_CONFIG.loginRedirectPath);
   }
 
   try {
@@ -53,7 +52,17 @@ export default defineEventHandler(async (event) => {
     return;
   } catch (error) {
     console.error(error);
-    deleteCookie(event, "ziit_session");
-    return sendRedirect(event, "/login");
+    deleteCookie(event, AUTH_CONFIG.sessionCookieName);
+    return sendRedirect(event, AUTH_CONFIG.loginRedirectPath);
   }
 });
+
+function isPublicPath(path: string): boolean {
+  for (const publicPath of AUTH_CONFIG.publicApiPaths) {
+    if (path.startsWith(publicPath)) {
+      return true;
+    }
+  }
+  
+  return AUTH_CONFIG.publicPages.includes(path);
+}
