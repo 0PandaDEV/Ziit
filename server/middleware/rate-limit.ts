@@ -13,6 +13,7 @@ const profiles = {
   external: { limit: 100, window: 30000 },
   stats: { limit: 50, window: 60000 },
   wakatime: { limit: 2, window: 1800000 },
+  public: { limit: 50, window: 60000 },
 } as const;
 
 const RATE_LIMIT_CONFIG = {
@@ -22,6 +23,7 @@ const RATE_LIMIT_CONFIG = {
     { path: "/api/external", profile: "external" },
     { path: "/api/stats", profile: "stats" },
     { path: "/api/wakatime", profile: "wakatime" },
+    { path: "/api/public", profile: "public" },
   ] as PathMapping[],
   defaultProfile: "default" as keyof typeof profiles,
   apiOnly: true,
