@@ -7,7 +7,8 @@ const prisma = new PrismaClient();
 export async function calculateStats(
   userId: string,
   timeRange: TimeRange,
-  midnightOffsetSeconds?: number
+  midnightOffsetSeconds?: number,
+  projectFilter?: string
 ) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -193,7 +194,9 @@ export async function calculateStats(
             : {},
           os: summary.os ? JSON.parse(JSON.stringify(summary.os)) : {},
           files: summary.files ? JSON.parse(JSON.stringify(summary.files)) : {},
-          branches: summary.branches ? JSON.parse(JSON.stringify(summary.branches)) : {},
+          branches: summary.branches
+            ? JSON.parse(JSON.stringify(summary.branches))
+            : {},
           hourlyData: Array(24)
             .fill(null)
             .map(() => ({ seconds: 0 })),
@@ -349,34 +352,42 @@ export async function calculateStats(
     a.date.localeCompare(b.date)
   );
 
+  let totalProjectSeconds = 0;
+
+  if (projectFilter && projectFilter !== "all") {
+    const projectFilterLowerCase = projectFilter.toLowerCase();
+
+    for (const summary of summaries) {
+      if (summary.projects) {
+        for (const [projectName, seconds] of Object.entries(summary.projects)) {
+          if (projectName.toLowerCase() === projectFilterLowerCase) {
+            totalProjectSeconds += seconds as number;
+          }
+        }
+      }
+    }
+  }
+
   const returnedOffsetSeconds = midnightOffsetSeconds ?? 0;
 
-  return {
+  const result = {
     summaries,
     offsetSeconds: returnedOffsetSeconds,
-    debug: {
-      serverNow: now,
-      serverTimeISO: new Date(now).toISOString(),
-
-      calculatedUserTodayStartUTC: new Date(
-        Number(todayStartTimestamp)
-      ).toISOString(),
-      calculatedUserTodayEndUTC: new Date(
-        Number(todayEndTimestamp)
-      ).toISOString(),
-      fetchStartTime: new Date(Number(fetchStartTimestamp)).toISOString(),
-      fetchEndTime: new Date(Number(fetchEndTimestamp)).toISOString(),
-      timeRange,
-      heartbeatCount: heartbeats.length,
-
-      tzOffsetSeconds: midnightOffsetSeconds,
-      tzOffsetHours: midnightOffsetSeconds
-        ? midnightOffsetSeconds / 3600
-        : undefined,
-      firstHeartbeatUserHour:
-        heartbeats.length > 0
-          ? new Date(Number(heartbeats[0].timestamp) - offsetMs).getUTCHours()
-          : null,
-    },
   };
+
+  if (projectFilter) {
+    return {
+      ...result,
+      projectSeconds:
+        projectFilter === "all"
+          ? summaries.reduce(
+              (total, summary) => total + summary.totalSeconds,
+              0
+            )
+          : totalProjectSeconds,
+      projectFilter,
+    };
+  }
+
+  return result;
 }
