@@ -16,6 +16,8 @@ servers:
 tags:
   - name: API Routes
     description: External API endpoints for tracking coding activity
+  - name: Public Routes
+    description: Public API endpoints that don't require authentication
 paths:
   /api/external/heartbeats:
     post:
@@ -146,6 +148,61 @@ paths:
           description: Invalid or missing API key
         '404':
           description: User not found
+  /api/public/stats:
+    get:
+      tags:
+        - Public Routes
+      summary: Public Stats
+      description: Retrieve global platform statistics
+      operationId: getPublicStats
+      responses:
+        '200':
+          description: Public statistics successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicStats'
+        '500':
+          description: Server error
+  /api/public/{badge}:
+    get:
+      tags:
+        - Public Routes
+      summary: Badge Generator
+      description: Generate SVG badges for user coding activity
+      operationId: getBadge
+      parameters:
+        - in: path
+          name: badge
+          required: true
+          schema:
+            type: string
+          description: Path segments for badge configuration
+        - in: query
+          name: style
+          required: false
+          schema:
+            type: string
+            enum:
+              - flat
+              - classic
+            default: flat
+          description: Badge style
+        - in: query
+          name: icon
+          required: false
+          schema:
+            type: string
+          description: Icon to display on badge
+      responses:
+        '200':
+          description: SVG badge successfully generated
+          content:
+            image/svg+xml:
+              schema:
+                type: string
+        '400':
+          description: Invalid parameters
 components:
   schemas:
     Heartbeat:
@@ -205,6 +262,33 @@ components:
           format: uuid
         keystrokeTimeout:
           type: integer
+    PublicStats:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+          example: 1500
+        totalHeartbeats:
+          type: integer
+          example: 5000000
+        totalHours:
+          type: integer
+          example: 25000
+        topEditor:
+          type: string
+          example: "vscode"
+        topLanguage:
+          type: string
+          example: "javascript"
+        topOS:
+          type: string
+          example: "macos"
+        lastUpdated:
+          type: string
+          format: date-time
+        source:
+          type: string
+          enum: ["mixed", "live"]
   securitySchemes:
     BearerAuth:
       type: http
