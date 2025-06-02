@@ -9,7 +9,7 @@
 <div align="center">
     <a href="https://docs.ziit.app">Docs</a>
     <span> • </span>
-    <a href="#features">Features</a>
+    <a href="https://status.ziit.app/">Status</a>
     <span> • </span>
     <a href="https://ziit.app">Public Instance</a>
     <span> • </span>
