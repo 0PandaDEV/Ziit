@@ -43,11 +43,12 @@ Ziit (pronounced 'tseet') is an open-source, self-hostable alternative to WakaTi
 ## Features
 
 - Time tracking directly from VS Code to your Ziit instance of choice.
-- Advanced time filtering using different time ranges.
+- Filtering using different time ranges.
 - Clean & Minimal dashboard showing only the information needed.
 - Login with GitHub or Email and Password.
-- Import Data from Wakatime or a Wakapi Instance.
+- Import Data from Wakatime or a WakAPI Instance.
 - Saves data about your current project, OS, editor and git branch.
+- Badges to embed coding time for a project into a README.
 - More to come...
 
 ## How to use Ziit
