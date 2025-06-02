@@ -3,7 +3,7 @@ import { handleApiError } from "~/server/utils/logging";
 
 const prisma = new PrismaClient();
 
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
   try {
     const latestStats = await prisma.stats.findFirst({
       orderBy: {
@@ -27,6 +27,11 @@ export default defineEventHandler(async () => {
     const topEditor = latestStats?.topEditor || "Unknown";
     const topLanguage = latestStats?.topLanguage || "Unknown";
     const topOS = latestStats?.topOS || "Unknown";
+
+    setResponseHeaders(event, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET",
+    });
 
     return {
       totalUsers,

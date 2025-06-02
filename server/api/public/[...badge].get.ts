@@ -125,5 +125,8 @@ export default defineEventHandler(async (event) => {
   event.node.res.setHeader("Content-Type", "image/svg+xml");
   event.node.res.setHeader("Cache-Control", "max-age=600, s-maxage=600");
 
+  event.node.res.setHeader("Access-Control-Allow-Origin", "*");
+  event.node.res.setHeader("Access-Control-Allow-Methods", "GET");
+
   return svg;
 });

@@ -31,18 +31,6 @@ export default defineNuxtConfig({
   routeRules: {
     "/api/**": {
       cors: true,
-      headers: {
-        "Access-Control-Allow-Methods": "GET,POST",
-        "Access-Control-Allow-Origin": "{{ runtimeConfig.corsOrigin }}",
-      },
-    },
-    "/api/external/**": {
-      cors: true,
-      headers: {
-        "Access-Control-Allow-Methods": "POST",
-        "Access-Control-Allow-Origin": "vscode-webview://*",
-        "Access-Control-Allow-Headers": "authorization,content-type",
-      },
     },
   },
   sitemap: {
