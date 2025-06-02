@@ -58,7 +58,7 @@ First [setup an instance](https://docs.ziit.app/deploy) or sign up on the public
 Supported IDE's:
 
 - [VS Code (Including all forks)](https://docs.ziit.app/extensions/vscode)
-- [JetBrains (Waiting for approval)](https://plugins.jetbrains.com/plugin/27391-ziit)
+- [JetBrains](https://plugins.jetbrains.com/plugin/27391-ziit)
 
 For more details on how to setup the IDE extensions checkout the [docs](https://docs.ziit.app/extensions).
 
