@@ -19,12 +19,12 @@ export default defineEventHandler(async (event) => {
 
   const pathParams = segments.slice(segments.indexOf("badge") + 1);
 
-  // /api/public/badge/:userId/:timeRange/:project/:color/:labelText?
+  // /api/public/badge/:userId/:project/:timeRange/:color/:labelText?
   const userId = pathParams[0];
-  const timeRangeParam = (pathParams[1] as TimeRange) || TimeRangeEnum.ALL_TIME;
-  const projectInput = pathParams[2] || "all";
+  const projectInput = pathParams[1] || "all";
+  const timeRangeParam = (pathParams[2] as TimeRange) || TimeRangeEnum.ALL_TIME;
   let color = pathParams[3] || "blue";
-  const labelText = pathParams[4] || projectInput;
+  const labelText = pathParams[4];
 
   const project = projectInput.toLowerCase();
 
@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const query = getQuery(event);
-  const style = query.style ? String(query.style) : "flat";
+  const style = query.style ? String(query.style) : "classic";
   const icon = query.icon as string;
 
   const stats = (await calculateStats(
@@ -110,7 +110,7 @@ export default defineEventHandler(async (event) => {
   };
 
   const badgeOptions: any = {
-    label: labelText,
+    label: labelText || "Ziit",
     status: formattedTime,
     color: colorMap[color as keyof typeof colorMap] || color,
     style: style === "flat" ? "flat" : "classic",
@@ -118,6 +118,8 @@ export default defineEventHandler(async (event) => {
 
   if (icon) {
     badgeOptions.icon = icon;
+  } else if (!labelText) {
+    badgeOptions.icon = "/favicon.ico";
   }
 
   const svg = badgen(badgeOptions);
