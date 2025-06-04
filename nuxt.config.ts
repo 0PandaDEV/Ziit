@@ -52,8 +52,6 @@ export default defineNuxtConfig({
     manifest: {
       name: "Ziit",
       short_name: "Ziit",
-      description:
-        "Ziit is a platform for sharing and discovering coding statistics.",
       theme_color: "#191919",
       background_color: "#191919",
       display: "standalone",
