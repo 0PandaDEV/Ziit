@@ -97,7 +97,7 @@ export default defineEventHandler(async (event) => {
         
         if (typeof payload === "object" && payload !== null && "userId" in payload) {
           const userId = payload.userId;
-          let redirectUrl = "/profile?success=github_linked";
+          let redirectUrl = "/settings?success=github_linked";
 
           await prisma.$transaction(async (tx) => {
             const [existingGithubUser, currentUser] = await Promise.all([
@@ -132,7 +132,7 @@ export default defineEventHandler(async (event) => {
                 }),
               ]);
 
-              redirectUrl = "/profile?success=accounts_merged";
+              redirectUrl = "/settings?success=accounts_merged";
             } else if (currentUser?.githubId === githubUser.id.toString()) {
               await tx.user.update({
                 where: { id: userId },
@@ -140,7 +140,7 @@ export default defineEventHandler(async (event) => {
                   githubAccessToken: accessToken,
                 },
               });
-              redirectUrl = "/profile?success=github_updated";
+              redirectUrl = "/settings?success=github_updated";
             } else {
               await tx.user.update({
                 where: { id: userId },
@@ -156,7 +156,7 @@ export default defineEventHandler(async (event) => {
           return sendRedirect(event, redirectUrl);
         }
       } catch {
-        return sendRedirect(event, "/profile?error=link_failed");
+        return sendRedirect(event, "/settings?error=link_failed");
       }
     }
 

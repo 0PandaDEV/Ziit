@@ -120,7 +120,7 @@
       </section>
 
       <section class="wakatime-import">
-        <h2 class="title">Time Tracking Data Import</h2>
+        <h2 class="title">Data Import</h2>
         <div class="setting-group">
           <div class="radio-group">
             <UiRadioButton
@@ -173,30 +173,6 @@
         </div>
 
         <UiButton text="Import Data" keyName="I" @click="importTrackingData" />
-      </section>
-
-      <section class="vscode-setup">
-        <h2 class="title">VS Code Extension Setup</h2>
-        <div class="steps">
-          <p>1. Install the Ziit extension from the VS Code marketplace</p>
-          <p>
-            2. Open VS Code and press <kbd>Cmd</kbd> + <kbd>Shift</kbd> +
-            <kbd>P</kbd> (or <kbd>Ctrl</kbd> + <kbd>Shift</kbd> +
-            <kbd>P</kbd> on Windows)
-          </p>
-          <p>3. Type "Ziit: Set Instance" and press Enter</p>
-          <p>
-            4. Paste <kbd>{{ origin }}</kbd>
-          </p>
-          <p>
-            5. Open VS Code and press <kbd>Cmd</kbd> + <kbd>Shift</kbd> +
-            <kbd>P</kbd> (or <kbd>Ctrl</kbd> + <kbd>Shift</kbd> +
-            <kbd>P</kbd> on Windows)
-          </p>
-          <p>6. Type "Ziit: Set API Key" and press Enter</p>
-          <p>7. Paste your API key and press Enter</p>
-          <p>8. Begin coding, and your time will be tracked automatically!</p>
-        </div>
       </section>
     </div>
   </NuxtLayout>
@@ -613,14 +589,14 @@ async function importTrackingData() {
 }
 
 useSeoMeta({
-  title: "Profile - Ziit",
+  title: "Settings - Ziit",
   description: "Manage your Ziit account settings and API keys",
-  ogTitle: "Profile - Ziit",
+  ogTitle: "Settings - Ziit",
   ogDescription: "Manage your Ziit account settings and API keys",
   ogImage: "https://ziit.app/logo.webp",
-  ogUrl: "https://ziit.app/profile",
+  ogUrl: "https://ziit.app/settings",
   ogSiteName: "Ziit",
-  twitterTitle: "Profile - Ziit",
+  twitterTitle: "Settings - Ziit",
   twitterDescription: "Manage your Ziit account settings and API keys",
   twitterImage: "https://ziit.app/logo.webp",
   twitterCard: "summary",
@@ -634,7 +610,7 @@ useHead({
   link: [
     {
       rel: "canonical",
-      href: "https://ziit.app/profile",
+      href: "https://ziit.app/settings",
     },
     {
       rel: "icon",
@@ -648,8 +624,8 @@ useHead({
       innerHTML: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",
-        name: "Profile - Ziit",
-        url: "https://ziit.app/profile",
+        name: "Settings - Ziit",
+        url: "https://ziit.app/settings",
       }),
     },
   ],
@@ -657,5 +633,5 @@ useHead({
 </script>
 
 <style scoped lang="scss">
-@use "/styles/profile.scss";
+@use "/styles/settings.scss";
 </style>

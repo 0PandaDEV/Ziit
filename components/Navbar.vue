@@ -26,7 +26,7 @@
         rel="noopener noreferrer"
         >Star on Github</a
       >
-      <NuxtLink to="/profile">Profile</NuxtLink>
+      <NuxtLink to="/settings">Settings</NuxtLink>
     </div>
   </div>
 </template>
