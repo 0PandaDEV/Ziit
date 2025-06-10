@@ -5,6 +5,10 @@
         <div class="chart" ref="chartContainer"></div>
       </div>
 
+      <div class="chart-container activity-chart-container" style="overflow-x: auto;">
+        <div class="chart" ref="activityChartContainer"></div>
+      </div>
+
       <div class="metrics-tables">
         <div class="section">
           <div class="text">
@@ -35,7 +39,9 @@
               <div class="percentage">
                 {{ ((project.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
               </div>
-              <div class="time">{{ formatTime(project.seconds) }}</div>
+              <div class="time">
+                {{ formatTime(project.seconds) }}
+              </div>
             </div>
           </div>
           <p v-else class="no-data">No data available</p>
@@ -67,7 +73,9 @@
                     : 0
                 }%`,
               }">
-              <div class="name">{{ language.name || "Unknown" }}</div>
+              <div class="name">
+                {{ language.name || "Unknown" }}
+              </div>
               <div class="percentage">
                 {{
                   ((language.seconds / stats.totalSeconds) * 100).toFixed(1)
@@ -106,7 +114,9 @@
                     : 0
                 }%`,
               }">
-              <div class="name">{{ editor.name || "Unknown" }}</div>
+              <div class="name">
+                {{ editor.name || "Unknown" }}
+              </div>
               <div class="percentage">
                 {{ ((editor.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
               </div>
@@ -211,7 +221,9 @@
                     : 0
                 }%`,
               }">
-              <div class="name">{{ branch.name || "Unknown" }}</div>
+              <div class="name">
+                {{ branch.name || "Unknown" }}
+              </div>
               <div class="percentage">
                 {{ ((branch.seconds / stats.totalSeconds) * 100).toFixed(1) }}%
               </div>
@@ -251,7 +263,10 @@ import {
   LineController,
   Tooltip,
   Filler,
+  TimeScale,
 } from "chart.js";
+import "chartjs-adapter-date-fns";
+import { MatrixController, MatrixElement } from "chartjs-chart-matrix";
 import { useTimeRangeOptions } from "~/composables/useTimeRangeOptions";
 import UiListModal from "~/components/Ui/ListModal.vue";
 
@@ -262,7 +277,10 @@ Chart.register(
   PointElement,
   LineController,
   Tooltip,
-  Filler
+  Filler,
+  MatrixController,
+  MatrixElement,
+  TimeScale
 );
 
 type ItemWithTime = {
@@ -272,9 +290,11 @@ type ItemWithTime = {
 
 const userState = useState<User | null>("user");
 const chartContainer = ref<HTMLElement | null>(null);
+const activityChartContainer = ref<HTMLElement | null>(null);
 const projectSort = ref<"time" | "name">("time");
 const uniqueLanguages = ref(0);
 let chart: Chart | null = null;
+let activityChart: Chart | null = null;
 
 const showListModal = ref(false);
 const modalTitle = ref("");
@@ -317,6 +337,7 @@ watch(
     }
     if (chart) {
       updateChart();
+      updateActivityChart();
     }
   },
   { immediate: true, deep: true }
@@ -451,13 +472,22 @@ onMounted(async () => {
   if (chartContainer.value) {
     renderChart();
   }
+
+  if (activityChartContainer.value) {
+    renderActivityChart();
+  }
 });
 
 onUnmounted(() => {
   keyboard.clear();
+  statsLib.fetchStats();
   if (chart) {
     chart.destroy();
     chart = null;
+  }
+  if (activityChart) {
+    activityChart.destroy();
+    activityChart = null;
   }
 });
 
@@ -615,6 +645,269 @@ function renderChart() {
       },
     });
   });
+}
+
+function renderActivityChart() {
+  if (!activityChartContainer.value || !stats.value) return;
+
+  activityChartContainer.value.style.minWidth = "730px";
+
+  const ctx = document.createElement("canvas");
+  activityChartContainer.value?.appendChild(ctx);
+
+  const scales = {
+    y: {
+      type: "time",
+      offset: true,
+      time: {
+        unit: "day",
+        round: "day",
+        isoWeekday: 1,
+        parser: "i",
+        displayFormats: {
+          day: "EEE",
+        },
+      },
+      reverse: true,
+      position: "right",
+      ticks: {
+        maxRotation: 0,
+        autoSkip: true,
+        padding: 1,
+        font: {
+          size: 9,
+          family: "ChivoMono",
+        },
+        color: "#666666",
+      },
+      grid: {
+        display: false,
+        drawBorder: false,
+        tickLength: 0,
+      },
+    },
+    x: {
+      type: "time",
+      position: "bottom",
+      offset: true,
+      time: {
+        unit: "week",
+        round: "week",
+        isoWeekday: 1,
+        displayFormats: {
+          week: "MMM",
+        },
+      },
+      ticks: {
+        maxRotation: 0,
+        autoSkip: true,
+        maxTicksLimit: 12,
+        font: {
+          size: 9,
+          family: "ChivoMono",
+        },
+        color: "#666666",
+      },
+      grid: {
+        display: false,
+        drawBorder: false,
+        tickLength: 0,
+      },
+    },
+  };
+
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const startDate = new Date(yesterday);
+  startDate.setDate(startDate.getDate() - 364);
+
+  const days: Date[] = [];
+  let currentDate = new Date(startDate);
+  while (currentDate <= yesterday) {
+    days.push(new Date(currentDate));
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  const getDateLabel = (date: Date) =>
+    `${date.getDate()} ${months[date.getMonth()]}`;
+
+  let labels: string[] = days.map(getDateLabel);
+  let data: number[] = processSummaries(labels);
+
+  const transformedData = data.map((d, i) => ({
+    x: days[i].toISOString().slice(0, 10),
+    y: isoDayOfWeek(days[i]),
+    d: labels[i],
+    v: d,
+  }));
+
+  activityChart = new Chart(ctx, {
+    type: "matrix",
+    data: {
+      datasets: [
+        {
+          data: transformedData,
+          backgroundColor(c) {
+            const value = c.dataset.data[c.dataIndex].v;
+            if (value === 0) return "rgba(0, 0, 0, 0.05)";
+            
+            // GitHub-like color scale
+            if (value > 0 && value <= 1) return "rgba(255, 98, 0, 0.15)";
+            if (value > 1 && value <= 3) return "rgba(255, 98, 0, 0.35)";
+            if (value > 3 && value <= 5) return "rgba(255, 98, 0, 0.55)";
+            if (value > 5 && value <= 8) return "rgba(255, 98, 0, 0.75)";
+            return "rgba(255, 98, 0, 0.95)";
+          },
+          borderColor: "rgba(0, 0, 0, 0.05)",
+          borderWidth: 1,
+          borderRadius: 1,
+          width(c) {
+            const a = c.chart.chartArea || {};
+            const availWidth = a.right - a.left;
+            const availHeight = a.bottom - a.top;
+            
+            // Fixed gap between cells
+            const cellGap = 3;
+            
+            // Calculate cell sizes for both dimensions
+            const widthBasedSize = (availWidth / 53) - cellGap;
+            const heightBasedSize = (availHeight / 7) - cellGap;
+            
+            // Use smaller dimension to keep cells square
+            return Math.max(Math.min(widthBasedSize, heightBasedSize), 10);
+          },
+          height(c) {
+            const a = c.chart.chartArea || {};
+            const availWidth = a.right - a.left;
+            const availHeight = a.bottom - a.top;
+            
+            // Fixed gap between cells
+            const cellGap = 3;
+            
+            // Calculate cell sizes for both dimensions
+            const widthBasedSize = (availWidth / 53) - cellGap;
+            const heightBasedSize = (availHeight / 7) - cellGap;
+            
+            // Use smaller dimension to keep cells square
+            return Math.max(Math.min(widthBasedSize, heightBasedSize), 10);
+          },
+          hoverBackgroundColor(c) {
+            const value = c.dataset.data[c.dataIndex].v;
+            if (value === 0) return "rgba(0, 0, 0, 0.1)";
+            
+            // Hover effect: slightly brighter
+            if (value > 0 && value <= 1) return "rgba(255, 98, 0, 0.25)";
+            if (value > 1 && value <= 3) return "rgba(255, 98, 0, 0.45)";
+            if (value > 3 && value <= 5) return "rgba(255, 98, 0, 0.65)";
+            if (value > 5 && value <= 8) return "rgba(255, 98, 0, 0.85)";
+            return "rgba(255, 98, 0, 1)";
+          },
+          hoverBorderColor: "rgba(0, 0, 0, 0.1)",
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 53 / 7,
+      animation: false,
+      layout: {
+        padding: {
+          top: 18,
+          right: 25,
+          bottom: 10,
+          left: 15
+        }
+      },
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          backgroundColor: "#2b2b2b",
+          borderColor: "#ffffff1a",
+          borderWidth: 1,
+          titleColor: "#e6e6e6",
+          bodyColor: "#e6e6e6",
+          padding: 12,
+          cornerRadius: 0,
+          displayColors: false,
+          titleFont: {
+            family: "ChivoMono",
+            weight: 500,
+            size: 14,
+          },
+          bodyFont: {
+            family: "ChivoMono",
+            size: 14,
+          },
+          callbacks: {
+            title: function (tooltipItems) {
+              return tooltipItems[0].raw.d;
+            },
+            label: function (context) {
+              const value = context.raw.v || 0;
+              if (value === 0) return "No activity";
+              
+              const numValue = Number(value);
+              const hours = Math.floor(numValue);
+              const minutes = Math.round((numValue - hours) * 60);
+              
+              if (hours === 0) {
+                return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+              }
+              
+              return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes > 0 ? `${minutes} minute${minutes !== 1 ? 's' : ''}` : ''}`;
+            },
+          },
+        },
+      },
+      scales: scales,
+    },
+  });
+}
+
+function updateActivityChart() {
+  if (!activityChart || !stats.value) {
+    return;
+  }
+
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const startDate = new Date(yesterday);
+  startDate.setDate(startDate.getDate() - 364);
+
+  const days: Date[] = [];
+  let currentDate = new Date(startDate);
+  while (currentDate <= yesterday) {
+    days.push(new Date(currentDate));
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  const getDateLabel = (date: Date) =>
+    `${date.getDate()} ${months[date.getMonth()]}`;
+
+  let labels: string[] = days.map(getDateLabel);
+  let data: number[] = processSummaries(labels);
+
+  const transformedData = data.map((d, i) => ({
+    x: days[i].toISOString().slice(0, 10),
+    y: isoDayOfWeek(days[i]),
+    d: labels[i],
+    v: d,
+  }));
+  activityChart.data.datasets[0].data = transformedData;
+  activityChart.update();
+}
+
+function isoDayOfWeek(dt: Date) {
+  let wd = dt.getDay(); // 0..6, from sunday
+  wd = ((wd + 6) % 7) + 1; // 1..7 from monday
+  return "" + wd; // string so it gets parsed
 }
 
 function updateChart() {
@@ -1031,4 +1324,22 @@ definePageMeta({ scrollToTop: true });
 
 <style lang="scss">
 @use "/styles/index.scss";
+
+.activity-chart-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 98, 0, 0.3) rgba(0, 0, 0, 0.1);
+}
+
+.activity-chart-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.activity-chart-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.activity-chart-container::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 98, 0, 0.3);
+  border-radius: 4px;
+}
 </style>
