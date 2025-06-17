@@ -8,13 +8,13 @@
 
 <div align="center">
     <a href="https://docs.ziit.app">Docs</a>
-    <span> • </span>
+    <span>  •  </span>
     <a href="https://status.ziit.app/">Status</a>
-    <span> • </span>
+    <span>  •  </span>
     <a href="https://ziit.app">Public Instance</a>
-    <span> • </span>
+    <span>  •  </span>
     <a href="https://ziit.app/stats">Public Stats</a>
-    <span> • </span>
+    <span>  •  </span>
     <a href="https://discord.gg/Y7SbYphVw9">Discord</a>
 </div>
 
