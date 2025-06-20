@@ -270,6 +270,7 @@ type ItemWithTime = {
   seconds: number;
 };
 
+const toast = useToast();
 const userState = useState<User | null>("user");
 const chartContainer = ref<HTMLElement | null>(null);
 const projectSort = ref<"time" | "name">("time");
@@ -446,6 +447,14 @@ onMounted(async () => {
         );
       }
     }
+  );
+
+  keyboard.listen(
+    [Key.Alt, Key.L],
+    async () => {
+      await logout();
+    },
+    { prevent: true, ignoreIfEditable: true }
   );
 
   if (chartContainer.value) {
@@ -981,6 +990,14 @@ function groupHeartbeatsByProject(
   }
 
   return result;
+}
+
+async function logout() {
+  try {
+    window.location.href = "/api/auth/logout";
+  } catch (e: any) {
+    toast.error(e.data?.message || "Logout failed");
+  }
 }
 
 useSeoMeta({
