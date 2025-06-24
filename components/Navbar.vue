@@ -14,10 +14,7 @@
       </svg>
     </NuxtLink>
     <div class="actions">
-      <a
-        href="https://docs.ziit.app"
-        target="_blank"
-        rel="noopener noreferrer"
+      <a href="https://docs.ziit.app" target="_blank" rel="noopener noreferrer"
         >Docs</a
       >
       <a
@@ -52,6 +49,10 @@
       &:hover {
         color: var(--text);
       }
+    }
+
+    .router-link-active {
+      color: var(--text);
     }
   }
 }
