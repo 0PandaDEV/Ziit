@@ -10,7 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@nuxtjs/sitemap": "7.4.1",
+    "@nuxtjs/sitemap": "7.4.2",
     "@prisma/client": "6.10.1",
     "@types/bcrypt": "5.0.2",
     "@vite-pwa/nuxt": "1.0.4",
@@ -18,7 +18,7 @@
     "badgen": "3.2.3",
     "bcrypt": "6.0.0",
     "chart.js": "4.5.0",
-    "lucide-vue-next": "0.518.0",
+    "lucide-vue-next": "0.523.0",
     "nuxt": "3.17.5",
     "nuxt-cron": "1.8.0",
     "paseto-ts": "2.0.5",
@@ -29,6 +29,6 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
-    "prettier": "3.5.3"
+    "prettier": "3.6.0"
   }
 }
