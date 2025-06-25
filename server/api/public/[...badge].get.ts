@@ -14,12 +14,16 @@ interface StatsWithProject extends StatsResult {
 }
 
 export default defineEventHandler(async (event) => {
-  const path = event.path || "";
-  const segments = path.split("/").filter(Boolean);
+  const url = new URL(
+    event.node.req.url || "",
+    `http://${event.node.req.headers.host || "localhost"}`
+  );
+  const pathname = url.pathname;
+  const segments = pathname.split("/").filter(Boolean);
+  const badgeIdx = segments.indexOf("badge");
+  const pathParams = segments.slice(badgeIdx + 1);
 
-  const pathParams = segments.slice(segments.indexOf("badge") + 1);
-
-  // /api/public/badge/:userId/:project/:timeRange/:color/:labelText?
+  // /api/public/badge/:userId/:project/:timeRange/:color/:labelText
   const userId = pathParams[0];
   const projectInput = pathParams[1] || "all";
   const timeRangeParam = (pathParams[2] as TimeRange) || TimeRangeEnum.ALL_TIME;
@@ -45,7 +49,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const query = getQuery(event);
+  const query = Object.fromEntries(url.searchParams.entries());
   const style = query.style ? String(query.style) : "classic";
   const icon = query.icon as string;
 
@@ -70,7 +74,6 @@ export default defineEventHandler(async (event) => {
       for (const summary of stats.summaries) {
         if (summary.projects) {
           const projectsData = summary.projects as Record<string, number>;
-
           for (const [projectName, seconds] of Object.entries(projectsData)) {
             if (projectName.toLowerCase() === project) {
               totalSeconds += seconds;
@@ -126,7 +129,6 @@ export default defineEventHandler(async (event) => {
 
   event.node.res.setHeader("Content-Type", "image/svg+xml");
   event.node.res.setHeader("Cache-Control", "max-age=600, s-maxage=600");
-
   event.node.res.setHeader("Access-Control-Allow-Origin", "*");
   event.node.res.setHeader("Access-Control-Allow-Methods", "GET");
 
