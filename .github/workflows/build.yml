@@ -16,7 +16,7 @@ on:
 jobs:
   prepare:
     name: Prepare Docker Metadata
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
       labels: ${{ steps.meta.outputs.labels }}
@@ -38,7 +38,7 @@ jobs:
   build-and-push:
     name: Build and push Docker image
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     permissions:
       contents: read
       packages: write
