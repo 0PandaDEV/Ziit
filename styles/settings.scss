@@ -77,3 +77,23 @@ a {
   font-family: inherit;
   margin-right: 8px;
 }
+
+.import-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .spinner {
+    font-family: ChivoMono;
+    margin-right: 2px;
+  }
+
+  .bar-container {
+    width: 100%;
+
+    .bar {
+      height: 1px;
+      background-color: var(--accent);
+    }
+  }
+}

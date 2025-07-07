@@ -177,6 +177,16 @@
           keyName="I"
           @click="importTrackingData"
           :disabled="isUploading" />
+
+        <div v-if="importJob" class="import-status">
+          <p>
+            <span class="spinner">{{ spinnerText }}</span>
+            {{ importStatusText }}
+          </p>
+          <div class="bar-container">
+            <div class="bar" :style="{ width: importJob.progress + '%' }"></div>
+          </div>
+        </div>
       </section>
     </div>
   </NuxtLayout>
@@ -184,9 +194,10 @@
 
 <script setup lang="ts">
 import type { User } from "@prisma/client";
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useKeyboard, Key } from "@waradu/keyboard";
 import * as statsLib from "~/lib/stats";
+import type { ImportJob } from "~/server/utils/import-jobs";
 
 const userState = useState<User | null>("user");
 const user = computed(() => userState.value);
@@ -209,7 +220,14 @@ const selectedFile = ref<File | null>(null);
 const selectedFileName = ref<string | null>(null);
 const uploadProgress = ref(0);
 const isUploading = ref(false);
-const CHUNK_SIZE = 95 * 1024 * 1024; // 95MB chunks to stay under Cloudflare's limit
+const importJob = ref<ImportJob | null>(null);
+let eventSource: EventSource | null = null;
+const CHUNK_SIZE = 95 * 1024 * 1024;
+
+const spinnerChars = ["-", "/", "|", "\\"];
+const spinnerIndex = ref(0);
+const spinnerText = computed(() => spinnerChars[spinnerIndex.value]);
+let spinnerInterval: NodeJS.Timeout | null = null;
 
 const showEmailModal = ref(false);
 const showPasswordModal = ref(false);
@@ -221,6 +239,108 @@ const keyboard = useKeyboard();
 
 const apiKeyPlaceholder = computed(() => {
   return `Enter your ${importType.value === "wakatime" ? "WakaTime" : "WakAPI"} API Key`;
+});
+
+const importStatusText = computed(() => {
+  if (!importJob.value) return "";
+  const job = importJob.value;
+  let status = job.status;
+
+  if (job.status === "Uploading" && job.totalSize) {
+    const uploadedMB = ((job.uploadedSize || 0) / (1024 * 1024)).toFixed(2);
+    const totalMB = (job.totalSize / (1024 * 1024)).toFixed(2);
+    return `Uploading: ${uploadedMB}MB / ${totalMB}MB (${job.progress}%)`;
+  }
+
+  if (job.status === "Processing") {
+    const processed = job.processedCount || 0;
+    return `Processing: ${processed} days processed (${job.progress}%)`;
+  }
+
+  return status;
+});
+
+function startSpinner() {
+  if (spinnerInterval) return;
+  spinnerInterval = setInterval(() => {
+    spinnerIndex.value = (spinnerIndex.value + 1) % spinnerChars.length;
+  }, 200);
+}
+
+function stopSpinner() {
+  if (spinnerInterval) {
+    clearInterval(spinnerInterval);
+    spinnerInterval = null;
+  }
+}
+
+watch(importJob, (newJob) => {
+  if (newJob && (newJob.status === "Completed" || newJob.status === "Failed")) {
+    stopSpinner();
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+    if (newJob.status === "Completed") {
+      toast.success(
+        `Successfully imported ${newJob.importedCount} heartbeats.`
+      );
+    } else if (newJob.status === "Failed") {
+      toast.error(`Import failed: ${newJob.error}`);
+    }
+    setTimeout(() => {
+      importJob.value = null;
+    }, 5000);
+  } else if (newJob) {
+    startSpinner();
+  } else {
+    stopSpinner();
+  }
+});
+
+function connectEventSource() {
+  if (eventSource) return;
+
+  eventSource = new EventSource("/api/import/status");
+
+  eventSource.onopen = () => {
+    console.log("EventSource connected");
+  };
+
+  eventSource.onmessage = (event) => {
+    const jobStatus = JSON.parse(event.data);
+    if (
+      !jobStatus ||
+      jobStatus.status === "no_job" ||
+      jobStatus.status === "Completed" ||
+      jobStatus.status === "Failed"
+    ) {
+      importJob.value = null;
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+    } else {
+      importJob.value = jobStatus as ImportJob;
+    }
+  };
+
+  eventSource.onerror = (error) => {
+    console.error("EventSource error:", error);
+    toast.error("An error occurred with the status connection.");
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+  };
+}
+
+onUnmounted(() => {
+  keyboard.clear();
+  if (eventSource) {
+    eventSource.close();
+  }
+  stopSpinner();
 });
 
 async function fetchUserData() {
@@ -244,6 +364,21 @@ async function fetchUserData() {
 onMounted(async () => {
   keyboard.init();
   await fetchUserData();
+
+  try {
+    const job = await $fetch<any>("/api/import/status");
+    if (
+      job &&
+      job.status !== "no_job" &&
+      job.status !== "Completed" &&
+      job.status !== "Failed"
+    ) {
+      importJob.value = job as ImportJob;
+      connectEventSource();
+    }
+  } catch (error) {
+    console.error("Error fetching initial import job status:", error);
+  }
 
   if (user.value) {
     keystrokeTimeout.value = user.value.keystrokeTimeout;
@@ -358,10 +493,6 @@ onMounted(async () => {
     },
     { prevent: true, ignoreIfEditable: true }
   );
-});
-
-onUnmounted(() => {
-  keyboard.clear();
 });
 
 async function updateKeystrokeTimeout() {
@@ -539,6 +670,7 @@ function handleFileChange(event: Event) {
     } else {
       toast.success(`Selected file: ${input.files[0].name} (${fileSizeMB} MB)`);
     }
+    importJob.value = null;
   } else {
     selectedFile.value = null;
     selectedFileName.value = null;
@@ -559,15 +691,20 @@ async function importTrackingData() {
       const fileSize = file.size;
 
       console.log(
-        `Starting upload of ${file.name}, size: ${(fileSize / (1024 * 1024)).toFixed(2)}MB`
+        `Starting upload of ${file.name}, size: ${(
+          fileSize /
+          (1024 * 1024)
+        ).toFixed(2)}MB`
       );
+
+      connectEventSource();
 
       if (fileSize <= CHUNK_SIZE) {
         const formData = new FormData();
         formData.append("file", selectedFile.value);
         toast.success("WakaTime data import started");
 
-        await $fetch("/api/wakatime", {
+        await $fetch("/api/import", {
           method: "POST",
           body: formData,
         });
@@ -591,17 +728,24 @@ async function importTrackingData() {
           formData.append("fileSize", fileSize.toString());
           formData.append("chunk", chunk);
 
-          await $fetch("/api/wakatime", {
+          await $fetch("/api/import", {
             method: "POST",
             body: formData,
+            onUploadProgress: (progressEvent: ProgressEvent) => {
+              if (progressEvent.lengthComputable) {
+                const chunkProgress =
+                  progressEvent.loaded / progressEvent.total;
+                const totalProgress =
+                  (chunkIndex + chunkProgress) / totalChunks;
+                if (importJob.value && importJob.value.status === "Uploading") {
+                  importJob.value.progress = Math.round(totalProgress * 100);
+                }
+              }
+            },
           });
-
-          uploadProgress.value = Math.round(
-            ((chunkIndex + 1) / totalChunks) * 100
-          );
         }
 
-        await $fetch("/api/wakatime", {
+        await $fetch("/api/import", {
           method: "POST",
           body: { fileId, processChunks: true },
         });
@@ -639,7 +783,7 @@ async function importTrackingData() {
       };
       toast.success("WakAPI data import started");
 
-      await $fetch("/api/wakatime", {
+      await $fetch("/api/import", {
         method: "POST",
         body: payload,
       });
