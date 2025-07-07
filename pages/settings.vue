@@ -127,12 +127,12 @@
               :text="'WakaTime'"
               :selected="importType === 'wakatime'"
               :value="'wakatime'"
-              @update="(val) => (importType = val as ImportType)" />
+              @update="(val: ImportType) => (importType = val)" />
             <UiRadioButton
               :text="'WakAPI'"
               :selected="importType === 'wakapi'"
               :value="'wakapi'"
-              @update="(val) => (importType = val as ImportType)" />
+              @update="(val: ImportType) => (importType = val)" />
           </div>
 
           <UiInput
@@ -160,7 +160,7 @@
               2. Click on <kbd>Export my code stats...</kbd> and select
               Heartbeats
             </p>
-            <p>3. Wait and then listenload your data</p>
+            <p>3. Wait and then download your data</p>
           </div>
 
           <input
@@ -172,7 +172,11 @@
             v-if="importType === 'wakatime'" />
         </div>
 
-        <UiButton text="Import Data" keyName="I" @click="importTrackingData" />
+        <UiButton
+          text="Import Data"
+          keyName="I"
+          @click="importTrackingData"
+          :disabled="isUploading" />
       </section>
     </div>
   </NuxtLayout>
@@ -203,6 +207,9 @@ const wakapiInstanceUrl = ref("");
 const wakaTimeFileInput = ref<HTMLInputElement | null>(null);
 const selectedFile = ref<File | null>(null);
 const selectedFileName = ref<string | null>(null);
+const uploadProgress = ref(0);
+const isUploading = ref(false);
+const CHUNK_SIZE = 95 * 1024 * 1024; // 95MB chunks to stay under Cloudflare's limit
 
 const showEmailModal = ref(false);
 const showPasswordModal = ref(false);
@@ -520,6 +527,18 @@ function handleFileChange(event: Event) {
   if (input.files && input.files.length > 0) {
     selectedFile.value = input.files[0];
     selectedFileName.value = input.files[0].name;
+
+    const fileSize = input.files[0].size;
+    const fileSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+
+    if (fileSize > CHUNK_SIZE) {
+      const chunks = Math.ceil(fileSize / CHUNK_SIZE);
+      toast.success(
+        `Large file detected (${fileSizeMB} MB). Will upload in ${chunks} chunks.`
+      );
+    } else {
+      toast.success(`Selected file: ${input.files[0].name} (${fileSizeMB} MB)`);
+    }
   } else {
     selectedFile.value = null;
     selectedFileName.value = null;
@@ -534,24 +553,72 @@ async function importTrackingData() {
     }
 
     try {
-      const formData = new FormData();
-      formData.append("file", selectedFile.value);
-      toast.success("WakaTime data import started");
+      isUploading.value = true;
+      uploadProgress.value = 0;
+      const file = selectedFile.value;
+      const fileSize = file.size;
 
-      await $fetch("/api/wakatime", {
-        method: "POST",
-        body: formData,
-      });
+      console.log(
+        `Starting upload of ${file.name}, size: ${(fileSize / (1024 * 1024)).toFixed(2)}MB`
+      );
+
+      if (fileSize <= CHUNK_SIZE) {
+        const formData = new FormData();
+        formData.append("file", selectedFile.value);
+        toast.success("WakaTime data import started");
+
+        await $fetch("/api/wakatime", {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
+        const fileId = Date.now().toString();
+        toast.success(
+          `Processing large file (${(fileSize / (1024 * 1024)).toFixed(2)}MB) in ${totalChunks} chunks`
+        );
+
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+          const start = chunkIndex * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, fileSize);
+          const chunk = file.slice(start, end);
+
+          const formData = new FormData();
+          formData.append("fileId", fileId);
+          formData.append("chunkIndex", chunkIndex.toString());
+          formData.append("totalChunks", totalChunks.toString());
+          formData.append("fileName", file.name);
+          formData.append("fileSize", fileSize.toString());
+          formData.append("chunk", chunk);
+
+          await $fetch("/api/wakatime", {
+            method: "POST",
+            body: formData,
+          });
+
+          uploadProgress.value = Math.round(
+            ((chunkIndex + 1) / totalChunks) * 100
+          );
+        }
+
+        await $fetch("/api/wakatime", {
+          method: "POST",
+          body: { fileId, processChunks: true },
+        });
+      }
 
       toast.success("WakaTime data import completed");
       selectedFile.value = null;
       selectedFileName.value = null;
+      uploadProgress.value = 0;
       if (wakaTimeFileInput.value) {
         wakaTimeFileInput.value.value = "";
       }
     } catch (error: any) {
       console.error("Error importing WakaTime data:", error);
       toast.error(error?.data?.message || "Failed to import WakaTime data");
+    } finally {
+      isUploading.value = false;
     }
   } else {
     if (!importApiKey.value) {

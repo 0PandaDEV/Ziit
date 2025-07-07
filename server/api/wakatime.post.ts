@@ -1,4 +1,7 @@
 import path from "path";
+import fs from "fs";
+import { mkdirSync, writeFileSync, existsSync } from "fs";
+import { tmpdir } from "os";
 import { H3Event } from "h3";
 import { z } from "zod";
 import { processHeartbeatsByDate } from "~/server/utils/summarize";
@@ -149,7 +152,11 @@ async function fetchRangeHeartbeats(
         await processHeartbeatsByDate(userId, heartbeats);
       }
     } catch (error) {
-      handleApiError(500, `Error fetching heartbeats for ${dateStr} for user ${userId}: ${error instanceof Error ? error.message : String(error)}`, "An error occurred while fetching some activity data. The import may be incomplete.");
+      handleApiError(
+        500,
+        `Error fetching heartbeats for ${dateStr} for user ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+        "An error occurred while fetching some activity data. The import may be incomplete."
+      );
     }
 
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -185,8 +192,23 @@ export default defineEventHandler(async (event: H3Event) => {
   handleLog("Processing for user ID:", userId);
 
   const formData = await readMultipartFormData(event);
+
+  if (
+    formData &&
+    formData.some((item) => item.name === "fileId") &&
+    formData.some((item) => item.name === "chunkIndex") &&
+    formData.some((item) => item.name === "chunk")
+  ) {
+    handleLog("Detected chunk upload");
+    return handleChunkUpload(formData, userId);
+  }
+
   if (!formData || formData.length === 0) {
     const body = await readBody(event);
+
+    if (body && body.fileId && body.processChunks) {
+      return handleProcessChunks(body.fileId, userId);
+    }
 
     const validationResult = wakaApiRequestSchema.safeParse(body);
     if (!validationResult.success) {
@@ -363,7 +385,11 @@ export default defineEventHandler(async (event: H3Event) => {
 
         await processHeartbeatsByDate(userId, processedHeartbeats);
       } catch (error) {
-        handleApiError(500, `Error processing or saving heartbeats for date ${day.date} during WakaTime export for user ${userId}: ${error instanceof Error ? error.message : String(error)}`, "An error occurred while processing a day's data from the WakaTime export. The import may be incomplete.");
+        handleApiError(
+          500,
+          `Error processing or saving heartbeats for date ${day.date} during WakaTime export for user ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+          "An error occurred while processing a day's data from the WakaTime export. The import may be incomplete."
+        );
       }
     }
 
@@ -384,6 +410,230 @@ export default defineEventHandler(async (event: H3Event) => {
     );
   }
 });
+
+async function handleChunkUpload(formData: any[], userId: string) {
+  try {
+    const fileIdItem = formData.find((item) => item.name === "fileId");
+    const chunkIndexItem = formData.find((item) => item.name === "chunkIndex");
+    const totalChunksItem = formData.find(
+      (item) => item.name === "totalChunks"
+    );
+    const fileNameItem = formData.find((item) => item.name === "fileName");
+    const chunkItem = formData.find((item) => item.name === "chunk");
+
+    if (
+      !fileIdItem?.data ||
+      !chunkIndexItem?.data ||
+      !totalChunksItem?.data ||
+      !fileNameItem?.data ||
+      !chunkItem?.data
+    ) {
+      const missingFields = [];
+      if (!fileIdItem?.data) missingFields.push("fileId");
+      if (!chunkIndexItem?.data) missingFields.push("chunkIndex");
+      if (!totalChunksItem?.data) missingFields.push("totalChunks");
+      if (!fileNameItem?.data) missingFields.push("fileName");
+      if (!chunkItem?.data) missingFields.push("chunk");
+
+      const errorMessage = `Missing required chunk information: ${missingFields.join(", ")}`;
+      handleLog(errorMessage);
+      throw handleApiError(400, errorMessage, "Invalid chunk data");
+    }
+
+    const fileId = new TextDecoder().decode(fileIdItem.data);
+    const chunkIndex = parseInt(new TextDecoder().decode(chunkIndexItem.data));
+    const totalChunks = parseInt(
+      new TextDecoder().decode(totalChunksItem.data)
+    );
+    const fileName = new TextDecoder().decode(fileNameItem.data);
+
+    const userTempDir = path.join(tmpdir(), "ziit-chunks", userId);
+    const chunksDir = path.join(userTempDir, fileId);
+
+    if (!existsSync(userTempDir)) {
+      mkdirSync(userTempDir, { recursive: true });
+    }
+
+    if (!existsSync(chunksDir)) {
+      mkdirSync(chunksDir, { recursive: true });
+    }
+
+    const chunkPath = path.join(chunksDir, `chunk-${chunkIndex}`);
+    writeFileSync(chunkPath, chunkItem.data);
+
+    handleLog(
+      `Saved chunk ${chunkIndex + 1}/${totalChunks} for file ${fileName} (user ${userId})`
+    );
+
+    if (chunkIndex === totalChunks - 1) {
+      return handleProcessChunks(fileId, userId);
+    }
+
+    return {
+      success: true,
+      message: `Chunk ${chunkIndex + 1} of ${totalChunks} received successfully`,
+      chunkIndex,
+      totalChunks,
+    };
+  } catch (error: any) {
+    if (error && typeof error === "object" && "__h3_error__" in error) {
+      throw error;
+    }
+
+    const detailedMessage =
+      error instanceof Error ? error.message : "Unknown error processing chunk";
+    throw handleApiError(
+      500,
+      `Failed to process chunk for user ${userId}: ${detailedMessage}`,
+      "Failed to process file chunk"
+    );
+  }
+}
+
+async function handleProcessChunks(fileId: string, userId: string) {
+  try {
+    const userTempDir = path.join(tmpdir(), "ziit-chunks", userId);
+    const chunksDir = path.join(userTempDir, fileId);
+
+    handleLog(`Processing chunks from directory: ${chunksDir}`);
+
+    if (!existsSync(chunksDir)) {
+      handleLog(`ERROR: Chunks directory does not exist: ${chunksDir}`);
+      throw handleApiError(
+        404,
+        `Chunks directory not found for file ID ${fileId}`,
+        "Upload chunks not found"
+      );
+    }
+
+    const chunkFiles = fs
+      .readdirSync(chunksDir)
+      .filter((file) => file.startsWith("chunk-"))
+      .sort((a, b) => {
+        const indexA = parseInt(a.split("-")[1]);
+        const indexB = parseInt(b.split("-")[1]);
+        return indexA - indexB;
+      });
+
+    handleLog(`Found ${chunkFiles.length} chunk files`);
+
+    const combinedFilePath = path.join(userTempDir, `${fileId}-combined.json`);
+    handleLog(`Will create combined file at: ${combinedFilePath}`);
+
+    let combinedContent = Buffer.alloc(0);
+
+    for (const chunkFile of chunkFiles) {
+      const chunkPath = path.join(chunksDir, chunkFile);
+      handleLog(`Reading chunk file: ${chunkPath}`);
+
+      if (!existsSync(chunkPath)) {
+        handleLog(`ERROR: Chunk file does not exist: ${chunkPath}`);
+        throw new Error(`Chunk file not found: ${chunkPath}`);
+      }
+
+      const chunkData = fs.readFileSync(chunkPath);
+      handleLog(
+        `Read chunk file: ${chunkPath}, size: ${chunkData.length} bytes`
+      );
+
+      combinedContent = Buffer.concat([combinedContent, chunkData]);
+    }
+
+    fs.writeFileSync(combinedFilePath, combinedContent);
+    handleLog(`Wrote combined file with size: ${combinedContent.length} bytes`);
+
+    handleLog(`Verifying combined file exists at: ${combinedFilePath}`);
+    if (!existsSync(combinedFilePath)) {
+      handleLog(`ERROR: Combined file does not exist: ${combinedFilePath}`);
+      throw new Error(`Combined file not found: ${combinedFilePath}`);
+    }
+
+    handleLog(`Processing combined file for user ${userId}`);
+    const fileContent = fs.readFileSync(combinedFilePath, "utf-8");
+    handleLog(`Read combined file, size: ${fileContent.length} bytes`);
+
+    const parsedData = JSON.parse(fileContent);
+
+    const validationResult = wakaTimeExportSchema.safeParse(parsedData);
+    if (!validationResult.success) {
+      const errorDetail = `Invalid WakaTime export format for user ${userId}: ${validationResult.error.errors[0].message}`;
+      throw handleApiError(
+        400,
+        errorDetail,
+        validationResult.error.errors[0].message || "Invalid file format."
+      );
+    }
+
+    const wakaData = validationResult.data;
+
+    handleLog(
+      `Parsing WakaTime export with ${wakaData.days.length} days of data`
+    );
+
+    let totalHeartbeats = 0;
+
+    for (const day of wakaData.days) {
+      if (!day.heartbeats || day.heartbeats.length === 0) continue;
+
+      handleLog(
+        `Processing ${day.heartbeats.length} heartbeats for ${day.date}`
+      );
+      totalHeartbeats += day.heartbeats.length;
+
+      try {
+        const processedHeartbeats = day.heartbeats.map((h) => {
+          return {
+            userId,
+            timestamp: BigInt(Math.floor(h.time * 1000)),
+            project: h.project || null,
+            editor: h.user_agent_id ? extractEditor(h.user_agent_id) : null,
+            language: h.language || null,
+            os: h.entity ? extractOS(h.entity) : null,
+            file: h.entity ? path.basename(h.entity) : null,
+            branch: h.branch || null,
+            createdAt: new Date(),
+            summariesId: null,
+          };
+        });
+
+        await processHeartbeatsByDate(userId, processedHeartbeats);
+      } catch (error) {
+        handleApiError(
+          500,
+          `Error processing or saving heartbeats for date ${day.date} during WakaTime export for user ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+          "An error occurred while processing a day's data from the WakaTime export. The import may be incomplete."
+        );
+      }
+    }
+
+    try {
+      fs.unlinkSync(combinedFilePath);
+      for (const chunkFile of chunkFiles) {
+        fs.unlinkSync(path.join(chunksDir, chunkFile));
+      }
+      fs.rmdirSync(chunksDir);
+    } catch (cleanupError) {
+      handleLog(`Warning: Error during cleanup: ${cleanupError}`);
+    }
+
+    handleLog("Database update complete");
+    return { success: true, imported: totalHeartbeats };
+  } catch (error: any) {
+    if (error && typeof error === "object" && "__h3_error__" in error) {
+      throw error;
+    }
+
+    const detailedMessage =
+      error instanceof Error
+        ? error.message
+        : "Unknown error processing chunks";
+    throw handleApiError(
+      500,
+      `Failed to process chunked file for user ${userId}: ${detailedMessage}`,
+      "Failed to process uploaded file chunks"
+    );
+  }
+}
 
 function extractEditor(userAgent: string) {
   if (!userAgent) {
