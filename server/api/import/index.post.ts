@@ -231,7 +231,7 @@ async function processFileInBackground(fileId: string, userId: string) {
     }
     fs.writeFileSync(combinedFilePath, combinedContent);
     handleLog(
-      `[User:${userId}] Combined ${chunkFiles.length} chunks for file ${fileId} (${(
+      `[${userId}] Combined ${chunkFiles.length} chunks for file ${fileId} (${(
         combinedContent.length /
         (1024 * 1024)
       ).toFixed(2)} MB).`
@@ -251,7 +251,7 @@ async function processFileInBackground(fileId: string, userId: string) {
       .pipe(Pick.withParser({ filter: "days" }))
       .pipe(StreamArray.streamArray());
 
-    handleLog(`[User:${userId}] Starting to stream and process heartbeats.`);
+    handleLog(`[${userId}] Starting to stream and process heartbeats.`);
 
     let totalHeartbeats = 0;
     let daysProcessed = 0;
@@ -262,7 +262,7 @@ async function processFileInBackground(fileId: string, userId: string) {
 
       if (day.heartbeats && day.heartbeats.length > 0) {
         handleLog(
-          `[User:${userId}] Processing ${day.heartbeats.length} heartbeats for ${day.date}`
+          `[${userId}] Processing ${day.heartbeats.length} heartbeats for ${day.date}`
         );
         const processedHeartbeats = day.heartbeats.map((h: any) =>
           processHeartbeat(h, userId)
@@ -273,7 +273,7 @@ async function processFileInBackground(fileId: string, userId: string) {
           await processHeartbeatsByDate(userId, processedHeartbeats);
         } catch (e) {
           handleLog(
-            `[User:${userId}] Error processing summaries for day ${day.date}: ${e}`
+            `[${userId}] Error processing summaries for day ${day.date}: ${e}`
           );
         }
       }
@@ -289,7 +289,7 @@ async function processFileInBackground(fileId: string, userId: string) {
           job.progress = 100;
           job.importedCount = totalHeartbeats;
           handleLog(
-            `[User:${userId}] Successfully processed ${totalHeartbeats} heartbeats over ${daysProcessed} days.`
+            `[${userId}] Successfully processed ${totalHeartbeats} heartbeats over ${daysProcessed} days.`
           );
           resolve();
         } catch (error) {
@@ -309,7 +309,7 @@ async function processFileInBackground(fileId: string, userId: string) {
       activeJobs.set(userId, job);
     }
     handleLog(
-      `[User:${userId}] Error processing file ${fileId}: ${error instanceof Error ? error.message : String(error)}`
+      `[${userId}] Error processing file ${fileId}: ${error instanceof Error ? error.message : String(error)}`
     );
     handleApiError(
       500,
@@ -608,8 +608,6 @@ async function handleChunkUpload(formData: any[], userId: string) {
     handleLog(
       `Received final chunk ${chunkIndex} for file ${fileId} for user ${userId}`
     );
-    // Do not await here to let the response go back to the client
-    processFileInBackground(fileId, userId);
   }
 }
 
