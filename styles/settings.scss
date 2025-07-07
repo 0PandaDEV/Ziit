@@ -79,12 +79,12 @@ a {
 }
 
 .import-status {
+  font-family: ChivoMono;
   display: flex;
   flex-direction: column;
   gap: 2px;
 
   .spinner {
-    font-family: ChivoMono;
     margin-right: 2px;
   }
 
