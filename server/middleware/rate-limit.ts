@@ -12,7 +12,7 @@ const profiles = {
   auth: { limit: 5, window: 1800000 },
   external: { limit: 100, window: 30000 },
   stats: { limit: 50, window: 60000 },
-  wakatime: { limit: 2, window: 1800000 },
+  wakatime: { limit: 20, window: 1800000 },
   public: { limit: 50, window: 60000 },
 } as const;
 
