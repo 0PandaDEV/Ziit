@@ -36,8 +36,6 @@
 
 Ziit (pronounced 'tseet') is an open-source, self-hostable alternative to WakaTime. It provides a clean, minimal, and fast dashboard for displaying coding statistics, while ensuring privacy by keeping all data on your own server. Ziit tracks coding activity such as projects, languages, editors, files, branches, operating systems, and time spent coding all presented in a familiar interface inspired by Plausible Analytics.
 
-## Preview
-
 ![Ziit](https://github.com/user-attachments/assets/bf8e8d72-3181-47e7-924f-537c74f68819)
 
 ## Features
