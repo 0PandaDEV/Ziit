@@ -240,7 +240,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { LucideMaximize } from "lucide-vue-next";
 import type { User } from "@prisma/client";
-import { useKeyboard, Key } from "@waradu/keyboard";
+import { Key } from "@waradu/keyboard";
 import * as statsLib from "~~/lib/stats";
 import type { Heartbeat } from "~~/lib/stats";
 import {
@@ -286,7 +286,6 @@ const stats = ref(statsLib.getStats());
 const timeRange = ref(statsLib.getTimeRange());
 const { formatTime } = statsLib;
 const { timeRangeOptions } = useTimeRangeOptions();
-const keyboard = useKeyboard();
 
 watch(
   [() => statsLib.getStats(), () => statsLib.getTimeRange()],
@@ -433,13 +432,11 @@ async function fetchUserData() {
 }
 
 onMounted(async () => {
-  keyboard.init();
-
   await fetchUserData();
   timeRangeOptions.value.forEach(
     (option: { key: string; value: statsLib.TimeRange }) => {
       if (option.key && option.value) {
-        keyboard.listen(
+        useKeybind(
           [Key[option.key as keyof typeof Key]],
           async () => {
             statsLib.setTimeRange(option.value);
@@ -450,21 +447,20 @@ onMounted(async () => {
     }
   );
 
-  keyboard.listen(
-    [Key.Alt, Key.L],
-    async () => {
-      await logout();
-    },
-    { prevent: true, ignoreIfEditable: true }
-  );
-
   if (chartContainer.value) {
     renderChart();
   }
 });
 
+useKeybind(
+  [Key.Alt, Key.L],
+  async () => {
+    await logout();
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
+
 onUnmounted(() => {
-  keyboard.clear();
   if (chart) {
     chart.destroy();
     chart = null;

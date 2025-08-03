@@ -181,7 +181,7 @@
 <script setup lang="ts">
 import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
-import { useKeyboard, Key } from "@waradu/keyboard";
+import { Key } from "@waradu/keyboard";
 import * as statsLib from "~~/lib/stats";
 
 const userState = useState<User | null>("user");
@@ -210,7 +210,6 @@ const newEmail = ref("");
 const newPassword = ref("");
 const confirmPassword = ref("");
 const isLoading = ref(false);
-const keyboard = useKeyboard();
 
 const apiKeyPlaceholder = computed(() => {
   return `Enter your ${importType.value === "wakatime" ? "WakaTime" : "WakAPI"} API Key`;
@@ -235,7 +234,6 @@ async function fetchUserData() {
 }
 
 onMounted(async () => {
-  keyboard.init();
   await fetchUserData();
 
   if (user.value) {
@@ -266,96 +264,92 @@ onMounted(async () => {
     const message = successMessages[route.query.success as string] || "Success";
     toast.success(message);
   }
-
-  keyboard.listen(
-    [Key.L],
-    async () => {
-      if (hasGithubAccount) {
-        await linkGithub();
-      }
-    },
-    { prevent: true, ignoreIfEditable: true }
-  );
-
-  keyboard.listen(
-    [Key.E],
-    async () => {
-      showEmailModal.value = true;
-      newEmail.value = user.value?.email || "";
-    },
-    { prevent: true, ignoreIfEditable: true }
-  );
-
-  keyboard.listen(
-    [Key.P],
-    async () => {
-      showPasswordModal.value = true;
-      newPassword.value = "";
-      confirmPassword.value = "";
-    },
-    { prevent: true, ignoreIfEditable: true }
-  );
-
-  keyboard.listen(
-    [Key.Alt, Key.L],
-    async () => {
-      await logout();
-    },
-    { prevent: true, ignoreIfEditable: true }
-  );
-
-  keyboard.listen(
-    [Key.S],
-    async () => {
-      toggleApiKey();
-    },
-    { prevent: true, ignoreIfEditable: true }
-  );
-
-  keyboard.listen(
-    [Key.C],
-    async () => {
-      await copyApiKey();
-    },
-    { prevent: true, ignoreIfEditable: true }
-  );
-
-  keyboard.listen(
-    [Key.R],
-    async () => {
-      await regenerateApiKey();
-    },
-    { prevent: true, ignoreIfEditable: true }
-  );
-
-  keyboard.listen(
-    [Key.I],
-    async () => {
-      await importTrackingData();
-    },
-    { prevent: true, ignoreIfEditable: true }
-  );
-
-  keyboard.listen(
-    [Key.Alt, Key.R],
-    async () => {
-      if (
-        !confirm(
-          "Confirm that you want to regenerate all your summaires which can take a while."
-        )
-      ) {
-        return;
-      }
-
-      await regenerateSummaries();
-    },
-    { prevent: true, ignoreIfEditable: true }
-  );
 });
 
-onUnmounted(() => {
-  keyboard.clear();
-});
+useKeybind(
+  [Key.L],
+  async () => {
+    if (hasGithubAccount) {
+      await linkGithub();
+    }
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.E],
+  async () => {
+    showEmailModal.value = true;
+    newEmail.value = user.value?.email || "";
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.P],
+  async () => {
+    showPasswordModal.value = true;
+    newPassword.value = "";
+    confirmPassword.value = "";
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.Alt, Key.L],
+  async () => {
+    await logout();
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.S],
+  async () => {
+    toggleApiKey();
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.C],
+  async () => {
+    await copyApiKey();
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.R],
+  async () => {
+    await regenerateApiKey();
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.I],
+  async () => {
+    await importTrackingData();
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.Alt, Key.R],
+  async () => {
+    if (
+      !confirm(
+        "Confirm that you want to regenerate all your summaires which can take a while."
+      )
+    ) {
+      return;
+    }
+
+    await regenerateSummaries();
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
 
 async function updateKeystrokeTimeout() {
   if (!user.value) return;

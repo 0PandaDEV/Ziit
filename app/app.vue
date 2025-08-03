@@ -7,21 +7,15 @@
 </template>
 
 <script setup lang="ts">
-import { Key, useKeyboard } from "@waradu/keyboard";
+import { Key } from "@waradu/keyboard";
 
-const keyboard = useKeyboard();
-
-onMounted(async () => {
-  keyboard.init();
-
-  keyboard.listen(
-    [Key.F],
-    async () => {
-      useToast().success("You payed respect to the easter egg");
-    },
-    { ignoreIfEditable: true }
-  );
-});
+useKeybind(
+  [Key.F],
+  async () => {
+    useToast().success("You payed respect to the easter egg");
+  },
+  { ignoreIfEditable: true }
+);
 </script>
 
 <style lang="scss">

@@ -2,7 +2,7 @@
 export default defineNuxtConfig({
   compatibilityDate: "2025-04-09",
   devtools: { enabled: false },
-  modules: ["@nuxtjs/sitemap", "nuxt-cron", "@vite-pwa/nuxt"],
+  modules: ["@nuxtjs/sitemap", "nuxt-cron", "@vite-pwa/nuxt", "@waradu/keyboard/nuxt"],
   ssr: true,
   runtimeConfig: {
     pasetoKey: process.env.NUXT_PASETO_KEY,

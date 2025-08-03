@@ -49,18 +49,15 @@
 
 <script setup lang="ts">
 import { LucideKeyRound, LucideMail } from "lucide-vue-next";
-import { useKeyboard, Key } from "@waradu/keyboard";
+import { Key } from "@waradu/keyboard";
 
 const error = ref("");
 const email = ref("");
 const password = ref("");
 const toast = useToast();
 const route = useRoute();
-const keyboard = useKeyboard();
 
 onMounted(() => {
-  keyboard.init();
-
   if (route.query.error) {
     const errorMessages: Record<string, string> = {
       invalid_state: "Invalid authentication state, please try again",
@@ -82,27 +79,23 @@ onMounted(() => {
     const message = successMessages[route.query.success as string] || "Success";
     toast.success(message);
   }
-
-  keyboard.listen(
-    [Key.G],
-    async () => {
-      await githubAuth();
-    },
-    { ignoreIfEditable: true }
-  );
-
-  keyboard.listen(
-    [Key.Enter],
-    async () => {
-      await login();
-    },
-    { prevent: true }
-  );
 });
 
-onUnmounted(() => {
-  keyboard.clear();
-});
+useKeybind(
+  [Key.G],
+  async () => {
+    await githubAuth();
+  },
+  { ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.Enter],
+  async () => {
+    await login();
+  },
+  { prevent: true }
+);
 
 async function login() {
   error.value = "";

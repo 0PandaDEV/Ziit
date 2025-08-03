@@ -53,14 +53,13 @@
 
 <script setup lang="ts">
 import { LucideKeyRound, LucideMail } from "lucide-vue-next";
-import { useKeyboard, Key } from "@waradu/keyboard";
+import { Key } from "@waradu/keyboard";
 
 const error = ref("");
 const email = ref("");
 const password = ref("");
 const toast = useToast();
 const isInputFocused = ref(false);
-const keyboard = useKeyboard();
 
 async function register() {
   try {
@@ -85,26 +84,18 @@ async function githubAuth() {
   window.location.href = "/api/auth/github";
 }
 
-onMounted(() => {
-  keyboard.init();
-
-  keyboard.listen([Key.G], async () => {
-    if (isInputFocused.value) return;
-    await githubAuth();
-  });
-
-  keyboard.listen(
-    [Key.Enter],
-    async () => {
-      await register();
-    },
-    { prevent: true }
-  );
+useKeybind([Key.G], async () => {
+  if (isInputFocused.value) return;
+  await githubAuth();
 });
 
-onUnmounted(() => {
-  keyboard.clear();
-});
+useKeybind(
+  [Key.Enter],
+  async () => {
+    await register();
+  },
+  { prevent: true }
+);
 
 useSeoMeta({
   title: "Register - Ziit",
