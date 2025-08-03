@@ -39,7 +39,7 @@ onMounted(async () => {
 
 @font-face {
   font-family: ChivoMono;
-  src: url("/fonts/ChivoMono.woff2") format("woff2");
+  src: url("~~/fonts/ChivoMono.woff2") format("woff2");
   font-display: swap;
   font-weight: normal;
   font-style: normal;
@@ -48,7 +48,7 @@ onMounted(async () => {
 
 @font-face {
   font-family: Outfit;
-  src: url("/fonts/Outfit.woff2") format("woff2");
+  src: url("~~/fonts/Outfit.woff2") format("woff2");
   font-display: swap;
   font-weight: normal;
   font-style: normal;

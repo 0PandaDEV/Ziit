@@ -1,6 +1,6 @@
 import { defineCronHandler } from "#nuxt/cron";
 import { PrismaClient } from "@prisma/client";
-import { processSummariesByDate } from "~/server/utils/summarize";
+import { processSummariesByDate } from "~~/server/utils/summarize";
 import { handleLog } from "../utils/logging";
 
 const prisma = new PrismaClient({

@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { encrypt } from "paseto-ts/v4";
 import { prisma } from "~~/prisma/prisma";
 import { z } from "zod";
-import { handleApiError} from "~/server/utils/logging";
+import { handleApiError} from "~~/server/utils/logging";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email format"),

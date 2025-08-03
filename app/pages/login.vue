@@ -170,5 +170,5 @@ useHead({
 </script>
 
 <style lang="scss">
-@use "/styles/login.scss";
+@use "~~/styles/login.scss";
 </style>

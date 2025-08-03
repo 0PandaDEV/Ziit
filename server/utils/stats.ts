@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { TimeRangeEnum, TimeRange, Summary } from "~/lib/stats";
+import { TimeRangeEnum, TimeRange, Summary } from "~~/lib/stats";
 import type { Heartbeats } from "@prisma/client";
 
 const prisma = new PrismaClient();

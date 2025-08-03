@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import * as statsLib from "~/lib/stats";
+import * as statsLib from "~~/lib/stats";
 import { watch } from "vue";
 import { useTimeRangeOptions } from "~/composables/useTimeRangeOptions";
 

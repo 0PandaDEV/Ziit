@@ -23,9 +23,9 @@
               class="item"
               :style="{
                 '--percentage': `${
-                  sortedProjects.length > 0 && sortedProjects[0].seconds > 0
+                  sortedProjects.length > 0 && sortedProjects[0]!.seconds > 0
                     ? (
-                        (project.seconds / sortedProjects[0].seconds) *
+                        (project.seconds / sortedProjects[0]!.seconds) *
                         100
                       ).toFixed(1)
                     : 0
@@ -59,9 +59,9 @@
               :style="{
                 '--percentage': `${
                   languageBreakdown.length > 0 &&
-                  languageBreakdown[0].seconds > 0
+                  languageBreakdown[0]!.seconds > 0
                     ? (
-                        (language.seconds / languageBreakdown[0].seconds) *
+                        (language.seconds / languageBreakdown[0]!.seconds) *
                         100
                       ).toFixed(1)
                     : 0
@@ -98,9 +98,9 @@
               class="item"
               :style="{
                 '--percentage': `${
-                  editorBreakdown.length > 0 && editorBreakdown[0].seconds > 0
+                  editorBreakdown.length > 0 && editorBreakdown[0]!.seconds > 0
                     ? (
-                        (editor.seconds / editorBreakdown[0].seconds) *
+                        (editor.seconds / editorBreakdown[0]!.seconds) *
                         100
                       ).toFixed(1)
                     : 0
@@ -133,10 +133,11 @@
               class="item"
               :style="{
                 '--percentage': `${
-                  fileBreakdown.length > 0 && fileBreakdown[0].seconds > 0
-                    ? ((file.seconds / fileBreakdown[0].seconds) * 100).toFixed(
-                        1
-                      )
+                  fileBreakdown.length > 0 && fileBreakdown[0]!.seconds > 0
+                    ? (
+                        (file.seconds / fileBreakdown[0]!.seconds) *
+                        100
+                      ).toFixed(1)
                     : 0
                 }%`,
               }">
@@ -169,8 +170,8 @@
               class="item"
               :style="{
                 '--percentage': `${
-                  osBreakdown.length > 0 && osBreakdown[0].seconds > 0
-                    ? ((os.seconds / osBreakdown[0].seconds) * 100).toFixed(1)
+                  osBreakdown.length > 0 && osBreakdown[0]!.seconds > 0
+                    ? ((os.seconds / osBreakdown[0]!.seconds) * 100).toFixed(1)
                     : 0
                 }%`,
               }">
@@ -203,9 +204,9 @@
               class="item"
               :style="{
                 '--percentage': `${
-                  branchBreakdown.length > 0 && branchBreakdown[0].seconds > 0
+                  branchBreakdown.length > 0 && branchBreakdown[0]!.seconds > 0
                     ? (
-                        (branch.seconds / branchBreakdown[0].seconds) *
+                        (branch.seconds / branchBreakdown[0]!.seconds) *
                         100
                       ).toFixed(1)
                     : 0
@@ -240,8 +241,8 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { LucideMaximize } from "lucide-vue-next";
 import type { User } from "@prisma/client";
 import { useKeyboard, Key } from "@waradu/keyboard";
-import * as statsLib from "~/lib/stats";
-import type { Heartbeat } from "~/lib/stats";
+import * as statsLib from "~~/lib/stats";
+import type { Heartbeat } from "~~/lib/stats";
 import {
   Chart,
   CategoryScale,
@@ -308,7 +309,7 @@ const months = [
   "Oct",
   "Nov",
   "Dec",
-];
+] as const;
 
 watch(
   () => stats.value,
@@ -602,7 +603,7 @@ function renderChart() {
             },
             callbacks: {
               title: function (tooltipItems) {
-                return tooltipItems[0].label;
+                return tooltipItems[0]!.label;
               },
               label: function (context) {
                 const value = context.parsed.y || 0;
@@ -633,7 +634,7 @@ function updateChart() {
 
   const chartConfig = getChartConfig();
   chart.data.labels = chartConfig.labels;
-  chart.data.datasets[0].data = chartConfig.data;
+  chart.data.datasets[0]!.data = chartConfig.data;
   chart.update();
 }
 
@@ -737,7 +738,7 @@ function getChartConfig() {
 
       labels = Array.from({ length: monthCount }, (_, i) => {
         const monthIndex = (today.getMonth() - i + 12) % 12;
-        return months[monthIndex];
+        return months[monthIndex] as string;
       }).reverse();
 
       data = Array(labels.length).fill(0);
@@ -749,7 +750,7 @@ function getChartConfig() {
       const monthlyTotals = new Map<string, number>();
       for (const summary of stats.value.summaries) {
         const date = new Date(summary.date);
-        const monthName = months[date.getMonth()];
+        const monthName = months[date.getMonth()] as string;
         monthlyTotals.set(
           monthName,
           (monthlyTotals.get(monthName) || 0) + summary.totalSeconds / 3600
@@ -757,7 +758,7 @@ function getChartConfig() {
       }
 
       for (let i = 0; i < labels.length; i++) {
-        const totalHours = monthlyTotals.get(labels[i]) || 0;
+        const totalHours = monthlyTotals.get(labels[i]!) || 0;
         data[i] = totalHours;
       }
 
@@ -793,7 +794,7 @@ function getChartConfig() {
             const labelKey = getMonthYearLabel(date);
             const labelIndex = labels.indexOf(labelKey);
 
-            if (labelIndex !== -1) {
+            if (labelIndex !== -1 && data[labelIndex] !== undefined) {
               data[labelIndex] += summary.totalSeconds / 3600;
             }
           }
@@ -805,7 +806,7 @@ function getChartConfig() {
       labels = Array.from({ length: 12 }, (_, i) => {
         const date = new Date(today);
         date.setMonth(date.getMonth() - i);
-        return getMonthLabel(date);
+        return getMonthLabel(date) as string;
       }).reverse();
 
       data = Array(labels.length).fill(0);
@@ -813,10 +814,10 @@ function getChartConfig() {
       if (stats.value?.summaries?.length) {
         for (const summary of stats.value.summaries) {
           const date = new Date(summary.date);
-          const monthName = months[date.getMonth()];
+          const monthName = months[date.getMonth()] as string;
           const labelIndex = labels.indexOf(monthName);
 
-          if (labelIndex !== -1) {
+          if (labelIndex !== -1 && data[labelIndex] !== undefined) {
             data[labelIndex] += summary.totalSeconds / 3600;
           }
         }
@@ -844,7 +845,7 @@ function processSummaries(labels: string[]): number[] {
 
   const labelMap = new Map<string, number>();
   for (let i = 0; i < labels.length; i++) {
-    labelMap.set(labels[i], i);
+    labelMap.set(labels[i]!, i);
   }
 
   for (const summary of stats.value.summaries) {
@@ -863,12 +864,13 @@ function processSummaries(labels: string[]): number[] {
 function getSingleDayChartData(result: number[]): number[] {
   if (
     stats.value?.summaries?.length > 0 &&
-    stats.value.summaries[0].hourlyData
+    stats.value.summaries[0]!.hourlyData
   ) {
     const summary = stats.value.summaries[0];
+    if (!summary) return result;
 
     for (let hour = 0; hour < 24; hour++) {
-      result[hour] = summary.hourlyData[hour].seconds / 3600;
+      result[hour] = summary.hourlyData[hour]!.seconds / 3600;
     }
 
     return result;
@@ -910,7 +912,7 @@ function getSingleDayChartData(result: number[]): number[] {
   const heartbeatsByProject = groupHeartbeatsByProject(filteredHeartbeats);
 
   for (const projectKey in heartbeatsByProject) {
-    const projectBeats = heartbeatsByProject[projectKey].sort((a, b) => {
+    const projectBeats = heartbeatsByProject[projectKey]?.sort((a, b) => {
       const aTime =
         typeof a.timestamp === "string"
           ? parseInt(a.timestamp)
@@ -922,24 +924,28 @@ function getSingleDayChartData(result: number[]): number[] {
       return aTime - bTime;
     });
 
+    if (!projectBeats) {
+      continue;
+    }
+
     for (let i = 0; i < projectBeats.length; i++) {
       const currentBeat = projectBeats[i];
       const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
       const durationSeconds = calculateInlinedDuration(
-        currentBeat,
+        currentBeat!,
         previousBeat
       );
 
       const timestamp =
-        typeof currentBeat.timestamp === "string"
+        typeof currentBeat?.timestamp === "string"
           ? parseInt(currentBeat.timestamp)
-          : Number(currentBeat.timestamp);
+          : Number(currentBeat?.timestamp);
 
       const ts = new Date(timestamp);
       const localHour = ts.getHours();
 
       if (localHour >= 0 && localHour < 24) {
-        result[localHour] += durationSeconds / 3600;
+        result[localHour]! += durationSeconds / 3600;
       }
     }
   }
@@ -1047,5 +1053,5 @@ definePageMeta({ scrollToTop: true });
 </script>
 
 <style lang="scss">
-@use "/styles/index.scss";
+@use "~~/styles/index.scss";
 </style>

@@ -1,8 +1,8 @@
 import path from "path";
 import { H3Event } from "h3";
 import { z } from "zod";
-import { processHeartbeatsByDate } from "~/server/utils/summarize";
-import { handleApiError, handleLog } from "~/server/utils/logging";
+import { processHeartbeatsByDate } from "~~/server/utils/summarize";
+import { handleApiError, handleLog } from "~~/server/utils/logging";
 
 interface WakApiHeartbeat {
   id: string;

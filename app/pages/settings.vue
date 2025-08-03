@@ -127,12 +127,12 @@
               :text="'WakaTime'"
               :selected="importType === 'wakatime'"
               :value="'wakatime'"
-              @update="(val) => (importType = val as ImportType)" />
+              @update="(val: ImportType) => (importType = val)" />
             <UiRadioButton
               :text="'WakAPI'"
               :selected="importType === 'wakapi'"
               :value="'wakapi'"
-              @update="(val) => (importType = val as ImportType)" />
+              @update="(val: ImportType) => (importType = val)" />
           </div>
 
           <UiInput
@@ -182,7 +182,7 @@
 import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
 import { useKeyboard, Key } from "@waradu/keyboard";
-import * as statsLib from "~/lib/stats";
+import * as statsLib from "~~/lib/stats";
 
 const userState = useState<User | null>("user");
 const user = computed(() => userState.value);
@@ -518,8 +518,8 @@ async function linkGithub() {
 function handleFileChange(event: Event) {
   const input = event.target as HTMLInputElement;
   if (input.files && input.files.length > 0) {
-    selectedFile.value = input.files[0];
-    selectedFileName.value = input.files[0].name;
+    selectedFile.value = input.files[0] ?? null;
+    selectedFileName.value = input.files[0]?.name ?? null;
   } else {
     selectedFile.value = null;
     selectedFileName.value = null;
@@ -632,5 +632,5 @@ useHead({
 </script>
 
 <style scoped lang="scss">
-@use "/styles/settings.scss";
+@use "~~/styles/settings.scss";
 </style>
