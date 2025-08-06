@@ -19,7 +19,7 @@
 <br>
 
 > [!IMPORTANT]
-> Upvote Ziit on [AlternativeTo](https://alternativeto.net/software/ziit/about/), [ProductHunt](https://www.producthunt.com/posts/ziit), [HackerNews](https://news.ycombinator.com/item?id=44029494), [PeerPush](https://peerpush.net/p/ziit) to help me promote it.
+> Upvote Ziit on [AlternativeTo](https://alternativeto.net/software/ziit/about/), [ProductHunt](https://www.producthunt.com/posts/ziit), [PeerPush](https://peerpush.net/p/ziit) to help me promote it.
 
 <details>
   <summary><kbd>Star History</kbd></summary>
