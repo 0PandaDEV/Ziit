@@ -1,7 +1,7 @@
 import { createEventStream, getRequestHeader } from "h3";
 import type { User } from "@prisma/client";
-import { activeJobs } from "~/server/utils/import-jobs";
-import { handleLog } from "~/server/utils/logging";
+import { activeJobs } from "~~/server/utils/import-jobs";
+import { handleLog } from "~~/server/utils/logging";
 
 export default defineEventHandler((event) => {
   const user = (event.context as any).user as User;
