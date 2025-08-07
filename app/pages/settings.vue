@@ -202,7 +202,6 @@ import type { ImportJob } from "~~/server/utils/import-jobs";
 const userState = useState<User | null>("user");
 const user = computed(() => userState.value);
 const showApiKey = ref(false);
-const url = useRequestURL();
 const toast = useToast();
 const route = useRoute();
 const keystrokeTimeout = ref(0);
