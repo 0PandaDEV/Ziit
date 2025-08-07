@@ -197,7 +197,7 @@ import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
 import { Key } from "@waradu/keyboard";
 import * as statsLib from "~~/lib/stats";
-import type { ImportJob } from "~/server/utils/import-jobs";
+import type { ImportJob } from "~~/server/utils/import-jobs";
 
 const userState = useState<User | null>("user");
 const user = computed(() => userState.value);
@@ -335,7 +335,6 @@ function connectEventSource() {
 }
 
 onUnmounted(() => {
-  keyboard.clear();
   if (eventSource) {
     eventSource.close();
   }
@@ -654,10 +653,10 @@ async function linkGithub() {
 function handleFileChange(event: Event) {
   const input = event.target as HTMLInputElement;
   if (input.files && input.files.length > 0) {
-    selectedFile.value = input.files[0];
-    selectedFileName.value = input.files[0].name;
+    selectedFile.value = input.files[0]!;
+    selectedFileName.value = input.files[0]!.name;
 
-    const fileSize = input.files[0].size;
+    const fileSize = input.files[0]!.size;
     const fileSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
 
     if (fileSize > CHUNK_SIZE) {
@@ -666,7 +665,7 @@ function handleFileChange(event: Event) {
         `Large file detected (${fileSizeMB} MB). Will upload in ${chunks} chunks.`
       );
     } else {
-      toast.success(`Selected file: ${input.files[0].name} (${fileSizeMB} MB)`);
+      toast.success(`Selected file: ${input.files[0]!.name} (${fileSizeMB} MB)`);
     }
     importJob.value = null;
   } else {
