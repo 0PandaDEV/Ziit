@@ -82,5 +82,5 @@ useHead({
 </script>
 
 <style lang="scss">
-@use "/styles/stats.scss";
+@use "~~/styles/stats.scss";
 </style>

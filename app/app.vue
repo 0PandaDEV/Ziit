@@ -7,21 +7,15 @@
 </template>
 
 <script setup lang="ts">
-import { Key, useKeyboard } from "@waradu/keyboard";
+import { Key } from "@waradu/keyboard";
 
-const keyboard = useKeyboard();
-
-onMounted(async () => {
-  keyboard.init();
-
-  keyboard.listen(
-    [Key.F],
-    async () => {
-      useToast().success("You payed respect to the easter egg");
-    },
-    { ignoreIfEditable: true }
-  );
-});
+useKeybind(
+  [Key.F],
+  async () => {
+    useToast().success("You payed respect to the easter egg");
+  },
+  { ignoreIfEditable: true }
+);
 </script>
 
 <style lang="scss">
@@ -39,7 +33,7 @@ onMounted(async () => {
 
 @font-face {
   font-family: ChivoMono;
-  src: url("/fonts/ChivoMono.woff2") format("woff2");
+  src: url("~~/fonts/ChivoMono.woff2") format("woff2");
   font-display: swap;
   font-weight: normal;
   font-style: normal;
@@ -48,7 +42,7 @@ onMounted(async () => {
 
 @font-face {
   font-family: Outfit;
-  src: url("/fonts/Outfit.woff2") format("woff2");
+  src: url("~~/fonts/Outfit.woff2") format("woff2");
   font-display: swap;
   font-weight: normal;
   font-style: normal;

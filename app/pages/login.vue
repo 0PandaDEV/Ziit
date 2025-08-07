@@ -20,63 +20,96 @@
         </svg>
       </h1>
       <p class="description">
-        Please create your account or
-        <NuxtLink to="/login"><u>Login</u></NuxtLink>
+        Please sign in to your account or
+        <NuxtLink to="/register"><u>Register</u></NuxtLink>
       </p>
     </div>
     <form
       class="form"
-      @submit.prevent="register"
+      @submit.prevent="login"
       autocomplete="on"
-      data-form-type="register">
+      data-form-type="login">
       <UiInput
         v-model="email"
         placeholder="Email"
         type="text"
-        :icon="LucideMail"
-        @focus="isInputFocused = true"
-        @blur="isInputFocused = false" />
+        :icon="LucideMail" />
       <UiInput
         v-model="password"
         placeholder="Password"
         type="password"
-        :icon="LucideKeyRound"
-        @focus="isInputFocused = true"
-        @blur="isInputFocused = false" />
+        :icon="LucideKeyRound" />
     </form>
     <div class="buttons">
-      <UiButton text="Register" keyName="enter" @click="register" />
-      <UiButton text="Register with Github" keyName="g" @click="githubAuth" />
+      <UiButton text="Login" keyName="enter" @click="login" />
+      <UiButton text="Login with Github" keyName="g" @click="githubAuth" />
     </div>
   </main>
 </template>
 
 <script setup lang="ts">
 import { LucideKeyRound, LucideMail } from "lucide-vue-next";
-import { useKeyboard, Key } from "@waradu/keyboard";
+import { Key } from "@waradu/keyboard";
 
 const error = ref("");
 const email = ref("");
 const password = ref("");
 const toast = useToast();
-const isInputFocused = ref(false);
-const keyboard = useKeyboard();
+const route = useRoute();
 
-async function register() {
+onMounted(() => {
+  if (route.query.error) {
+    const errorMessages: Record<string, string> = {
+      invalid_state: "Invalid authentication state, please try again",
+      no_code: "No authorization code received",
+      no_email: "No email address found in your GitHub account",
+      github_auth_failed: "GitHub authentication failed",
+    };
+
+    const message =
+      errorMessages[route.query.error as string] || "Authentication error";
+    toast.error(message);
+  }
+
+  if (route.query.success) {
+    const successMessages: Record<string, string> = {
+      logout: "Logged out successfully",
+    };
+
+    const message = successMessages[route.query.success as string] || "Success";
+    toast.success(message);
+  }
+});
+
+useKeybind(
+  [Key.G],
+  async () => {
+    await githubAuth();
+  },
+  { ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.Enter],
+  async () => {
+    await login();
+  },
+  { prevent: true }
+);
+
+async function login() {
+  error.value = "";
   try {
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-    await $fetch("/api/auth/register", {
+    await $fetch("/api/auth/login", {
       method: "POST",
       body: {
         email: email.value,
         password: password.value,
-        timezone,
       },
     });
     await navigateTo("/");
   } catch (e: any) {
-    error.value = e.data?.message || "Register failed";
+    error.value = e.data?.message || "Login failed";
     toast.error(error.value);
   }
 }
@@ -85,38 +118,16 @@ async function githubAuth() {
   window.location.href = "/api/auth/github";
 }
 
-onMounted(() => {
-  keyboard.init();
-
-  keyboard.listen([Key.G], async () => {
-    if (isInputFocused.value) return;
-    await githubAuth();
-  });
-
-  keyboard.listen(
-    [Key.Enter],
-    async () => {
-      await register();
-    },
-    { prevent: true }
-  );
-});
-
-onUnmounted(() => {
-  keyboard.clear();
-});
-
 useSeoMeta({
-  title: "Register - Ziit",
-  description: "Create your Ziit account to start tracking your coding time",
-  ogTitle: "Register - Ziit",
-  ogDescription: "Create your Ziit account to start tracking your coding time",
+  title: "Ziit - Coding Statistics",
+  description: "Track your coding time and productivity with Ziit",
+  ogTitle: "Ziit - Coding Statistics",
+  ogDescription: "Track your coding time and productivity with Ziit",
   ogImage: "https://ziit.app/logo.webp",
-  ogUrl: "https://ziit.app/register",
+  ogUrl: "https://ziit.app/login",
   ogSiteName: "Ziit",
-  twitterTitle: "Register - Ziit",
-  twitterDescription:
-    "Create your Ziit account to start tracking your coding time",
+  twitterTitle: "Ziit - Coding Statistics",
+  twitterDescription: "Track your coding time and productivity with Ziit",
   twitterImage: "https://ziit.app/logo.webp",
   twitterCard: "summary",
   twitterCreator: "@pandadev_",
@@ -129,7 +140,7 @@ useHead({
   link: [
     {
       rel: "canonical",
-      href: "https://ziit.app/register",
+      href: "https://ziit.app/login",
     },
     {
       rel: "icon",
@@ -143,8 +154,8 @@ useHead({
       innerHTML: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",
-        name: "Register - Ziit",
-        url: "https://ziit.app/register",
+        name: "Login - Ziit",
+        url: "https://ziit.app/login",
       }),
     },
   ],
@@ -152,5 +163,5 @@ useHead({
 </script>
 
 <style lang="scss">
-@use "/styles/login.scss";
+@use "~~/styles/login.scss";
 </style>

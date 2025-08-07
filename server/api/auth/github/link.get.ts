@@ -1,6 +1,6 @@
 import { H3Event } from "h3";
 import { decrypt, encrypt } from "paseto-ts/v4";
-import { handleApiError} from "~/server/utils/logging";
+import { handleApiError} from "~~/server/utils/logging";
 
 export default defineEventHandler(async (event: H3Event) => {
   const config = useRuntimeConfig();

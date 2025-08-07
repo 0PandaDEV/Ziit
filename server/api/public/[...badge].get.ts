@@ -1,6 +1,6 @@
-import { TimeRangeEnum, type TimeRange, type Summary } from "~/lib/stats";
+import { TimeRangeEnum, type TimeRange, type Summary } from "~~/lib/stats";
 import { badgen } from "badgen";
-import { calculateStats } from "~/server/utils/stats";
+import { calculateStats } from "~~/server/utils/stats";
 
 interface StatsResult {
   summaries: Summary[];

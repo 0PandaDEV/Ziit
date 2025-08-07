@@ -11,9 +11,7 @@
     <span>  •  </span>
     <a href="https://status.ziit.app/">Status</a>
     <span>  •  </span>
-    <a href="https://ziit.app">Public Instance</a>
-    <span>  •  </span>
-    <a href="https://ziit.app/stats">Public Stats</a>
+    <a href="https://www.reddit.com/r/ziit">Reddit</a>
     <span>  •  </span>
     <a href="https://discord.gg/Y7SbYphVw9">Discord</a>
 </div>
@@ -21,7 +19,7 @@
 <br>
 
 > [!IMPORTANT]
-> Upvote Ziit on [AlternativeTo](https://alternativeto.net/software/ziit/about/), [ProductHunt](https://www.producthunt.com/posts/ziit), [HackerNews](https://news.ycombinator.com/item?id=44029494) to help me promote it.
+> Upvote Ziit on [AlternativeTo](https://alternativeto.net/software/ziit/about/), [ProductHunt](https://www.producthunt.com/posts/ziit), [PeerPush](https://peerpush.net/p/ziit) to help me promote it.
 
 <details>
   <summary><kbd>Star History</kbd></summary>
@@ -36,8 +34,6 @@
 
 Ziit (pronounced 'tseet') is an open-source, self-hostable alternative to WakaTime. It provides a clean, minimal, and fast dashboard for displaying coding statistics, while ensuring privacy by keeping all data on your own server. Ziit tracks coding activity such as projects, languages, editors, files, branches, operating systems, and time spent coding all presented in a familiar interface inspired by Plausible Analytics.
 
-## Preview
-
 ![Ziit](https://github.com/user-attachments/assets/bf8e8d72-3181-47e7-924f-537c74f68819)
 
 ## Features
@@ -47,7 +43,7 @@ Ziit (pronounced 'tseet') is an open-source, self-hostable alternative to WakaTi
 - Clean & Minimal dashboard showing only the information needed.
 - Login with GitHub or Email and Password.
 - Import Data from Wakatime or a WakAPI Instance.
-- Saves data about your current project, OS, editor and git branch.
+- Saves data about your current project, OS, editor, file, language and git branch.
 - Badges to embed coding time for a project into a README.
 - More to come...
 
