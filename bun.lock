@@ -8,11 +8,11 @@
         "@prisma/client": "6.13.0",
         "@types/bcrypt": "6.0.0",
         "@vite-pwa/nuxt": "1.0.4",
-        "@waradu/keyboard": "5.3.2",
+        "@waradu/keyboard": "5.3.4",
         "badgen": "3.2.3",
         "bcrypt": "6.0.0",
         "chart.js": "4.5.0",
-        "lucide-vue-next": "0.537.0",
+        "lucide-vue-next": "0.539.0",
         "nuxt": "4.0.3",
         "nuxt-cron": "1.8.0",
         "paseto-ts": "2.0.5",
@@ -677,7 +677,7 @@
 
     "@vue/shared": ["@vue/shared@3.5.18", "", {}, "sha512-cZy8Dq+uuIXbxCZpuLd2GJdeSO/lIzIspC2WtkqIpje5QyFbvLaI5wZtdUjLHjGZrlVX6GilejatWwVYYRc8tA=="],
 
-    "@waradu/keyboard": ["@waradu/keyboard@5.3.2", "", { "dependencies": { "@types/node": "^24.1.0" }, "peerDependencies": { "typescript": "^5.8.3" } }, "sha512-kr0JNKGBSE8hC7RQlTby6cwiDzONFXHfM9FkuktBprZyeZQdwUoHNvIgzacrRsUADSCXUlQQGL2aCgTKAep6qA=="],
+    "@waradu/keyboard": ["@waradu/keyboard@5.3.4", "", { "peerDependencies": { "typescript": "^5.8.3" } }, "sha512-hP5jvQ4O55jRArqVkMRLMAoIlTOwyMv5Mnc2nJCyPOSDILB5cvP5e2rGvxuVJAnhZb4i8m/vTTmM2McPG84Mnw=="],
 
     "@whatwg-node/disposablestack": ["@whatwg-node/disposablestack@0.0.6", "", { "dependencies": { "@whatwg-node/promise-helpers": "^1.0.0", "tslib": "^2.6.3" } }, "sha512-LOtTn+JgJvX8WfBVJtF08TGrdjuFzGJc4mkP8EdDI8ADbvO7kiexYep1o8dwnt0okb0jYclCDXF13xU7Ge4zSw=="],
 
@@ -1371,7 +1371,7 @@
 
     "lru-cache": ["lru-cache@10.4.3", "", {}, "sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ=="],
 
-    "lucide-vue-next": ["lucide-vue-next@0.537.0", "", { "peerDependencies": { "vue": ">=3.0.1" } }, "sha512-Bqlxu7xhVCsXohAm/DU1qR4fjNVNBPTbvu4t6rPgnIF2J2wpmNaX3zW6K0brgOzmlBwhIWnBFwkQXXxMpvn9cw=="],
+    "lucide-vue-next": ["lucide-vue-next@0.539.0", "", { "peerDependencies": { "vue": ">=3.0.1" } }, "sha512-8Y75ekxsBqW+9YZPCbxE6KXoCbNmJYUujKP+nK2cIqmONJXvUSeyroEW4DV1Kjlw8ZvmfKwP0FpdjPzuKvRsQw=="],
 
     "luxon": ["luxon@3.5.0", "", {}, "sha512-rh+Zjr6DNfUYR3bPwJEnuwDdqMbxZW7LOQfUN4B54+Cl+0o5zaU9RJ6bcidfDtC1cWCZXQ+nvX8bf6bAji37QQ=="],
 
