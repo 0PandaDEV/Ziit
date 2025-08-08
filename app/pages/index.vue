@@ -470,156 +470,133 @@ onUnmounted(() => {
 function renderChart() {
   if (!chartContainer.value || !stats.value) return;
 
-  import("chart.js").then((module) => {
-    const {
-      Chart,
-      CategoryScale,
-      LinearScale,
-      LineElement,
-      PointElement,
-      LineController,
-      Tooltip,
-      Filler,
-    } = module;
+  const ctx = document.createElement("canvas");
+  chartContainer.value?.appendChild(ctx);
 
-    Chart.register(
-      CategoryScale,
-      LinearScale,
-      LineElement,
-      PointElement,
-      LineController,
-      Tooltip,
-      Filler
-    );
+  const chartConfig = getChartConfig();
 
-    const ctx = document.createElement("canvas");
-    chartContainer.value?.appendChild(ctx);
-
-    const chartConfig = getChartConfig();
-
-    chart = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: chartConfig.labels,
-        datasets: [
-          {
-            label: "Coding Time (hours)",
-            data: chartConfig.data,
-            borderColor: "#ff6200",
-            borderWidth: 3,
-            pointBackgroundColor: "#ff6200",
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            fill: "start",
-            tension: 0,
-            stepped: false,
-          },
-        ],
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: chartConfig.labels,
+      datasets: [
+        {
+          label: "Coding Time (hours)",
+          data: chartConfig.data,
+          borderColor: "#ff6200",
+          borderWidth: 3,
+          pointBackgroundColor: "#ff6200",
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          fill: "start",
+          tension: 0,
+          stepped: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      elements: {
+        line: {
+          tension: 0,
+          borderJoinStyle: "miter",
+        },
+        point: {
+          hitRadius: 10,
+        },
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        elements: {
-          line: {
-            tension: 0,
-            borderJoinStyle: "miter",
+      scales: {
+        x: {
+          grid: {
+            display: false,
           },
-          point: {
-            hitRadius: 10,
-          },
-        },
-        scales: {
-          x: {
-            grid: {
-              display: false,
-            },
-            ticks: {
-              maxRotation: 0,
-              autoSkip: true,
-              font: {
-                size: 12,
-                family: "ChivoMono",
-              },
-              color: "#666666",
-            },
-            border: {
-              display: false,
-            },
-          },
-          y: {
-            beginAtZero: true,
-            border: {
-              display: false,
-            },
-            grid: {
-              color: "rgba(255, 255, 255, 0.05)",
-              drawTicks: false,
-            },
-            ticks: {
-              font: {
-                size: 12,
-                family: "ChivoMono",
-              },
-              color: "#666666",
-              padding: 8,
-              callback: function (value) {
-                const numValue = Number(value);
-                if (numValue === 0) return "0m";
-                const hours = Math.floor(numValue);
-                const minutes = Math.round((numValue - hours) * 60);
-                if (hours === 0) return minutes > 0 ? `${minutes}m` : "0h";
-                return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-              },
-            },
-          },
-        },
-        interaction: {
-          mode: "index",
-          intersect: false,
-        },
-        plugins: {
-          tooltip: {
-            backgroundColor: "#2b2b2b",
-            borderColor: "#ffffff1a",
-            borderWidth: 1,
-            titleColor: "#e6e6e6",
-            bodyColor: "#e6e6e6",
-            padding: 12,
-            cornerRadius: 0,
-            displayColors: false,
-            titleFont: {
+          ticks: {
+            maxRotation: 0,
+            autoSkip: true,
+            font: {
+              size: 12,
               family: "ChivoMono",
-              weight: 500,
-              size: 14,
             },
-            bodyFont: {
-              family: "ChivoMono",
-              size: 14,
-            },
-            callbacks: {
-              title: function (tooltipItems) {
-                return tooltipItems[0]!.label;
-              },
-              label: function (context) {
-                const value = context.parsed.y || 0;
-                const numValue = Number(value);
-                const hours = Math.floor(numValue);
-                const minutes = Math.round((numValue - hours) * 60);
-                return `${hours}h ${minutes > 0 ? `${minutes}m` : ""}`;
-              },
-            },
+            color: "#666666",
           },
-          legend: {
+          border: {
             display: false,
           },
         },
-        hover: {
-          mode: "index",
-          intersect: false,
+        y: {
+          beginAtZero: true,
+          border: {
+            display: false,
+          },
+          grid: {
+            color: "rgba(255, 255, 255, 0.05)",
+            drawTicks: false,
+          },
+          ticks: {
+            font: {
+              size: 12,
+              family: "ChivoMono",
+            },
+            color: "#666666",
+            padding: 8,
+            callback: function (value) {
+              const numValue = Number(value);
+              if (numValue === 0) return "0m";
+              const hours = Math.floor(numValue);
+              const minutes = Math.round((numValue - hours) * 60);
+              if (hours === 0) return minutes > 0 ? `${minutes}m` : "0h";
+              return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+            },
+          },
         },
       },
-    });
+      interaction: {
+        mode: "index",
+        intersect: false,
+      },
+      plugins: {
+        tooltip: {
+          backgroundColor: "#2b2b2b",
+          borderColor: "#ffffff1a",
+          borderWidth: 1,
+          titleColor: "#e6e6e6",
+          bodyColor: "#e6e6e6",
+          padding: 12,
+          cornerRadius: 0,
+          displayColors: false,
+          titleFont: {
+            family: "ChivoMono",
+            weight: 500,
+            size: 14,
+          },
+          bodyFont: {
+            family: "ChivoMono",
+            size: 14,
+          },
+          callbacks: {
+            title: function (tooltipItems) {
+              return tooltipItems[0]!.label;
+            },
+            label: function (context) {
+              const value = context.parsed.y || 0;
+              const numValue = Number(value);
+              const hours = Math.floor(numValue);
+              const minutes = Math.round((numValue - hours) * 60);
+              return `${hours}h ${minutes > 0 ? `${minutes}m` : ""}`;
+            },
+          },
+        },
+        legend: {
+          display: false,
+        },
+      },
+      hover: {
+        mode: "index",
+        intersect: false,
+      },
+    },
   });
 }
 
