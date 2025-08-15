@@ -2,6 +2,20 @@ import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { handleApiError} from "~~/server/utils/logging";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["User"],
+    summary: "Get current user profile",
+    description: "Returns basic profile fields for the authenticated user.",
+    responses: {
+      200: { description: "User object" },
+      404: { description: "User not found" },
+      500: { description: "Failed to fetch user data" },
+    },
+    operationId: "getUserProfile",
+  },
+});
+
 const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event: H3Event) => {

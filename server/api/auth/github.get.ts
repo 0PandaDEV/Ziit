@@ -1,5 +1,19 @@
 import { handleApiError} from "~~/server/utils/logging";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["Auth", "GitHub"],
+    summary: "Start GitHub OAuth",
+    description: "Initializes GitHub OAuth and redirects the client to GitHub authorization page.",
+    responses: {
+      302: { description: "Redirect to GitHub OAuth" },
+      403: { description: "Registration disabled" },
+      500: { description: "Failed to initialize GitHub auth" },
+    },
+    operationId: "getGithubAuthStart",
+  },
+});
+
 export default defineEventHandler(async (event) => {
   try {
     const config = useRuntimeConfig();

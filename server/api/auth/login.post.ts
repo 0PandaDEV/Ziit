@@ -4,6 +4,36 @@ import { prisma } from "~~/prisma/prisma";
 import { z } from "zod";
 import { handleApiError} from "~~/server/utils/logging";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["Auth"],
+    summary: "Login with email and password",
+    description: "Authenticates a user and sets a session cookie.",
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              email: { type: "string", format: "email" },
+              password: { type: "string" },
+            },
+            required: ["email", "password"],
+          },
+        },
+      },
+    },
+    responses: {
+      302: { description: "Redirect on success" },
+      400: { description: "Validation error" },
+      401: { description: "Invalid credentials" },
+      500: { description: "Authentication failed" },
+    },
+    operationId: "postLogin",
+  },
+});
+
 const loginSchema = z.object({
   email: z.string().email("Invalid email format"),
   password: z.string().min(1, "Password is required"),

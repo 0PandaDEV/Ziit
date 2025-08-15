@@ -2,6 +2,28 @@ import { TimeRangeEnum, type TimeRange, type Summary } from "~~/lib/stats";
 import { badgen } from "badgen";
 import { calculateStats } from "~~/server/utils/stats";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["Public", "Badge"],
+    summary: "Generate public stats badge",
+    description: "Returns an SVG badge representing time spent. URL path segments define badge parameters.",
+    parameters: [
+      { in: "path", name: "userId", required: true, schema: { type: "string" } },
+      { in: "path", name: "project", required: false, schema: { type: "string" } },
+      { in: "path", name: "timeRange", required: false, schema: { type: "string", enum: Object.values(TimeRangeEnum) as any } },
+      { in: "path", name: "color", required: false, schema: { type: "string" } },
+      { in: "path", name: "labelText", required: false, schema: { type: "string" } },
+      { in: "query", name: "style", required: false, schema: { type: "string", enum: ["classic", "flat"] } },
+      { in: "query", name: "icon", required: false, schema: { type: "string" } },
+    ],
+    responses: {
+      200: { description: "SVG badge", content: { "image/svg+xml": {} } },
+      400: { description: "Invalid parameters" },
+    },
+    operationId: "getPublicBadge",
+  },
+});
+
 interface StatsResult {
   summaries: Summary[];
   offsetSeconds: number;

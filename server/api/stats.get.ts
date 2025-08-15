@@ -4,6 +4,24 @@ import type { TimeRange } from "~~/lib/stats";
 import { handleApiError} from "~~/server/utils/logging";
 import { calculateStats } from "~~/server/utils/stats";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["Stats"],
+    summary: "Get authenticated user stats",
+    description: "Returns aggregated statistics for the authenticated user.",
+    parameters: [
+      { in: "query", name: "timeRange", required: true, schema: { type: "string", enum: Object.values(TimeRangeEnum) as any } },
+      { in: "query", name: "midnightOffsetSeconds", required: false, schema: { type: "integer" } },
+    ],
+    responses: {
+      200: { description: "Stats result" },
+      400: { description: "Invalid parameters" },
+      500: { description: "Failed to retrieve statistics" },
+    },
+    operationId: "getStats",
+  },
+});
+
 export default defineEventHandler(async (event: H3Event) => {
   const userId = event.context.user.id;
 

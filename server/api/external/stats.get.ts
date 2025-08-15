@@ -6,9 +6,29 @@ import { z } from "zod";
 import { calculateStats } from "~~/server/utils/stats";
 import { handleApiError} from "~~/server/utils/logging";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["External", "Stats"],
+    summary: "Get stats via API key",
+    description: "Returns aggregated stats for the user identified by the Bearer API key.",
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      { in: "query", name: "timeRange", required: false, schema: { type: "string", enum: Object.values(TimeRangeEnum) as any } },
+      { in: "query", name: "midnightOffsetSeconds", required: false, schema: { type: "integer" } },
+    ],
+    responses: {
+      200: { description: "Stats result" },
+      400: { description: "Invalid parameters" },
+      401: { description: "Invalid or missing API key" },
+      500: { description: "Server error" },
+    },
+    operationId: "getExternalStats",
+  },
+});
+
 const prisma = new PrismaClient();
 
-const apiKeySchema = z.string().uuid();
+const apiKeySchema = z.uuid();
 
 export default defineEventHandler(async (event: H3Event) => {
   try {

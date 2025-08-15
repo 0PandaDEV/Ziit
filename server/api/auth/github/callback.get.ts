@@ -2,6 +2,25 @@ import { prisma } from "~~/prisma/prisma";
 import { decrypt, encrypt } from "paseto-ts/v4";
 import { handleApiError} from "~~/server/utils/logging";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["Auth", "GitHub"],
+    summary: "GitHub OAuth callback",
+    description:
+      "Handles GitHub OAuth callback. Exchanges code for access token, signs in or links account, and redirects.",
+    parameters: [
+      { in: "query", name: "code", required: true, schema: { type: "string" } },
+      { in: "query", name: "state", required: true, schema: { type: "string" } },
+    ],
+    responses: {
+      302: { description: "Redirect to application after login/link" },
+      400: { description: "Missing or invalid parameters" },
+      500: { description: "Authentication failure" },
+    },
+    operationId: "getGithubCallback",
+  },
+});
+
 interface GithubTokenResponse {
   access_token: string;
   refresh_token?: string;

@@ -3,9 +3,24 @@ import { H3Event } from "h3";
 import { z } from "zod";
 import { handleApiError} from "~~/server/utils/logging";
 
-const prisma = new PrismaClient();
+defineRouteMeta({
+  openAPI: {
+    tags: ["External", "User"],
+    summary: "Get user via API key",
+    description: "Returns public user data for the account identified by the Bearer API key.",
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: { description: "User object" },
+      401: { description: "Invalid or missing API key" },
+      404: { description: "User not found" },
+      500: { description: "Server error" },
+    },
+    operationId: "getExternalUser",
+  },
+});
 
-const apiKeySchema = z.string().uuid();
+const prisma = new PrismaClient();
+const apiKeySchema = z.uuid();
 
 export default defineEventHandler(async (event: H3Event) => {
   try {

@@ -2,6 +2,19 @@ import { H3Event } from "h3";
 import { regenerateSummariesForUser } from "~~/server/utils/summarize";
 import { handleApiError} from "~~/server/utils/logging";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["User", "Summaries"],
+    summary: "Regenerate summaries for current user",
+    description: "Triggers regeneration of statistics summaries for the authenticated user.",
+    responses: {
+      200: { description: "Regeneration result" },
+      500: { description: "Failed to regenerate summaries" },
+    },
+    operationId: "getRegenerateSummaries",
+  },
+});
+
 export default defineEventHandler(async (event: H3Event) => {
   try {
     const userId = event.context.user.id;

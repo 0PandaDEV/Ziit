@@ -4,6 +4,36 @@ import { z } from "zod";
 import bcrypt from "bcrypt";
 import { handleApiError} from "~~/server/utils/logging";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["User"],
+    summary: "Update current user settings",
+    description: "Updates settings for the authenticated user (email, password, keystrokeTimeout).",
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              keystrokeTimeout: { type: "integer", minimum: 1, maximum: 60 },
+              email: { type: "string", format: "email" },
+              password: { type: "string", description: "At least 12 chars with complexity." },
+            },
+          },
+        },
+      },
+    },
+    responses: {
+      200: { description: "Update success" },
+      400: { description: "Validation error" },
+      409: { description: "Email conflict" },
+      500: { description: "Failed to update user settings" },
+    },
+    operationId: "postUserSettings",
+  },
+});
+
 const prisma = new PrismaClient();
 
 const passwordSchema = z

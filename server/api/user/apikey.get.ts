@@ -2,6 +2,29 @@ import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { handleApiError} from "~~/server/utils/logging";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["User"],
+    summary: "Regenerate API key",
+    description: "Generates a new API key for the authenticated user.",
+    responses: {
+      200: {
+        description: "New API key",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: { apiKey: { type: "string", format: "uuid" } },
+            },
+          },
+        },
+      },
+      500: { description: "Failed to generate API key" },
+    },
+    operationId: "getUserRegenerateApiKey",
+  },
+});
+
 const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event: H3Event) => {

@@ -2,6 +2,31 @@ import { H3Event } from "h3";
 import { decrypt, encrypt } from "paseto-ts/v4";
 import { handleApiError} from "~~/server/utils/logging";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["Auth", "GitHub"],
+    summary: "Begin GitHub account linking",
+    description:
+      "Starts OAuth flow to link a GitHub account to the authenticated user. Returns an authorization URL.",
+    responses: {
+      200: {
+        description: "Authorization URL generated",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: { url: { type: "string", format: "uri" } },
+            },
+          },
+        },
+      },
+      401: { description: "Unauthorized or invalid session" },
+      500: { description: "Failed to generate GitHub auth URL" },
+    },
+    operationId: "getGithubLink",
+  },
+});
+
 export default defineEventHandler(async (event: H3Event) => {
   const config = useRuntimeConfig();
 

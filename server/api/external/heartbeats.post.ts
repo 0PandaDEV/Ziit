@@ -3,11 +3,50 @@ import { H3Event } from "h3";
 import { z } from "zod";
 import { handleApiError } from "~~/server/utils/logging";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["External", "Heartbeats"],
+    summary: "Create a single heartbeat",
+    description: "Accepts one heartbeat payload authenticated via Bearer API key.",
+    security: [{ bearerAuth: [] }],
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              timestamp: { type: "string", format: "date-time", description: "ISO 8601 timestamp; numeric epoch also accepted." },
+              project: { type: "string" },
+              language: { type: "string" },
+              editor: { type: "string" },
+              os: { type: "string" },
+              branch: { type: "string" },
+              file: { type: "string" },
+            },
+            required: ["timestamp", "project", "language", "editor", "os", "file"],
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: "Heartbeat created",
+        content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean" }, id: { type: "number" } } } } },
+      },
+      400: { description: "Validation error" },
+      401: { description: "Invalid or missing API key" },
+      500: { description: "Server error" },
+    },
+    operationId: "postExternalHeartbeat",
+  },
+});
+
 const prisma = new PrismaClient({
   log: ['warn', 'error'],
 });
 
-const apiKeySchema = z.string().uuid();
+const apiKeySchema = z.uuid();
 
 const heartbeatSchema = z.object({
   timestamp: z.string().datetime().or(z.number()),

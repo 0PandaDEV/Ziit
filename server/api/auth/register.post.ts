@@ -4,6 +4,36 @@ import { prisma } from "~~/prisma/prisma";
 import { z } from "zod";
 import { handleApiError} from "~~/server/utils/logging";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["Auth"],
+    summary: "Register a new user",
+    description: "Creates a user account and sets a session cookie.",
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              email: { type: "string", format: "email" },
+              password: { type: "string", description: "At least 12 characters with upper/lowercase, number, and special char." },
+            },
+            required: ["email", "password"],
+          },
+        },
+      },
+    },
+    responses: {
+      302: { description: "Redirect on success" },
+      400: { description: "Validation error" },
+      409: { description: "Email already in use" },
+      500: { description: "Registration failed" },
+    },
+    operationId: "postRegister",
+  },
+});
+
 const passwordSchema = z
   .string()
   .min(12, "Password must be at least 12 characters")

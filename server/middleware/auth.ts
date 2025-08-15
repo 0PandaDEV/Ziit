@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 const AUTH_CONFIG = {
   publicApiPaths: ["/api/external/", "/api/auth/", "/api/public"],
-  publicPages: ["/stats", "/login", "/register", "/sitemap.xml", "/robots.txt"],
+  publicPages: ["/stats", "/login", "/register", "/sitemap.xml", "/robots.txt", "/_openapi.json"],
   sessionCookieName: "ziit_session",
   loginRedirectPath: "/login",
 };

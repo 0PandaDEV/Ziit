@@ -1,6 +1,19 @@
 import { PrismaClient } from "@prisma/client";
 import { handleApiError } from "~~/server/utils/logging";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["Public", "Stats"],
+    summary: "Get public platform stats",
+    description: "Returns aggregate statistics across the platform.",
+    responses: {
+      200: { description: "Public stats payload" },
+      500: { description: "Failed to fetch stats" },
+    },
+    operationId: "getPublicStats",
+  },
+});
+
 const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event) => {

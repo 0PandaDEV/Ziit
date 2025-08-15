@@ -4,6 +4,67 @@ import { z } from "zod";
 import { processHeartbeatsByDate } from "~~/server/utils/summarize";
 import { handleApiError, handleLog } from "~~/server/utils/logging";
 
+
+defineRouteMeta({
+  openAPI: {
+    tags: ["Imports"],
+    summary: "Import activity data from WakAPI or WakaTime export",
+    description:
+      "Imports coding activity. Either provide JSON credentials for a WakAPI instance or upload a WakaTime export file (multipart/form-data).",
+    requestBody: {
+      description:
+        "Either JSON body for WakAPI import or multipart/form-data with a WakaTime export file.",
+      required: false,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              apiKey: { type: "string" },
+              instanceType: {
+                type: "string",
+                enum: ["wakapi", "wakatime"],
+              },
+              instanceUrl: { type: "string", format: "uri" },
+            },
+            required: ["apiKey", "instanceType"],
+          },
+        },
+        "multipart/form-data": {
+          schema: {
+            type: "object",
+            properties: {
+              file: { type: "string", format: "binary" },
+            },
+            required: ["file"],
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: "Import completed",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                success: { type: "boolean" },
+                imported: { type: "number" },
+                message: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+      400: { description: "Invalid input or missing data" },
+      500: { description: "Server error during import" },
+    },
+    operationId: "postWakatimeImport",
+  },
+});
+
+
 interface WakApiHeartbeat {
   id: string;
   branch: string;
