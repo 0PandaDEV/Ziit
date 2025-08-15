@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   const validation = loginSchema.safeParse(body);
 
   if (!validation.success) {
-    throw handleApiError(400, `Login validation failed for email ${body.email}. Errors: ${JSON.stringify(validation.error.errors)}`, validation.error.errors[0].message || "Email and password are required");
+    throw handleApiError(400, `Login validation failed for email ${body.email}. Errors: ${JSON.stringify(validation.error)}`, validation.error.message || "Email and password are required");
   }
 
   try {

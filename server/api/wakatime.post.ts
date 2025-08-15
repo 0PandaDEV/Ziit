@@ -190,11 +190,11 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const validationResult = wakaApiRequestSchema.safeParse(body);
     if (!validationResult.success) {
-      const errorDetail = `Invalid WakaTime API request data for user ${userId}: ${validationResult.error.errors[0].message}`;
+      const errorDetail = `Invalid WakaTime API request data for user ${userId}: ${validationResult.error.message}`;
       throw handleApiError(
         400,
         errorDetail,
-        validationResult.error.errors[0].message || "Invalid API request data."
+        validationResult.error.message || "Invalid API request data."
       );
     }
 
@@ -321,11 +321,11 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const validationResult = wakaTimeExportSchema.safeParse(parsedData);
     if (!validationResult.success) {
-      const errorDetail = `Invalid WakaTime export format for user ${userId}: ${validationResult.error.errors[0].message}`;
+      const errorDetail = `Invalid WakaTime export format for user ${userId}: ${validationResult.error.message}`;
       throw handleApiError(
         400,
         errorDetail,
-        validationResult.error.errors[0].message || "Invalid file format."
+        validationResult.error.message || "Invalid file format."
       );
     }
 

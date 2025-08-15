@@ -43,11 +43,11 @@ export default defineEventHandler(async (event) => {
   try {
     const passwordValidation = passwordSchema.safeParse(body.password);
     if (!passwordValidation.success) {
-      const errorDetail = `Password validation failed for email ${body.email}: ${passwordValidation.error.errors[0].message}`;
+      const errorDetail = `Password validation failed for email ${body.email}: ${passwordValidation.error.message}`;
       throw handleApiError(
         400,
         errorDetail,
-        passwordValidation.error.errors[0].message
+        passwordValidation.error.message
       );
     }
 

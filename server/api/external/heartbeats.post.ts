@@ -70,7 +70,7 @@ export default defineEventHandler(async (event: H3Event) => {
   } catch (error: any) {
     if (error && typeof error === "object" && error.statusCode) throw error;
     if (error instanceof z.ZodError) {
-      throw handleApiError(400, `Heartbeat API error: Validation error. Details: ${error.errors[0].message}`);
+      throw handleApiError(400, `Heartbeat API error: Validation error. Details: ${error.message}`);
     }
     const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred processing heartbeat.";
     const apiKeyPrefix = getHeader(event, "authorization")?.substring(7,11) || "UNKNOWN";

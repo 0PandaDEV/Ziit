@@ -88,7 +88,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (error instanceof z.ZodError) {
       throw handleApiError(
         400,
-        `Batch API error: Validation error. Details: ${error.errors[0].message}`
+        `Batch API error: Validation error. Details: ${error.message}`
       );
     }
     const detailedMessage =

@@ -31,7 +31,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     if (!validatedData.success) {
       const errorDetail = `Invalid user settings data for user ${event.context.user.id}: ${validatedData.error.message}`;
-      const clientMessage = validatedData.error.errors[0]?.message || "Invalid user settings data.";
+      const clientMessage = validatedData.error.message || "Invalid user settings data.";
       throw handleApiError(400, errorDetail, clientMessage );
     }
 
