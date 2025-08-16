@@ -9,7 +9,7 @@
 <div align="center">
     <a href="https://docs.ziit.app">Docs</a>
     <span>  •  </span>
-    <a href="https://status.ziit.app/">Status</a>
+    <a href="https://ziit.app/stats">Stats</a>
     <span>  •  </span>
     <a href="https://www.reddit.com/r/ziit">Reddit</a>
     <span>  •  </span>
@@ -17,6 +17,8 @@
 </div>
 
 <br>
+
+[![Better Stack Badge](https://uptime.betterstack.com/status-badges/v3/monitor/1ym1e.svg)](https://status.ziit.app)
 
 > [!IMPORTANT]
 > Upvote Ziit on [AlternativeTo](https://alternativeto.net/software/ziit/about/), [ProductHunt](https://www.producthunt.com/posts/ziit), [PeerPush](https://peerpush.net/p/ziit) to help me promote it.
