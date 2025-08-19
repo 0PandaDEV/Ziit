@@ -431,7 +431,9 @@ async function fetchUserData() {
   }
 }
 
+
 onMounted(async () => {
+  await statsLib.refreshStats();
   await fetchUserData();
   timeRangeOptions.value.forEach(
     (option: { key: string; value: statsLib.TimeRange }) => {

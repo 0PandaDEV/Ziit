@@ -203,11 +203,13 @@ function processHeartbeats(apiResponse: any): StatsResult {
     calculatedTotalSeconds += day.totalSeconds;
 
     Object.entries(day.projects).forEach(([project, seconds]) => {
-      calculatedProjects[project] = (calculatedProjects[project] || 0) + seconds;
+      calculatedProjects[project] =
+        (calculatedProjects[project] || 0) + seconds;
     });
 
     Object.entries(day.languages).forEach(([language, seconds]) => {
-      calculatedLanguages[language] = (calculatedLanguages[language] || 0) + seconds;
+      calculatedLanguages[language] =
+        (calculatedLanguages[language] || 0) + seconds;
     });
 
     Object.entries(day.editors).forEach(([editor, seconds]) => {
@@ -270,10 +272,4 @@ export function getStats(): StatsResult {
 
 export function getTimeRange(): TimeRange {
   return timeRangeRef.value || state.timeRange;
-}
-
-if (typeof window !== "undefined") {
-  statsRef.value = state.data;
-  timeRangeRef.value = state.timeRange;
-  fetchStats();
 }
