@@ -5,8 +5,21 @@ import type { H3Event } from "h3";
 const prisma = new PrismaClient();
 
 const AUTH_CONFIG = {
-  publicApiPaths: ["/api/external/", "/api/auth/", "/api/public"],
-  publicPages: ["/stats", "/login", "/register", "/sitemap.xml", "/robots.txt", "/_openapi.json"],
+  publicApiPaths: [
+    "/api/external/",
+    "/api/auth/",
+    "/api/public",
+    "/api/leaderboard",
+  ],
+  publicPages: [
+    "/stats",
+    "/leaderboard",
+    "/login",
+    "/register",
+    "/sitemap.xml",
+    "/robots.txt",
+    "/_openapi.json",
+  ],
   sessionCookieName: "ziit_session",
   loginRedirectPath: "/login",
 };
