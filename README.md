@@ -47,6 +47,8 @@ Ziit (pronounced 'tseet') is an open-source, self-hostable alternative to WakaTi
 - Import Data from Wakatime or a WakAPI Instance.
 - Saves data about your current project, OS, editor, file, language and git branch.
 - Badges to embed coding time for a project into a README.
+- Public stats page to see information from the whole Ziit instance.
+- Public leaderboard to see who has the most coding hours.
 - More to come...
 
 ## How to use Ziit
