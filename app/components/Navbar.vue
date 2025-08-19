@@ -16,14 +16,14 @@
     <div class="actions">
       <NuxtLink to="/stats">Stats</NuxtLink>
       <NuxtLink to="/leaderboard">Leaderboard</NuxtLink>
-      <NuxtLink v-if="!user.data.value?.id" to="/Login">Login</NuxtLink>
-      <NuxtLink v-if="user.data.value?.id" to="/settings">Settings</NuxtLink>
+      <NuxtLink v-if="!user?.id" to="/login">Login</NuxtLink>
+      <NuxtLink v-if="user?.id" to="/settings">Settings</NuxtLink>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-const user = useFetch("/api/user");
+const { data: user } = await useFetch("/api/user");
 </script>
 
 <style lang="scss">
