@@ -12,7 +12,7 @@
         "badgen": "3.2.3",
         "bcrypt": "6.0.0",
         "chart.js": "4.5.0",
-        "lucide-vue-next": "0.539.0",
+        "lucide-vue-next": "0.540.0",
         "nuxt": "4.0.3",
         "nuxt-cron": "1.8.0",
         "paseto-ts": "2.0.5",
@@ -1372,7 +1372,7 @@
 
     "lru-cache": ["lru-cache@10.4.3", "", {}, "sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ=="],
 
-    "lucide-vue-next": ["lucide-vue-next@0.539.0", "", { "peerDependencies": { "vue": ">=3.0.1" } }, "sha512-8Y75ekxsBqW+9YZPCbxE6KXoCbNmJYUujKP+nK2cIqmONJXvUSeyroEW4DV1Kjlw8ZvmfKwP0FpdjPzuKvRsQw=="],
+    "lucide-vue-next": ["lucide-vue-next@0.540.0", "", { "peerDependencies": { "vue": ">=3.0.1" } }, "sha512-H7qhKVNKLyoFMo05pWcGSWBiLPiI3zJmWV65SuXWHlrIGIcvDer10xAyWcRJ0KLzIH5k5+yi7AGw/Xi1VF8Pbw=="],
 
     "luxon": ["luxon@3.5.0", "", {}, "sha512-rh+Zjr6DNfUYR3bPwJEnuwDdqMbxZW7LOQfUN4B54+Cl+0o5zaU9RJ6bcidfDtC1cWCZXQ+nvX8bf6bAji37QQ=="],
 

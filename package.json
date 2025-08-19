@@ -18,7 +18,7 @@
     "badgen": "3.2.3",
     "bcrypt": "6.0.0",
     "chart.js": "4.5.0",
-    "lucide-vue-next": "0.539.0",
+    "lucide-vue-next": "0.540.0",
     "nuxt": "4.0.3",
     "nuxt-cron": "1.8.0",
     "paseto-ts": "2.0.5",
