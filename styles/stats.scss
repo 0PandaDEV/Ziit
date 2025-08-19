@@ -10,13 +10,18 @@ main {
 
 .container {
   display: flex;
-  gap: 128px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(32px, 10vw, 64px);
+  padding: 24px;
 
   .numbers,
   .top {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: clamp(16px, 4vw, 64px);
+    flex: 1 1 auto;
+    min-width: 250px;
 
     .item {
       display: flex;
@@ -27,10 +32,35 @@ main {
         color: var(--text-secondary);
       }
 
-      h2{
-        font-size: 64px;
+      h2 {
+        font-size: clamp(2.5rem, 8vw, 64px);
         font-family: ChivoMono;
         font-weight: 400;
+        line-height: clamp(3rem, 6vw, 50px);
+        word-break: break-word;
+        overflow-wrap: break-word;
+        white-space: nowrap;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: clamp(32px, 6vw, 48px);
+
+    .numbers,
+    .top {
+      flex: none;
+      width: 100%;
+
+      .item {
+        h2 {
+          font-size: clamp(3rem, 12vw, 64px);
+          line-height: clamp(3.5rem, 10vw, 50px);
+        }
       }
     }
   }
