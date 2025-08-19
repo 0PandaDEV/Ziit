@@ -1,6 +1,5 @@
 main {
-  height: 100dvh;
-  width: 100dvw;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,7 +12,6 @@ main {
   flex-wrap: wrap;
   justify-content: center;
   gap: clamp(32px, 10vw, 64px);
-  padding: 24px;
 
   .numbers,
   .top {
