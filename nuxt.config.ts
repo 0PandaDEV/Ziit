@@ -16,6 +16,7 @@ export default defineNuxtConfig({
     githubRedirectUri: process.env.NUXT_GITHUB_REDIRECT_URI,
     corsOrigin: process.env.NUXT_HOST || "same-origin",
     disableRegistering: process.env.NUXT_DISABLE_REGISTRATION,
+    adminKey: process.env.NUXT_ADMIN_KEY,
   },
   nitro: {
     preset: "bun",
