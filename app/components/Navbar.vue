@@ -14,15 +14,8 @@
       </svg>
     </NuxtLink>
     <div class="actions">
-      <a href="https://docs.ziit.app" target="_blank" rel="noopener noreferrer"
-        >Docs</a
-      >
-      <a
-        href="https://github.com/0PandaDEV/Ziit"
-        target="_blank"
-        rel="noopener noreferrer"
-        >Star on Github</a
-      >
+      <NuxtLink to="/stats">Stats</NuxtLink>
+      <NuxtLink to="/leaderboard">Leaderboard</NuxtLink>
       <NuxtLink to="/settings">Settings</NuxtLink>
     </div>
   </div>
