@@ -36,7 +36,21 @@
 </template>
 
 <script setup lang="ts">
+import { Key } from "@waradu/keyboard";
+
 const { data: stats } = await useFetch("/api/public/stats");
+
+useKeybind(
+  [Key.Alt, Key.L],
+  async () => {
+    try {
+      window.location.href = "/api/auth/logout";
+    } catch (e: any) {
+      useToast().error(e.data?.message || "Logout failed");
+    }
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
 
 useSeoMeta({
   title: "Ziit - Instance Statistics",

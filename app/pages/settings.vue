@@ -315,7 +315,11 @@ useKeybind(
 useKeybind(
   [Key.Alt, Key.L],
   async () => {
-    await logout();
+    try {
+      window.location.href = "/api/auth/logout";
+    } catch (e: any) {
+      toast.error(e.data?.message || "Logout failed");
+    }
   },
   { prevent: true, ignoreIfEditable: true }
 );
@@ -540,7 +544,9 @@ async function toggleLeaderboard() {
       userState.value.leaderboardEnabled = newState;
     }
 
-    toast.success(`${newState ? 'Opted in to' : 'Opted out of'} leaderboard successfully`);
+    toast.success(
+      `${newState ? "Opted in to" : "Opted out of"} leaderboard successfully`
+    );
   } catch (error: any) {
     console.error("Error updating Leaderboard opt:", error);
     toast.error(error?.data?.message || "Failed to update Leaderboard opt");

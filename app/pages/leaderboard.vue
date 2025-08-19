@@ -52,6 +52,7 @@
 
 
 <script setup lang="ts">
+import { Key } from "@waradu/keyboard";
 import { ref, onMounted, onUnmounted } from "vue";
 
 interface LeaderboardUser {
@@ -126,6 +127,18 @@ function formatMinutes(minutes: number): string {
   const m = minutes % 60;
   return `${h}h ${m}m`;
 }
+
+useKeybind(
+  [Key.Alt, Key.L],
+  async () => {
+    try {
+      window.location.href = "/api/auth/logout";
+    } catch (e: any) {
+      useToast().error(e.data?.message || "Logout failed");
+    }
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
 
 useSeoMeta({
   title: "Ziit - Leaderboard",

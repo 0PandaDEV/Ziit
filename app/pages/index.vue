@@ -457,7 +457,11 @@ onMounted(async () => {
 useKeybind(
   [Key.Alt, Key.L],
   async () => {
-    await logout();
+    try {
+      window.location.href = "/api/auth/logout";
+    } catch (e: any) {
+      toast.error(e.data?.message || "Logout failed");
+    }
   },
   { prevent: true, ignoreIfEditable: true }
 );
