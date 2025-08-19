@@ -19,6 +19,7 @@ defineRouteMeta({
               keystrokeTimeout: { type: "integer", minimum: 1, maximum: 60 },
               email: { type: "string", format: "email" },
               password: { type: "string", description: "At least 12 chars with complexity." },
+              leaderboardEnabled: { type: "boolean", description: "Opt-in or out of showing up on leaderboardEnabled" },
             },
           },
         },
@@ -51,6 +52,7 @@ const userSettingsSchema = z.object({
   keystrokeTimeout: z.number().min(1).max(60).optional(),
   email: z.string().email().optional(),
   password: passwordSchema.optional(),
+  leaderboardEnabled: z.boolean().optional()
 });
 
 export default defineEventHandler(async (event: H3Event) => {
@@ -69,10 +71,15 @@ export default defineEventHandler(async (event: H3Event) => {
       keystrokeTimeout?: number;
       email?: string;
       passwordHash?: string;
+      leaderboardEnabled?: boolean;
     } = {};
 
     if (validatedData.data.keystrokeTimeout !== undefined) {
       updateData.keystrokeTimeout = validatedData.data.keystrokeTimeout;
+    }
+
+    if (validatedData.data.leaderboardEnabled !== undefined){
+      updateData.leaderboardEnabled = validatedData.data.leaderboardEnabled;
     }
 
     if (validatedData.data.email !== undefined) {

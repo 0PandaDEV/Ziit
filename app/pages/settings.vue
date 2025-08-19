@@ -8,11 +8,13 @@
             <p>User ID</p>
             <p>Email</p>
             <p>Github Linked</p>
+            <p>Show up on Leaderboard</p>
           </div>
           <div class="values">
             <p>{{ user?.id }}</p>
             <p>{{ user?.email }}</p>
             <p>{{ hasGithubAccount ? "yes" : "no" }}</p>
+            <p>{{ user?.leaderboardEnabled ? "yes" : "no" }}</p>
           </div>
         </div>
         <div class="buttons">
@@ -21,6 +23,15 @@
             text="Link Github"
             keyName="L"
             @click="linkGithub" />
+          <UiButton
+            v-if="!hasGithubAccount"
+            :text="
+              user?.leaderboardEnabled
+                ? `Opt-out of Leaderboard`
+                : `Opt-in to Leaderboard`
+            "
+            keyName="O"
+            @click="toggleLeaderboard" />
           <UiButton
             text="Change Email"
             keyName="E"
@@ -187,7 +198,6 @@ import * as statsLib from "~~/lib/stats";
 const userState = useState<User | null>("user");
 const user = computed(() => userState.value);
 const showApiKey = ref(false);
-const url = useRequestURL();
 const toast = useToast();
 const route = useRoute();
 const keystrokeTimeout = ref(0);
@@ -271,6 +281,16 @@ useKeybind(
   async () => {
     if (hasGithubAccount) {
       await linkGithub();
+    }
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.O],
+  async () => {
+    if (!hasGithubAccount.value) {
+      await toggleLeaderboard();
     }
   },
   { prevent: true, ignoreIfEditable: true }
@@ -507,6 +527,27 @@ async function logout() {
 
 async function linkGithub() {
   window.location.href = "/api/auth/github/link";
+}
+
+async function toggleLeaderboard() {
+  try {
+    const newState = !user.value?.leaderboardEnabled;
+    await $fetch("/api/user", {
+      method: "POST",
+      body: {
+        leaderboardEnabled: newState,
+      },
+    });
+
+    if (userState.value) {
+      userState.value.leaderboardEnabled = newState;
+    }
+
+    toast.success(`${newState ? 'Opted in to' : 'Opted out of'} leaderboard successfully`);
+  } catch (error: any) {
+    console.error("Error updating Leaderboard opt:", error);
+    toast.error(error?.data?.message || "Failed to update Leaderboard opt");
+  }
 }
 
 function handleFileChange(event: Event) {

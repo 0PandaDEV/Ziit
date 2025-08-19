@@ -4,6 +4,9 @@ export default defineEventHandler(async () => {
   try {
     const users = await prisma.user.findMany({
       select: { id: true },
+      where: {
+        leaderboardEnabled: true,
+      },
     });
 
     const leaderboard = await Promise.all(
