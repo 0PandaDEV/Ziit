@@ -199,7 +199,7 @@ export async function calculateStats(
             : {},
           hourlyData: Array(24)
             .fill(null)
-            .map(() => ({ seconds: 0 })),
+            .map(() => ({ seconds: Math.floor(0) })),
         });
       }
     }
@@ -240,7 +240,7 @@ export async function calculateStats(
           branches: {},
           hourlyData: Array(24)
             .fill(null)
-            .map(() => ({ seconds: 0 })),
+            .map(() => ({ seconds: Math.floor(0) })),
         });
 
         const summaryData = summaryMap.get(dateStr)!;
@@ -260,10 +260,12 @@ export async function calculateStats(
           if (i > 0) {
             const prevHeartbeat = dateHeartbeats[i - 1];
             const previousTimestamp = Number(prevHeartbeat.timestamp);
-            const diffSeconds = (currentTimestamp - previousTimestamp) / 1000;
+            const diffSeconds = Math.floor(
+              (currentTimestamp - previousTimestamp) / 1000
+            );
 
             if (diffSeconds < keystrokeTimeoutSeconds) {
-              secondsToAdd = diffSeconds;
+              secondsToAdd = Math.floor(diffSeconds);
 
               const prevHeartbeatLocalSimulatedDate = new Date(
                 previousTimestamp - offsetMs
@@ -279,24 +281,29 @@ export async function calculateStats(
                 const hourBoundaryUTC =
                   hourBoundarySimulated.getTime() + offsetMs;
 
-                const secondsBeforeBoundary =
-                  (hourBoundaryUTC - previousTimestamp) / 1000;
-                const secondsAfterBoundary =
-                  (currentTimestamp - hourBoundaryUTC) / 1000;
+                const secondsBeforeBoundary = Math.floor(
+                  (hourBoundaryUTC - previousTimestamp) / 1000
+                );
+                const secondsAfterBoundary = Math.floor(
+                  (currentTimestamp - hourBoundaryUTC) / 1000
+                );
 
                 if (
                   secondsBeforeBoundary > 0 &&
                   secondsBeforeBoundary < keystrokeTimeoutSeconds
                 ) {
                   if (prevHour >= 0 && prevHour < 24) {
-                    summaryData.hourlyData[prevHour].seconds +=
-                      secondsBeforeBoundary;
+                    summaryData.hourlyData[prevHour].seconds = Math.floor(
+                      summaryData.hourlyData[prevHour].seconds +
+                        secondsBeforeBoundary
+                    );
                   }
 
-                  secondsToAdd =
-                    secondsAfterBoundary > 0 ? secondsAfterBoundary : 0;
+                  secondsToAdd = Math.floor(
+                    secondsAfterBoundary > 0 ? secondsAfterBoundary : 0
+                  );
                 } else {
-                  secondsToAdd = diffSeconds;
+                  secondsToAdd = Math.floor(diffSeconds);
                 }
               }
             } else {
@@ -309,32 +316,42 @@ export async function calculateStats(
           secondsToAdd = Math.max(0, secondsToAdd);
 
           if (hour >= 0 && hour < 24) {
-            summaryData.totalSeconds += secondsToAdd;
-            summaryData.hourlyData[hour].seconds += secondsToAdd;
+            summaryData.totalSeconds = Math.floor(
+              summaryData.totalSeconds + secondsToAdd
+            );
+            summaryData.hourlyData[hour].seconds = Math.floor(
+              summaryData.hourlyData[hour].seconds + secondsToAdd
+            );
 
             if (heartbeat.project) {
-              summaryData.projects[heartbeat.project] =
-                (summaryData.projects[heartbeat.project] || 0) + secondsToAdd;
+              summaryData.projects[heartbeat.project] = Math.floor(
+                (summaryData.projects[heartbeat.project] || 0) + secondsToAdd
+              );
             }
             if (heartbeat.language) {
-              summaryData.languages[heartbeat.language] =
-                (summaryData.languages[heartbeat.language] || 0) + secondsToAdd;
+              summaryData.languages[heartbeat.language] = Math.floor(
+                (summaryData.languages[heartbeat.language] || 0) + secondsToAdd
+              );
             }
             if (heartbeat.editor) {
-              summaryData.editors[heartbeat.editor] =
-                (summaryData.editors[heartbeat.editor] || 0) + secondsToAdd;
+              summaryData.editors[heartbeat.editor] = Math.floor(
+                (summaryData.editors[heartbeat.editor] || 0) + secondsToAdd
+              );
             }
             if (heartbeat.os) {
-              summaryData.os[heartbeat.os] =
-                (summaryData.os[heartbeat.os] || 0) + secondsToAdd;
+              summaryData.os[heartbeat.os] = Math.floor(
+                (summaryData.os[heartbeat.os] || 0) + secondsToAdd
+              );
             }
             if (heartbeat.file) {
-              summaryData.files[heartbeat.file] =
-                (summaryData.files[heartbeat.file] || 0) + secondsToAdd;
+              summaryData.files[heartbeat.file] = Math.floor(
+                (summaryData.files[heartbeat.file] || 0) + secondsToAdd
+              );
             }
             if (heartbeat.branch) {
-              summaryData.branches[heartbeat.branch] =
-                (summaryData.branches[heartbeat.branch] || 0) + secondsToAdd;
+              summaryData.branches[heartbeat.branch] = Math.floor(
+                (summaryData.branches[heartbeat.branch] || 0) + secondsToAdd
+              );
             }
           }
         }
@@ -378,16 +395,16 @@ export async function calculateStats(
   if (projectFilter) {
     return {
       ...result,
-      projectSeconds:
+      projectSeconds: Math.floor(
         projectFilter === "all"
           ? summaries.reduce(
               (total, summary) => total + summary.totalSeconds,
               0
             )
-          : totalProjectSeconds,
+          : totalProjectSeconds
+      ),
       projectFilter,
     };
   }
-
   return result;
 }
