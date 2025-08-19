@@ -16,10 +16,15 @@
     <div class="actions">
       <NuxtLink to="/stats">Stats</NuxtLink>
       <NuxtLink to="/leaderboard">Leaderboard</NuxtLink>
-      <NuxtLink to="/settings">Settings</NuxtLink>
+      <NuxtLink v-if="!user.data.value?.id" to="/Login">Login</NuxtLink>
+      <NuxtLink v-if="user.data.value?.id" to="/settings">Settings</NuxtLink>
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+const user = useFetch("/api/user");
+</script>
 
 <style lang="scss">
 .navbar {
