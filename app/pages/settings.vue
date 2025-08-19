@@ -288,9 +288,7 @@ useKeybind(
 useKeybind(
   [Key.O],
   async () => {
-    if (!hasGithubAccount.value) {
-      await toggleLeaderboard();
-    }
+    await toggleLeaderboard();
   },
   { prevent: true, ignoreIfEditable: true }
 );
