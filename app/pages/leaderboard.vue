@@ -126,6 +126,50 @@ function formatMinutes(minutes: number): string {
   const m = minutes % 60;
   return `${h}h ${m}m`;
 }
+
+useSeoMeta({
+  title: "Ziit - Leaderboard",
+  description: "See who has the most coding hours.",
+  ogTitle: "Ziit - Leaderboard",
+  ogDescription: "See who has the most coding hours.",
+  ogImage: "https://ziit.app/logo.webp",
+  ogUrl: "https://ziit.app/leaderboard",
+  ogSiteName: "Ziit",
+  twitterTitle: "Ziit - Leaderboard",
+  twitterDescription: "See who has the most coding hours.",
+  twitterImage: "https://ziit.app/logo.webp",
+  twitterCard: "summary",
+  twitterCreator: "@pandadev_",
+  twitterSite: "@pandadev_",
+  author: "PandaDEV",
+});
+
+useHead({
+  htmlAttrs: { lang: "en" },
+  link: [
+    {
+      rel: "canonical",
+      href: "https://ziit.app/leaderboard",
+    },
+    {
+      rel: "icon",
+      type: "image/ico",
+      href: "/favicon.ico",
+    },
+  ],
+  script: [
+    {
+      type: "application/ld+json",
+      innerHTML: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: "Ziit - Leaderboard",
+        url: "https://ziit.app/leaderboard",
+        description: "See who has the most coding hours.",
+      }),
+    },
+  ],
+});
 </script>
 
 <style scoped lang="scss">
