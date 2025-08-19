@@ -11,7 +11,7 @@
     <span>  •  </span>
     <a href="https://ziit.app/stats">Stats</a>
     <span>  •  </span>
-    <a href="https://www.reddit.com/r/ziit">Reddit</a>
+    <a href="https://ziit.app/leaderboard">Leaderboard</a>
     <span>  •  </span>
     <a href="https://discord.gg/Y7SbYphVw9">Discord</a>
 </div>
