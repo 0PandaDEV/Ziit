@@ -24,7 +24,6 @@
             keyName="L"
             @click="linkGithub" />
           <UiButton
-            v-if="!hasGithubAccount"
             :text="
               user?.leaderboardEnabled
                 ? `Opt-out of Leaderboard`
