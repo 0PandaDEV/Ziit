@@ -17,6 +17,8 @@ jobs:
   prepare:
     name: Prepare Docker Metadata
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
       labels: ${{ steps.meta.outputs.labels }}
