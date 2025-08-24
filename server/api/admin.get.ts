@@ -28,7 +28,6 @@ export default defineEventHandler(async (event: H3Event) => {
           id: true,
           email: true,
           githubUsername: true,
-          keystrokeTimeout: true,
           createdAt: true,
           _count: {
             select: {
@@ -39,7 +38,28 @@ export default defineEventHandler(async (event: H3Event) => {
         },
       });
 
-      return users;
+      const usersWithTotalMinutes = await Promise.all(
+        users.map(async (user) => {
+          const summaries = await prisma.summaries.findMany({
+            where: { userId: user.id },
+            select: {
+              totalMinutes: true,
+            },
+          });
+
+          const totalMinutes = summaries.reduce(
+            (sum, s) => sum + (s.totalMinutes || 0),
+            0
+          );
+
+          return {
+            ...user,
+            totalMinutes,
+          };
+        })
+      );
+
+      return usersWithTotalMinutes;
     }
   } catch (error) {
     const adminKey =

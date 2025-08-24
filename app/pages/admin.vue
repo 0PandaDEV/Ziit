@@ -17,7 +17,9 @@
     <table v-else>
       <thead class="header row">
         <tr>
-          <td class="id" :class="getHeaderClass('id')" @click="setSort('id')">User ID</td>
+          <td class="id" :class="getHeaderClass('id')" @click="setSort('id')">
+            User ID
+          </td>
           <td :class="getHeaderClass('email')" @click="setSort('email')">
             Email
           </td>
@@ -27,9 +29,9 @@
             GitHub
           </td>
           <td
-            :class="getHeaderClass('keystrokeTimeout')"
-            @click="setSort('keystrokeTimeout')">
-            Timeout
+            :class="getHeaderClass('totalMinutes')"
+            @click="setSort('totalMinutes')">
+            Total Hours
           </td>
           <td
             :class="getHeaderClass('heartbeats')"
@@ -51,12 +53,19 @@
       <tbody>
         <tr v-for="user in sortedAdminUsers" :key="user.id" class="row">
           <td class="id" :class="getCellClass('id')">{{ user.id }}</td>
-          <td :class="getCellClass('email')"><a :class="getCellClass('email')" :href="`mailto:` + user.email">{{ user.email }}</a></td>
-          <td :class="getCellClass('githubUsername')">
-            {{ user.githubUsername || "N/A" }}
+          <td :class="getCellClass('email')">
+            <a :class="getCellClass('email')" :href="`mailto:` + user.email">{{
+              user.email
+            }}</a>
           </td>
-          <td :class="getCellClass('keystrokeTimeout')">
-            {{ user.keystrokeTimeout }}s
+          <td :class="getCellClass('githubUsername')">
+            <span v-if="!user.githubUsername">N/A</span>
+            <a v-else :href="`https://github.com/` + user.githubUsername" target="_blank">{{
+              user.githubUsername
+            }}</a>
+          </td>
+          <td :class="getCellClass('totalMinutes')">
+            {{ formatMinutes(user.totalMinutes) }}
           </td>
           <td :class="getCellClass('heartbeats')">
             {{ user._count.heartbeats }}
@@ -82,7 +91,7 @@ interface AdminUser {
   id: string;
   email: string;
   githubUsername: string | null;
-  keystrokeTimeout: number;
+  totalMinutes: number;
   createdAt: string;
   _count: {
     heartbeats: number;
@@ -222,6 +231,12 @@ useKeybind(
   },
   { prevent: true, ignoreIfEditable: true }
 );
+
+function formatMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h}h ${m}m`;
+}
 
 useSeoMeta({
   title: "Ziit - Leaderboard",
