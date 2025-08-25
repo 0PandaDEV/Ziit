@@ -111,14 +111,16 @@ const cookie = useCookie("adminKey", {
 
 async function authenticate() {
   try {
-    const { data } = await useFetch<AdminUser[]>("/api/admin", {
+    const data  = await $fetch("/api/admin", {
       headers: {
         Authorization: `Bearer ${adminKey.value}`,
       },
     });
 
-    if (data.value) {
-      adminUsers.value = data.value;
+    console.log(data);
+
+    if (data) {
+      adminUsers.value = data as AdminUser[];
       isAuthenticated.value = true;
       cookie.value = adminKey.value;
     }
