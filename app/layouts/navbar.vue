@@ -28,6 +28,7 @@
   padding: 24px;
   padding-bottom: 0;
   position: relative;
+  padding-bottom: 24px;
 }
 
 .fade-top {
