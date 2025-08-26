@@ -38,7 +38,9 @@
 <script setup lang="ts">
 import { Key } from "@waradu/keyboard";
 
-const { data: stats } = await useFetch("/api/public/stats");
+const { data: stats } = await useFetch("/api/public/stats", {
+  lazy: true
+});
 
 useKeybind(
   [Key.Alt, Key.L],
