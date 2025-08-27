@@ -13,7 +13,7 @@ export default defineNuxtConfig({
     disableRegistering: process.env.NUXT_DISABLE_REGISTRATION,
   },
   nitro: {
-    preset: "bun",
+    preset: "node-server",
   },
   app: {
     head: {
