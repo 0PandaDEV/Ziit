@@ -13,7 +13,7 @@ export default defineEventHandler((event) => {
   }
 
   const userId = user.id;
-  const job = activeJobs.get(userId);
+  const job = Array.from(activeJobs.values()).find((j) => j.userId === userId);
 
   const acceptHeader = getRequestHeader(event, "accept");
   if (!acceptHeader?.includes("text/event-stream")) {
@@ -27,13 +27,32 @@ export default defineEventHandler((event) => {
 
   handleLog(`[sse] open for user ${userId}`);
 
+  let completedMessagesSent = 0;
+  let isCompleted = false;
+
   const interval = setInterval(() => {
-    const job = activeJobs.get(userId);
+    const job = Array.from(activeJobs.values()).find(
+      (j) => j.userId === userId,
+    );
+
     if (job) {
       eventStream.push(JSON.stringify(job));
-      if (job.status === "Completed" || job.status === "Failed") {
-        activeJobs.delete(userId);
-        eventStream.close();
+
+      if (
+        (job.status === "Completed" || job.status === "Failed") &&
+        !isCompleted
+      ) {
+        isCompleted = true;
+        completedMessagesSent = 0;
+      }
+
+      if (isCompleted) {
+        completedMessagesSent++;
+        if (completedMessagesSent >= 10) {
+          clearInterval(interval);
+          activeJobs.delete(job.id);
+          eventStream.close();
+        }
       }
     } else {
       eventStream.push(JSON.stringify({ status: "no_job" }));
@@ -46,4 +65,4 @@ export default defineEventHandler((event) => {
   });
 
   return eventStream.send();
-}); 
+});

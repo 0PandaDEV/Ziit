@@ -139,8 +139,7 @@
             :id="importType + 'ApiKey'"
             type="password"
             v-model="importApiKey"
-            :placeholder="apiKeyPlaceholder"
-            v-if="importType === 'wakapi'" />
+            :placeholder="apiKeyPlaceholder" />
 
           <UiInput
             id="wakapiInstanceUrl"
@@ -148,28 +147,6 @@
             v-model="wakapiInstanceUrl"
             placeholder="Enter your WakAPI instance URL (e.g. https://wakapi.dev)"
             v-if="importType === 'wakapi'" />
-
-          <div v-if="importType === 'wakatime'" class="steps">
-            <p>
-              1. Go to
-              <a href="https://wakatime.com/settings/account" target="_blank"
-                >WakaTime Settings</a
-              >
-            </p>
-            <p>
-              2. Click on <kbd>Export my code stats...</kbd> and select
-              Heartbeats
-            </p>
-            <p>3. Wait and then download your data</p>
-          </div>
-
-          <input
-            type="file"
-            id="wakaTimeFileUpload"
-            ref="wakaTimeFileInput"
-            accept=".json"
-            @change="handleFileChange"
-            v-if="importType === 'wakatime'" />
         </div>
 
         <UiButton
@@ -214,14 +191,9 @@ type ImportType = typeof WAKATIME | typeof WAKAPI;
 const importType = ref<ImportType>(WAKATIME);
 const importApiKey = ref("");
 const wakapiInstanceUrl = ref("");
-const wakaTimeFileInput = ref<HTMLInputElement | null>(null);
-const selectedFile = ref<File | null>(null);
-const selectedFileName = ref<string | null>(null);
-const uploadProgress = ref(0);
 const isUploading = ref(false);
 const importJob = ref<ImportJob | null>(null);
 let eventSource: EventSource | null = null;
-const CHUNK_SIZE = 95 * 1024 * 1024;
 
 const spinnerChars = ["-", "/", "|", "\\"];
 const spinnerIndex = ref(0);
@@ -244,10 +216,10 @@ const importStatusText = computed(() => {
   const job = importJob.value;
   let status = job.status;
 
-  if (job.status === "Uploading" && job.totalSize) {
+  if (job.status === "Downloading" && job.totalSize) {
     const uploadedMB = ((job.uploadedSize || 0) / (1024 * 1024)).toFixed(2);
     const totalMB = (job.totalSize / (1024 * 1024)).toFixed(2);
-    return `Uploading: ${uploadedMB}MB / ${totalMB}MB (${job.progress}%)`;
+    return `Downloading: ${uploadedMB}MB / ${totalMB}MB (${job.progress}%)`;
   }
 
   if (job.status === "Processing") {
@@ -286,9 +258,6 @@ watch(importJob, (newJob) => {
     } else if (newJob.status === "Failed") {
       toast.error(`Import failed: ${newJob.error}`);
     }
-    setTimeout(() => {
-      importJob.value = null;
-    }, 5000);
   } else if (newJob) {
     startSpinner();
   } else {
@@ -309,11 +278,18 @@ function connectEventSource() {
     const jobStatus = JSON.parse(event.data);
     if (
       !jobStatus ||
-      jobStatus.status === "no_job" ||
+      jobStatus.status === "no_job"
+    ) {
+      importJob.value = null;
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+    } else if (
       jobStatus.status === "Completed" ||
       jobStatus.status === "Failed"
     ) {
-      importJob.value = null;
+      importJob.value = jobStatus as ImportJob;
       if (eventSource) {
         eventSource.close();
         eventSource = null;
@@ -649,148 +625,44 @@ async function linkGithub() {
   window.location.href = "/api/auth/github/link";
 }
 
-function handleFileChange(event: Event) {
-  const input = event.target as HTMLInputElement;
-  if (input.files && input.files.length > 0) {
-    selectedFile.value = input.files[0]!;
-    selectedFileName.value = input.files[0]!.name;
-
-    const fileSize = input.files[0]!.size;
-    const fileSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
-
-    if (fileSize > CHUNK_SIZE) {
-      const chunks = Math.ceil(fileSize / CHUNK_SIZE);
-      toast.success(
-        `Large file detected (${fileSizeMB} MB). Will upload in ${chunks} chunks.`
-      );
-    } else {
-      toast.success(`Selected file: ${input.files[0]!.name} (${fileSizeMB} MB)`);
-    }
-    importJob.value = null;
-  } else {
-    selectedFile.value = null;
-    selectedFileName.value = null;
-  }
-}
-
 async function importTrackingData() {
-  if (importType.value === "wakatime") {
-    if (!selectedFile.value) {
-      toast.error("Please select a WakaTime export file");
-      return;
-    }
+  importJob.value = null;
 
-    try {
-      isUploading.value = true;
-      uploadProgress.value = 0;
-      const file = selectedFile.value;
-      const fileSize = file.size;
+  if (!importApiKey.value) {
+    toast.error("Please enter your API Key");
+    return;
+  }
 
-      console.log(
-        `Starting upload of ${file.name}, size: ${(
-          fileSize /
-          (1024 * 1024)
-        ).toFixed(2)}MB`
-      );
+  const payload: any = {
+    apiKey: importApiKey.value,
+    instanceType: importType.value,
+  };
 
-      connectEventSource();
-
-      if (fileSize <= CHUNK_SIZE) {
-        const formData = new FormData();
-        formData.append("file", selectedFile.value);
-        toast.success("WakaTime data import started");
-
-        await $fetch("/api/import", {
-          method: "POST",
-          body: formData,
-        });
-      } else {
-        const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
-        const fileId = Date.now().toString();
-        toast.success(
-          `Processing large file (${(fileSize / (1024 * 1024)).toFixed(2)}MB) in ${totalChunks} chunks`
-        );
-
-        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-          const start = chunkIndex * CHUNK_SIZE;
-          const end = Math.min(start + CHUNK_SIZE, fileSize);
-          const chunk = file.slice(start, end);
-
-          const formData = new FormData();
-          formData.append("fileId", fileId);
-          formData.append("chunkIndex", chunkIndex.toString());
-          formData.append("totalChunks", totalChunks.toString());
-          formData.append("fileName", file.name);
-          formData.append("fileSize", fileSize.toString());
-          formData.append("chunk", chunk);
-
-          await $fetch("/api/import", {
-            method: "POST",
-            body: formData,
-            onUploadProgress: (progressEvent: ProgressEvent) => {
-              if (progressEvent.lengthComputable) {
-                const chunkProgress =
-                  progressEvent.loaded / progressEvent.total;
-                const totalProgress =
-                  (chunkIndex + chunkProgress) / totalChunks;
-                if (importJob.value && importJob.value.status === "Uploading") {
-                  importJob.value.progress = Math.round(totalProgress * 100);
-                }
-              }
-            },
-          });
-        }
-
-        await $fetch("/api/import", {
-          method: "POST",
-          body: { fileId, processChunks: true },
-        });
-      }
-
-      toast.success("WakaTime data import completed");
-      selectedFile.value = null;
-      selectedFileName.value = null;
-      uploadProgress.value = 0;
-      if (wakaTimeFileInput.value) {
-        wakaTimeFileInput.value.value = "";
-      }
-    } catch (error: any) {
-      console.error("Error importing WakaTime data:", error);
-      toast.error(error?.data?.message || "Failed to import WakaTime data");
-    } finally {
-      isUploading.value = false;
-    }
-  } else {
-    if (!importApiKey.value) {
-      toast.error("Please enter your WakAPI API Key");
-      return;
-    }
-
+  if (importType.value === "wakapi") {
     if (!wakapiInstanceUrl.value) {
       toast.error("Please enter your WakAPI instance URL");
       return;
     }
+    payload.instanceUrl = wakapiInstanceUrl.value;
+  }
 
-    try {
-      const payload = {
-        apiKey: importApiKey.value,
-        instanceType: importType.value,
-        instanceUrl: wakapiInstanceUrl.value,
-      };
-      toast.success("WakAPI data import started");
+  connectEventSource();
 
-      await $fetch("/api/import", {
-        method: "POST",
-        body: payload,
-      });
+  try {
+    toast.success(`${importType.value} data import started`);
 
-      toast.success("WakAPI data import completed");
-      importApiKey.value = "";
-      wakapiInstanceUrl.value = "";
-    } catch (error: any) {
-      console.error("Error importing WakAPI data:", error);
-      toast.error(error?.data?.message || "Failed to import WakAPI data");
-    }
+    await $fetch("/api/import", {
+      method: "POST",
+      body: payload,
+    });
+
+    importApiKey.value = "";
+    wakapiInstanceUrl.value = "";
+  } catch (error: any) {
+    console.error(`Error importing ${importType.value} data:`, error);
+    toast.error(
+      error?.data?.message || `Failed to import ${importType.value} data`
+    );
   }
 }
 

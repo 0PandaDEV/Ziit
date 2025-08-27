@@ -1,7 +1,7 @@
 export interface ImportJob {
-  fileId: string;
+  id: string;
   fileName: string;
-  status: "Uploading" | "Processing" | "Completed" | "Failed" | "Pending";
+  status: "Downloading" | "Processing" | "Completed" | "Failed" | "Pending";
   progress: number;
   importedCount?: number;
   error?: string;
