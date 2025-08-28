@@ -44,6 +44,7 @@
       <div class="buttons">
         <UiButton text="Login" keyName="enter" @click="login" />
         <UiButton text="Login with Github" keyName="g" @click="githubAuth" />
+        <UiButton text="Login with Epilogue" keyName="e" @click="epilogueAuth" />
       </div>
     </main>
   </NuxtLayout>
@@ -66,6 +67,10 @@ onMounted(() => {
       no_code: "No authorization code received",
       no_email: "No email address found in your GitHub account",
       github_auth_failed: "GitHub authentication failed",
+      epilogue_auth_failed: "Epilogue authentication failed",
+      link_failed: "Account linking failed, please try again",
+      cancelled: "Authentication was cancelled",
+      link_cancelled: "Account linking was cancelled",
     };
 
     const message =
@@ -87,6 +92,14 @@ useKeybind(
   [Key.G],
   async () => {
     await githubAuth();
+  },
+  { ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.E],
+  async () => {
+    await epilogueAuth();
   },
   { ignoreIfEditable: true }
 );
@@ -118,6 +131,10 @@ async function login() {
 
 async function githubAuth() {
   window.location.href = "/api/auth/github";
+}
+
+async function epilogueAuth() {
+  window.location.href = "/api/auth/epilogue";
 }
 
 useSeoMeta({

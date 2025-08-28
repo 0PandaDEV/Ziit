@@ -8,21 +8,28 @@
             <p>User ID</p>
             <p>Email</p>
             <p>Github Linked</p>
+            <p>Epilogue Linked</p>
             <p>Show up on Leaderboard</p>
           </div>
           <div class="values">
             <p>{{ user?.id }}</p>
             <p>{{ user?.email }}</p>
             <p>{{ hasGithubAccount ? "yes" : "no" }}</p>
+            <p>{{ hasEpilogueAccount ? "yes" : "no" }}</p>
             <p>{{ user?.leaderboardEnabled ? "yes" : "no" }}</p>
           </div>
         </div>
         <div class="buttons">
           <UiButton
-            v-if="!hasGithubAccount"
+            v-if="!hasGithubAccount && !hasEpilogueAccount"
             text="Link Github"
             keyName="L"
             @click="linkGithub" />
+          <UiButton
+            v-if="!hasEpilogueAccount && !hasGithubAccount"
+            text="Link Epilogue"
+            keyName="M"
+            @click="linkEpilogue" />
           <UiButton
             :text="
               user?.leaderboardEnabled
@@ -203,6 +210,7 @@ const keystrokeTimeout = ref(0);
 const originalKeystrokeTimeout = ref(0);
 const timeoutChanged = ref(false);
 const hasGithubAccount = computed(() => !!user.value?.githubId);
+const hasEpilogueAccount = computed(() => !!user.value?.epilogueId);
 const WAKATIME = "wakatime" as const;
 const WAKAPI = "wakapi" as const;
 type ImportType = typeof WAKATIME | typeof WAKAPI;
@@ -252,11 +260,13 @@ onMounted(async () => {
 
   if (route.query.error) {
     const errorMessages: Record<string, string> = {
-      link_failed: "Failed to link GitHub account",
+      link_failed: "Failed to link account",
       invalid_state: "Invalid state parameter",
       no_code: "No code provided",
       no_email: "No email found",
       github_auth_failed: "GitHub authentication failed",
+      epilogue_auth_failed: "Epilogue authentication failed",
+      link_cancelled: "Account linking was cancelled",
     };
 
     const message = errorMessages[route.query.error as string] || "Error";
@@ -267,6 +277,8 @@ onMounted(async () => {
     const successMessages: Record<string, string> = {
       github_linked: "GitHub account successfully linked",
       github_updated: "GitHub credentials updated",
+      epilogue_linked: "Epilogue account successfully linked",
+      epilogue_updated: "Epilogue credentials updated",
       accounts_merged: "Accounts successfully merged",
     };
 
@@ -278,8 +290,18 @@ onMounted(async () => {
 useKeybind(
   [Key.L],
   async () => {
-    if (hasGithubAccount) {
+    if (!hasGithubAccount.value && !hasEpilogueAccount.value) {
       await linkGithub();
+    }
+  },
+  { prevent: true, ignoreIfEditable: true }
+);
+
+useKeybind(
+  [Key.M],
+  async () => {
+    if (!hasEpilogueAccount.value && !hasGithubAccount.value) {
+      await linkEpilogue();
     }
   },
   { prevent: true, ignoreIfEditable: true }
@@ -528,6 +550,18 @@ async function logout() {
 
 async function linkGithub() {
   window.location.href = "/api/auth/github/link";
+}
+
+async function linkEpilogue() {
+  try {
+    const response = await $fetch("/api/auth/epilogue/link");
+    if (response?.url) {
+      window.location.href = response.url;
+    }
+  } catch (error: any) {
+    console.error("Error initiating Epilogue link:", error);
+    toast.error("Failed to initiate Epilogue linking");
+  }
 }
 
 async function toggleLeaderboard() {

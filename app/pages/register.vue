@@ -48,6 +48,7 @@
       <div class="buttons">
         <UiButton text="Register" keyName="enter" @click="register" />
         <UiButton text="Register with Github" keyName="g" @click="githubAuth" />
+        <UiButton text="Register with Epilogue" keyName="e" @click="epilogueAuth" />
       </div>
     </main>
   </NuxtLayout>
@@ -86,9 +87,18 @@ async function githubAuth() {
   window.location.href = "/api/auth/github";
 }
 
+async function epilogueAuth() {
+  window.location.href = "/api/auth/epilogue";
+}
+
 useKeybind([Key.G], async () => {
   if (isInputFocused.value) return;
   await githubAuth();
+});
+
+useKeybind([Key.E], async () => {
+  if (isInputFocused.value) return;
+  await epilogueAuth();
 });
 
 useKeybind(

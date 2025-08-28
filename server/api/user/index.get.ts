@@ -27,6 +27,8 @@ export default defineEventHandler(async (event: H3Event) => {
         email: true,
         githubId: true,
         githubUsername: true,
+        epilogueId: true,
+        epilogueUsername: true,
         apiKey: true,
         keystrokeTimeout: true,
         leaderboardEnabled: true
