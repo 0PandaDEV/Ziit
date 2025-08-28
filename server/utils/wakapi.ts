@@ -1,4 +1,4 @@
-import { parseUserAgent, parseOS } from "~~/server/utils/wakatime";
+import type { WakatimeUserAgent } from "~~/server/utils/wakatime";
 import { processHeartbeatsByDate } from "~~/server/utils/summarize";
 import { handleApiError, handleLog } from "~~/server/utils/logging";
 import { activeJobs, type ImportJob } from "~~/server/utils/import-jobs";
@@ -26,6 +26,40 @@ interface WakApiHeartbeat {
   created_at: string;
 }
 
+async function _fetchWakApiUserAgents(
+  baseUrl: string,
+  headers: any,
+): Promise<Map<string, WakatimeUserAgent>> {
+  const userAgents = new Map<string, WakatimeUserAgent>();
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    try {
+      const url = `${baseUrl}/users/current/user_agents?page=${page}`;
+      const response = await $fetch<{
+        data: WakatimeUserAgent[];
+        total_pages: number;
+      }>(url, {
+        headers,
+      });
+
+      response.data.forEach((ua) => {
+        userAgents.set(ua.id, ua);
+      });
+
+      totalPages = response.total_pages;
+      page++;
+    } catch (error) {
+      handleLog(`Error fetching user agents page ${page}: ${error}`);
+      break;
+    }
+  } while (page <= totalPages);
+
+  handleLog(`Fetched ${userAgents.size} user agents`);
+  return userAgents;
+}
+
 function processWakaApiHeartbeat(heartbeat: WakApiHeartbeat, userId: string) {
   return {
     userId: userId,
@@ -33,13 +67,9 @@ function processWakaApiHeartbeat(heartbeat: WakApiHeartbeat, userId: string) {
       ? BigInt(Math.round(heartbeat.time * 1000))
       : BigInt(new Date().getTime()),
     project: heartbeat.project || null,
-    editor: heartbeat.user_agent_id
-      ? parseUserAgent(heartbeat.user_agent_id).editor
-      : null,
+    editor: null,
     language: heartbeat.language || null,
-    os: heartbeat.user_agent_id
-      ? parseUserAgent(heartbeat.user_agent_id).os
-      : parseOS(heartbeat.entity || ""),
+    os: null,
     file: heartbeat.entity ? path.basename(heartbeat.entity) : null,
     branch: heartbeat.branch || null,
     createdAt: new Date(),
@@ -82,8 +112,12 @@ async function fetchWakApiHeartbeats(
     `Generated ${allDateStrings.length} dates to check based on date range, including tomorrow to ensure all heartbeats are captured`,
   );
 
-  job && (job.totalToProcess = allDateStrings.length);
-  job && (job.processedCount = 0);
+  if (job) {
+    job.totalToProcess = allDateStrings.length;
+    job.processedCount = 0;
+    job.status = "Processing heartbeats";
+    activeJobs.set(job.id, job);
+  }
 
   const heartbeatsByDate = new Map<string, any[]>();
   const progressUpdateInterval = Math.max(
@@ -203,6 +237,10 @@ export async function handleWakApiImport(
 
     const startDate = new Date(allTimeResponse.data.range.start_date);
     const endDate = new Date();
+
+    job.status = "Processing heartbeats";
+    job.progress = 10;
+    activeJobs.set(job.id, job);
 
     const heartbeatsByDate = await fetchWakApiHeartbeats(
       baseUrl,

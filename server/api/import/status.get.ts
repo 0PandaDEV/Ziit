@@ -50,7 +50,7 @@ export default defineEventHandler((event) => {
         completedMessagesSent++;
         if (completedMessagesSent >= 10) {
           clearInterval(interval);
-          activeJobs.delete(job.id);
+          activeJobs.delete(userId);
           eventStream.close();
         }
       }

@@ -29,7 +29,7 @@ interface WakatimeHeartbeat {
   machine_name_id?: string;
 }
 
-interface WakatimeUserAgent {
+export interface WakatimeUserAgent {
   id: string;
   value: string;
   editor: string;
@@ -44,10 +44,11 @@ interface WakatimeDataDump {
   download_url?: string;
 }
 
-interface WakatimeExportData {
+export interface WakatimeExportData {
   user: {
-    username?: string;
-    display_name?: string;
+    username?: string | null;
+    display_name?: string | null;
+    last_plugin?: string;
   };
   range: {
     start: number;
@@ -89,7 +90,10 @@ async function createDataDumpRequest(apiKey: string): Promise<void> {
   }
 }
 
-async function pollForDataDump(apiKey: string): Promise<WakatimeDataDump> {
+async function pollForDataDump(
+  apiKey: string,
+  job?: ImportJob
+): Promise<WakatimeDataDump> {
   const url = `${Endpoints.WakatimeApiUrl}${Endpoints.WakatimeApiDataDumpUrl}`;
   const maxAttempts = 60;
   let attempts = 0;
@@ -110,6 +114,12 @@ async function pollForDataDump(apiKey: string): Promise<WakatimeDataDump> {
         throw new Error("No heartbeats dump found");
       }
 
+      if (job) {
+        job.status = "Processing";
+        job.progress = Math.min(99, heartbeatsDump.percent_complete);
+        activeJobs.set(job.id, job);
+      }
+
       if (
         heartbeatsDump.status === "Completed" &&
         heartbeatsDump.download_url
@@ -117,6 +127,11 @@ async function pollForDataDump(apiKey: string): Promise<WakatimeDataDump> {
         handleLog(
           `Data dump ready for download: ${heartbeatsDump.percent_complete}% complete`
         );
+        if (job) {
+          job.status = "Downloading";
+          job.progress = 100;
+          activeJobs.set(job.id, job);
+        }
         return heartbeatsDump;
       }
 
@@ -243,10 +258,11 @@ async function fetchUserAgents(
   return userAgents;
 }
 
-function mapHeartbeat(
+export function mapHeartbeat(
   heartbeat: WakatimeHeartbeat,
   userAgents: Map<string, WakatimeUserAgent>,
-  userId: string
+  userId: string,
+  lastPlugin?: string
 ) {
   const userAgent = userAgents.get(heartbeat.user_agent_id || "");
 
@@ -257,6 +273,12 @@ function mapHeartbeat(
     const parsed = parseUserAgent(heartbeat.user_agent_id);
     editor = parsed.editor || editor;
     os = parsed.os || os;
+  }
+
+  if (!userAgent && lastPlugin) {
+    const parsed = parseUserAgent(lastPlugin);
+    if (parsed.editor) editor = parsed.editor;
+    if (parsed.os) os = parsed.os;
   }
 
   return {
@@ -290,15 +312,24 @@ export async function handleWakatimeImport(
     handleLog(`Starting WakaTime API import for user ${userId}`);
 
     handleLog("Creating data dump request...");
+    job.status = "Creating data dump request";
+    job.progress = 5;
+    activeJobs.set(job.id, job);
+
     await createDataDumpRequest(apiKey);
 
+    job.status = "Waiting for data dump";
+    job.progress = 10;
+    activeJobs.set(job.id, job);
+
     handleLog("Waiting for data dump to be ready...");
-    const dataDump = await pollForDataDump(apiKey);
+    const dataDump = await pollForDataDump(apiKey, job);
 
     handleLog("Downloading data dump...");
     const exportData = await downloadDataDump(dataDump.download_url!, job);
 
-    job.status = "Processing";
+    job.status = "Fetching metadata";
+    job.progress = 0;
     activeJobs.set(job.id, job);
 
     handleLog("Fetching user agents and machine names...");
@@ -306,12 +337,8 @@ export async function handleWakatimeImport(
 
     if (!Array.isArray(exportData.days)) exportData.days = [];
 
-    job.totalToProcess = exportData.days.reduce(
-      (acc, day) => acc + (day.heartbeats?.length || 0),
-      0
-    );
-    
-    job.status = "Processing";
+    job.totalToProcess = exportData.days.length;
+    job.status = "Processing heartbeats";
     job.processedCount = 0;
     job.progress = 0;
     activeJobs.set(job.id, job);
@@ -384,12 +411,103 @@ export async function handleWakatimeImport(
   }
 }
 
+export async function handleWakatimeFileImport(
+  exportData: WakatimeExportData,
+  userId: string,
+  job: ImportJob
+): Promise<{ success: boolean; imported: number; message?: string }> {
+  try {
+    handleLog(`Starting WakaTime file import for user ${userId}`);
+
+    job.status = "Processing";
+    activeJobs.set(job.id, job);
+
+    if (!Array.isArray(exportData.days)) exportData.days = [];
+
+    job.totalToProcess = exportData.days.length;
+    job.status = "Processing heartbeats";
+    job.processedCount = 0;
+    job.progress = 0;
+    activeJobs.set(job.id, job);
+
+    const importResults = await Promise.all(
+      exportData.days.map(async (day) => {
+        if (!day.heartbeats || day.heartbeats.length === 0) return 0;
+
+        handleLog(
+          `Processing ${day.heartbeats.length} heartbeats for ${day.date}`
+        );
+
+        const userAgents = new Map<string, WakatimeUserAgent>();
+
+        const processedHeartbeats = day.heartbeats.map((h) =>
+          mapHeartbeat(h, userAgents, userId, exportData.user.last_plugin)
+        );
+
+        try {
+          await processHeartbeatsByDate(userId, processedHeartbeats);
+
+          job.processedCount! += 1;
+          job.progress = Math.round(
+            (job.processedCount! / exportData.days.length) * 100
+          );
+          activeJobs.set(job.id, job);
+
+          return processedHeartbeats.length;
+        } catch (error) {
+          handleLog(`Error processing heartbeats for ${day.date}: ${error}`);
+
+          job.processedCount! += 1;
+          job.progress = Math.round(
+            (job.processedCount! / exportData.days.length) * 100
+          );
+          activeJobs.set(job.id, job);
+
+          return 0;
+        }
+      })
+    );
+
+    const totalHeartbeats = importResults.reduce((acc, val) => acc + val, 0);
+
+    job.status = "Completed";
+    job.importedCount = totalHeartbeats;
+    job.progress = 100;
+    activeJobs.set(job.id, job);
+
+    handleLog(
+      `Successfully imported ${totalHeartbeats} heartbeats from WakaTime file`
+    );
+
+    return {
+      success: true,
+      imported: totalHeartbeats,
+      message: `Successfully imported ${totalHeartbeats} heartbeats`,
+    };
+  } catch (error: any) {
+    job.status = "Failed";
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    job.error = errorMessage;
+    activeJobs.set(job.id, job);
+
+    handleLog(
+      `WakaTime file import failed for user ${userId}: ${errorMessage}`
+    );
+
+    throw handleApiError(
+      500,
+      `WakaTime file import failed for user ${userId}: ${errorMessage}`,
+      "Failed to import data from WakaTime file. Please check your file and try again."
+    );
+  }
+}
+
 export function parseUserAgent(userAgent: string): {
   os: string;
   editor: string;
 } {
   const userAgentPattern =
-    "/^(?:(?:wakatime|chrome|firefox|edge)/(?:v?[d+.]+|unset)?s)?(?:(w+)[-_].*?)?s?(?:([^/s]+)/[wd.]+s)?([^/s]+)-wakatime/.+$/i";
+    /(?:wakatime\/v?[\d.]+\s+)?\(([^)]+)\)(?:\s+[\w\d.]+)*\s+([^/\s]+)\/[\d.]+/i;
 
   if (!userAgent) {
     return { os: "", editor: "" };
@@ -397,24 +515,18 @@ export function parseUserAgent(userAgent: string): {
 
   const match = userAgent.match(userAgentPattern);
 
-  if (match && match.length === 4) {
+  if (match && match.length >= 3) {
     let os: string = match[1];
-    let editor: string = match[2] || match[3];
+    let editor: string = match[2];
 
-    switch (os) {
-      case "windows":
-      case "win":
-        os = "Windows";
-        break;
-      case "darwin":
-        os = "macOS";
-        break;
-      default:
-        if (userAgent.includes("-WSL2-")) {
-          os = "Linux";
-        } else {
-          os = "Linux";
-        }
+    if (os.includes("darwin")) {
+      os = "macOS";
+    } else if (os.includes("linux")) {
+      os = "Linux";
+    } else if (os.includes("windows") || os.includes("win")) {
+      os = "Windows";
+    } else {
+      os = "Linux";
     }
 
     return { os, editor };
@@ -448,43 +560,4 @@ export function parseUserAgent(userAgent: string): {
   }
 
   return { os: "", editor: "" };
-}
-
-export function parseOS(entityOrUserAgent: string): string | null {
-  if (!entityOrUserAgent) return null;
-
-  const { os } = parseUserAgent(entityOrUserAgent);
-  if (os) {
-    return os;
-  }
-
-  const lowerPath = entityOrUserAgent.toLowerCase();
-
-  if (
-    lowerPath.includes("win_") ||
-    lowerPath.includes("windows") ||
-    lowerPath.match(/^[a-z]:[\\/]/) ||
-    lowerPath.startsWith("\\\\")
-  ) {
-    return "Windows";
-  }
-
-  if (
-    lowerPath.includes("mac_") ||
-    lowerPath.includes("darwin") ||
-    lowerPath.includes("macos") ||
-    lowerPath.startsWith("/users/")
-  ) {
-    return "macOS";
-  }
-
-  if (
-    lowerPath.includes("linux") ||
-    lowerPath.includes("wsl") ||
-    lowerPath.startsWith("/home/")
-  ) {
-    return "Linux";
-  }
-
-  return null;
 }
