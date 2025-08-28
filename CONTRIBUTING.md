@@ -11,6 +11,8 @@ I welcome a wide range of contributions, including but not limited to:
 - **Documentation**: Improve the clarity and depth of documentation.
 - **Code Refactoring**: Clean up the code to improve readability, performance, or maintainability.
 - **UI/UX Enhancements**: Improve the user interface or user experience of Ziit.
+- **Testing**: Add or improve tests to ensure code quality.
+- **IDE Extensions**: Develop an extension for your favorite IDE to add it to the list of supported ones.
 
 ### Reporting Bugs
 
