@@ -1,5 +1,19 @@
 import { prisma } from "~~/prisma/prisma";
 
+defineRouteMeta({
+  openAPI: {
+    tags: ["Public", "Leaderboard"],
+    summary: "Get public leaderboard",
+    description:
+      "Returns leaderboard with user rankings based on total coding time.",
+    responses: {
+      200: { description: "Leaderboard data with user rankings" },
+      500: { description: "Failed to fetch leaderboard" },
+    },
+    operationId: "getPublicLeaderboard",
+  },
+});
+
 export default defineEventHandler(async () => {
   try {
     const users = await prisma.user.findMany({
@@ -23,7 +37,7 @@ export default defineEventHandler(async () => {
 
         const totalMinutes = summaries.reduce(
           (sum, s) => sum + (s.totalMinutes || 0),
-          0
+          0,
         );
 
         function getTop(obj?: Record<string, number> | null): string | null {
@@ -62,7 +76,7 @@ export default defineEventHandler(async () => {
           topOS: getTop(mergedOS),
           topLanguage: getTop(mergedLanguages),
         };
-      })
+      }),
     );
 
     leaderboard.sort((a, b) => b.totalMinutes - a.totalMinutes);
@@ -72,7 +86,7 @@ export default defineEventHandler(async () => {
     throw handleApiError(
       500,
       error instanceof Error ? error.message : "Unknown leaderboard error",
-      "Failed to fetch leaderboard"
+      "Failed to fetch leaderboard",
     );
   }
 });
