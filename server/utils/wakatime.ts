@@ -95,7 +95,7 @@ async function pollForDataDump(
   job?: ImportJob
 ): Promise<WakatimeDataDump> {
   const url = `${Endpoints.WakatimeApiUrl}${Endpoints.WakatimeApiDataDumpUrl}`;
-  const maxAttempts = 60;
+  const maxAttempts = 180;
   let attempts = 0;
 
   while (attempts < maxAttempts) {
