@@ -23,9 +23,9 @@ paths:
     post:
       tags:
         - API Routes
-      summary: Heartbeats
-      description: Submit a single coding activity heartbeat to track your work
-      operationId: submitHeartbeat
+      summary: Create a single heartbeat
+      description: Accepts one heartbeat payload authenticated via Bearer API key.
+      operationId: postExternalHeartbeat
       security:
         - BearerAuth: []
       requestBody:
@@ -33,10 +33,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Heartbeat'
+              $ref: "#/components/schemas/Heartbeat"
       responses:
-        '200':
-          description: Heartbeat successfully recorded
+        "200":
+          description: Heartbeat created
           content:
             application/json:
               schema:
@@ -46,17 +46,19 @@ paths:
                     type: boolean
                   id:
                     type: string
-        '400':
+        "400":
           description: Validation error
-        '401':
+        "401":
           description: Invalid or missing API key
+        "500":
+          description: Server error
   /api/external/batch:
     post:
       tags:
         - API Routes
-      summary: Batch
-      description: Submit multiple coding activity heartbeats in a single batch request (max 100)
-      operationId: submitBatchHeartbeats
+      summary: Create multiple heartbeats
+      description: Accepts up to 2000 heartbeats in a single request authenticated via Bearer API key.
+      operationId: postExternalBatchHeartbeats
       security:
         - BearerAuth: []
       requestBody:
@@ -66,12 +68,12 @@ paths:
             schema:
               type: array
               items:
-                $ref: '#/components/schemas/Heartbeat'
+                $ref: "#/components/schemas/Heartbeat"
               minItems: 1
-              maxItems: 100
+              maxItems: 2000
       responses:
-        '200':
-          description: Batch heartbeats successfully recorded
+        "200":
+          description: Heartbeats processed
           content:
             application/json:
               schema:
@@ -85,17 +87,19 @@ paths:
                     type: array
                     items:
                       type: string
-        '400':
+        "400":
           description: Validation error
-        '401':
+        "401":
           description: Invalid or missing API key
+        "500":
+          description: Server error
   /api/external/stats:
     get:
       tags:
         - API Routes
-      summary: Stats
-      description: Retrieve user coding statistics for a specific time range
-      operationId: getUserStats
+      summary: Get stats via API key
+      description: Returns aggregated stats for the user identified by the Bearer API key.
+      operationId: getExternalStats
       security:
         - BearerAuth: []
       parameters:
@@ -122,70 +126,85 @@ paths:
             type: integer
           description: Offset in seconds from midnight for day boundaries
       responses:
-        '200':
-          description: Statistics successfully retrieved
-        '400':
-          description: Invalid timeRange value
-        '401':
+        "200":
+          description: Stats result
+        "400":
+          description: Invalid parameters
+        "401":
           description: Invalid or missing API key
+        "500":
+          description: Server error
   /api/external/user:
     get:
       tags:
         - API Routes
-      summary: User
-      description: Retrieve user account information using API key
-      operationId: getUserInfo
+      summary: Get user via API key
+      description: Returns public user data for the account identified by the Bearer API key.
+      operationId: getExternalUser
       security:
         - BearerAuth: []
       responses:
-        '200':
-          description: User information successfully retrieved
+        "200":
+          description: User object
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
-        '401':
+                $ref: "#/components/schemas/User"
+        "401":
           description: Invalid or missing API key
-        '404':
+        "404":
           description: User not found
+        "500":
+          description: Server error
   /api/public/stats:
     get:
       tags:
-        - Public Routes
-      summary: Public Stats
-      description: Retrieve global platform statistics
+        - Public
+        - Stats
+      summary: Get public platform stats
+      description: Returns aggregate statistics across the platform.
       operationId: getPublicStats
       responses:
-        '200':
-          description: Public statistics successfully retrieved
+        "200":
+          description: Public stats payload
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PublicStats'
-        '500':
-          description: Server error
+                $ref: "#/components/schemas/PublicStats"
+        "500":
+          description: Failed to fetch stats
+  /api/public/leaderboard:
+    get:
+      tags:
+        - Public Routes
+      summary: Get public leaderboard
+      description: Returns public leaderboard data showing top users.
+      operationId: getPublicLeaderboard
+      responses:
+        "200":
+          description: Leaderboard data
   /api/public/{badge}:
     get:
       tags:
         - Public Routes
-      summary: Badge Generator
-      description: Generate SVG badges for user coding activity
-      operationId: getBadge
+      summary: Generate public stats badge
+      description: Returns an SVG badge representing time spent. URL path segments define badge parameters.
+      operationId: getPublicBadge
       parameters:
         - in: path
           name: badge
           required: true
           schema:
             type: string
-          description: Path segments for badge configuration
+          description: Path segments for badge configuration (userId/project/timeRange/color/labelText)
         - in: query
           name: style
           required: false
           schema:
             type: string
             enum:
-              - flat
               - classic
+              - flat
             default: flat
           description: Badge style
         - in: query
@@ -195,13 +214,13 @@ paths:
             type: string
           description: Icon to display on badge
       responses:
-        '200':
-          description: SVG badge successfully generated
+        "200":
+          description: SVG badge
           content:
             image/svg+xml:
               schema:
                 type: string
-        '400':
+        "400":
           description: Invalid parameters
 components:
   schemas:
@@ -221,6 +240,7 @@ components:
               format: date-time
             - type: number
           example: "2023-10-15T14:30:00Z"
+          description: "ISO 8601 timestamp; numeric epoch also accepted."
         project:
           type: string
           maxLength: 255
@@ -293,4 +313,4 @@ components:
     BearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: UUIDd
+      bearerFormat: UUID

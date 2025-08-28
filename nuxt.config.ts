@@ -23,6 +23,9 @@ export default defineNuxtConfig({
   },
   nitro: {
     preset: "bun",
+    experimental: {
+      openAPI: process.env.NODE_ENV === "development",
+    },
   },
   app: {
     head: {
