@@ -506,8 +506,28 @@ export function parseUserAgent(userAgent: string): {
   os: string;
   editor: string;
 } {
-  const userAgentPattern =
-    /(?:wakatime\/v?[\d.]+\s+)?\(([^)]+)\)(?:\s+[\w\d.]+)*\s+([^/\s]+)\/[\d.]+/i;
+  const editorCapitalization: Record<string, string> = {
+    cursor: "Cursor",
+    "visual studio code": "Visual Studio Code",
+    vscode: "Visual Studio Code",
+    "sublime text": "Sublime Text",
+    atom: "Atom",
+    vim: "Vim",
+    neovim: "NeoVim",
+    nvim: "NeoVim",
+    emacs: "Emacs",
+    "zed dev": "Zed Preview",
+    pearai: "PearAI",
+    "intellij idea": "IntelliJ IDEA",
+    intellijidea: "IntelliJ IDEA",
+    pycharm: "PyCharm",
+    webstorm: "WebStorm",
+    phpstorm: "PhpStorm",
+    "android studio": "Android Studio",
+    xcode: "Xcode",
+  };
+
+  const userAgentPattern = /\(([^)]+)\).*?go[\d.]+\s([A-Za-z ]+)\/[\d.]+/i;
 
   if (!userAgent) {
     return { os: "", editor: "" };
@@ -518,6 +538,11 @@ export function parseUserAgent(userAgent: string): {
   if (match && match.length >= 3) {
     let os: string = match[1];
     let editor: string = match[2];
+
+    const editorLower = editor.toLowerCase();
+    editor =
+      editorCapitalization[editorLower] ||
+      editor.replace(/\b\w/g, (l) => l.toUpperCase());
 
     if (os.includes("darwin")) {
       os = "macOS";
@@ -539,7 +564,12 @@ export function parseUserAgent(userAgent: string): {
 
   if (browserMatch && browserMatch[1]) {
     let os = "Unknown";
-    const editor = browserMatch[1];
+    let editor = browserMatch[1];
+
+    const editorLower = editor.toLowerCase();
+    editor =
+      editorCapitalization[editorLower] ||
+      editor.replace(/\b\w/g, (l) => l.toUpperCase());
 
     if (osMatch && osMatch[1]) {
       const osInfo = osMatch[1].split(";")[0].trim();
