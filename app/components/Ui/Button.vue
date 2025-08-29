@@ -2,15 +2,15 @@
   <button @click="$emit('click')" :type="type" :disabled="disabled">
     <div class="key-container" v-if="keyName">
       <template v-if="keyName && keyName.includes('+')">
-        <template v-for="(part, index) in keyName.split('+')" :key="index">
-          <UiKey :keyName="part" />
+        <template v-for="part in keyName.split('+')" :key="index">
+          <UiKey :red="red" :keyName="part" />
         </template>
       </template>
       <template v-else>
-        <UiKey :keyName="keyName" />
+        <UiKey :red="red" :keyName="keyName" />
       </template>
     </div>
-    <p class="text">{{ text }}</p>
+    <p :class="`text ${red ? 'red' : ''}`">{{ text }}</p>
   </button>
 </template>
 
@@ -26,6 +26,7 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  red: Boolean,
 });
 
 defineEmits(["click"]);
@@ -55,5 +56,9 @@ button {
 .key-separator {
   font-family: ChivoMono;
   font-size: 13px;
+}
+
+.red {
+  color: #ff5555;
 }
 </style>

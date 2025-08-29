@@ -184,6 +184,36 @@
 
         <UiButton text="Import Data" keyName="I" @click="importTrackingData" />
       </section>
+
+      <section class="dange-zone">
+        <h2 class="title">Danger Zone</h2>
+        <div class="setting-group">
+          <UiButton
+            v-if="purgeTimer == 0"
+            text="Purge all data"
+            keyName="Ctrl+C"
+            @click="countDown('purge')"
+            :red="true" />
+          <UiButton
+            v-if="purgeTimer != 0"
+            :text="`Click to confirm purge... ` + purgeTimer"
+            keyName="Ctrl+C"
+            @click="purgeData"
+            :red="true" />
+          <UiButton
+            v-if="deleteTimer == 0"
+            text="Delete account"
+            keyName="Ctrl+D"
+            @click="countDown('delete')"
+            :red="true" />
+          <UiButton
+            v-if="deleteTimer != 0"
+            :text="`Click to confirm delete... ` + deleteTimer"
+            keyName="Ctrl+D"
+            @click="deleteAccount"
+            :red="true" />
+        </div>
+      </section>
     </div>
   </NuxtLayout>
 </template>
@@ -219,6 +249,20 @@ const newEmail = ref("");
 const newPassword = ref("");
 const confirmPassword = ref("");
 const isLoading = ref(false);
+
+function useClampedRef(initialValue: number, min: number, max: number) {
+  const _value = ref(initialValue);
+  
+  return computed({
+    get: () => _value.value,
+    set: (value) => {
+      _value.value = Math.max(min, Math.min(max, value));
+    }
+  });
+}
+
+const purgeTimer = useClampedRef(0, 0, 5);
+const deleteTimer = useClampedRef(0, 0, 5);
 
 const apiKeyPlaceholder = computed(() => {
   return `Enter your ${importType.value === "wakatime" ? "WakaTime" : "WakAPI"} API Key`;
@@ -622,6 +666,53 @@ async function importTrackingData() {
       console.error("Error importing WakAPI data:", error);
       toast.error(error?.data?.message || "Failed to import WakAPI data");
     }
+  }
+}
+
+function countDown(type: string) {
+  if (type == "purge") purgeTimer.value = 5;
+  if (type == "delete") deleteTimer.value = 5;
+
+  const countdown = setInterval(() => {
+    if (type == "purge") purgeTimer.value--;
+    if (type == "delete") deleteTimer.value--;
+
+    const currentValue = type == "purge" ? purgeTimer.value : deleteTimer.value;
+
+    if (currentValue <= 0) {
+      clearInterval(countdown);
+    }
+  }, 1000);
+}
+
+async function purgeData() {
+  try {
+    const response = await $fetch("/api/user/purge");
+    toast.success(response.message);
+    purgeTimer.value = 0;
+  } catch (e: any) {
+    const errorMessage =
+      e.data?.message ||
+      e.message ||
+      "Failed to purge user data. Please try again.";
+    purgeTimer.value = 0;
+    toast.error(errorMessage);
+  }
+}
+
+async function deleteAccount() {
+  try {
+    await $fetch("/api/user/delete");
+    deleteTimer.value = 0;
+    toast.success("Successfully deleted account");
+    await navigateTo("/login");
+  } catch (e: any) {
+    const errorMessage =
+      e.data?.message ||
+      e.message ||
+      "Failed to delete account. Please try again.";
+    deleteTimer.value = 0;
+    toast.error(errorMessage);
   }
 }
 
