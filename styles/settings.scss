@@ -81,3 +81,23 @@ a {
 .danger-zone .setting-group p {
   color: #ff5555 !important;
 }
+
+.import-status {
+  font-family: ChivoMono;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .spinner {
+    margin-right: 2px;
+  }
+
+  .bar-container {
+    width: 100%;
+
+    .bar {
+      height: 1px;
+      background-color: var(--accent);
+    }
+  }
+}

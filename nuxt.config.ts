@@ -19,7 +19,7 @@ export default defineNuxtConfig({
     adminKey: process.env.NUXT_ADMIN_KEY,
   },
   nitro: {
-    preset: "bun",
+    preset: "node-server",
     experimental: {
       openAPI: process.env.NODE_ENV === "development",
     },
