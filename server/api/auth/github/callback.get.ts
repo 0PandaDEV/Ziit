@@ -1,6 +1,6 @@
 import { prisma } from "~~/prisma/prisma";
 import { decrypt, encrypt } from "paseto-ts/v4";
-import { handleApiError} from "~~/server/utils/logging";
+import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
   openAPI: {
@@ -10,7 +10,12 @@ defineRouteMeta({
       "Handles GitHub OAuth callback. Exchanges code for access token, signs in or links account, and redirects.",
     parameters: [
       { in: "query", name: "code", required: true, schema: { type: "string" } },
-      { in: "query", name: "state", required: true, schema: { type: "string" } },
+      {
+        in: "query",
+        name: "state",
+        required: true,
+        schema: { type: "string" },
+      },
     ],
     responses: {
       302: { description: "Redirect to application after login/link" },
@@ -49,7 +54,10 @@ export default defineEventHandler(async (event) => {
   const state = query.state as string;
 
   if (!code) {
-    throw handleApiError(400, "GitHub callback error: No authorization code provided.");
+    throw handleApiError(
+      400,
+      "GitHub callback error: No authorization code provided."
+    );
   }
 
   const storedState = getCookie(event, "github_oauth_state");
@@ -81,7 +89,7 @@ export default defineEventHandler(async (event) => {
           code,
           redirect_uri: config.githubRedirectUri,
         }),
-      },
+      }
     );
 
     const accessToken = tokenResponse.access_token;
@@ -100,21 +108,29 @@ export default defineEventHandler(async (event) => {
           Authorization: `Bearer ${accessToken}`,
           Accept: "application/vnd.github.v3+json",
         },
-      },
+      }
     );
 
     const primaryEmail =
       emails.find((email) => email.primary)?.email || emails[0]?.email;
 
     if (!primaryEmail) {
-      throw handleApiError(500, `GitHub callback error: No primary email found for GitHub user ID ${githubUser.id}. Emails received: ${JSON.stringify(emails)}`, "Could not retrieve email from GitHub");
+      throw handleApiError(
+        500,
+        `GitHub callback error: No primary email found for GitHub user ID ${githubUser.id}. Emails received: ${JSON.stringify(emails)}`,
+        "Could not retrieve email from GitHub"
+      );
     }
 
     if (isLinking && linkSession) {
       try {
         const { payload } = decrypt(config.pasetoKey, linkSession);
-        
-        if (typeof payload === "object" && payload !== null && "userId" in payload) {
+
+        if (
+          typeof payload === "object" &&
+          payload !== null &&
+          "userId" in payload
+        ) {
           const userId = payload.userId;
           let redirectUrl = "/settings?success=github_linked";
 
@@ -196,6 +212,7 @@ export default defineEventHandler(async (event) => {
               githubId: githubUser.id.toString(),
               githubUsername: githubUser.login,
               githubAccessToken: accessToken,
+              lastlogin: new Date(),
             },
           });
         } else {
@@ -206,6 +223,7 @@ export default defineEventHandler(async (event) => {
               githubId: githubUser.id.toString(),
               githubUsername: githubUser.login,
               githubAccessToken: accessToken,
+              lastlogin: new Date(),
             },
           });
         }
@@ -214,17 +232,15 @@ export default defineEventHandler(async (event) => {
           where: { id: user.id },
           data: {
             githubAccessToken: accessToken,
+            lastlogin: new Date(),
           },
         });
       }
 
-      const token = encrypt(
-        config.pasetoKey,
-        { 
-          userId: user.id,
-          exp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-        }
-      );
+      const token = encrypt(config.pasetoKey, {
+        userId: user.id,
+        exp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      });
 
       setCookie(event, "ziit_session", token, {
         httpOnly: true,
@@ -239,7 +255,14 @@ export default defineEventHandler(async (event) => {
 
     return sendRedirect(event, result);
   } catch (error) {
-    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred during GitHub authentication.";
-    throw handleApiError(500, `GitHub authentication failed: ${detailedMessage}`, "GitHub authentication failed. Please try again.");
+    const detailedMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown error occurred during GitHub authentication.";
+    throw handleApiError(
+      500,
+      `GitHub authentication failed: ${detailedMessage}`,
+      "GitHub authentication failed. Please try again."
+    );
   }
 });

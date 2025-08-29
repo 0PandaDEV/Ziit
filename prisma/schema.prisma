@@ -23,6 +23,7 @@ model User {
   keystrokeTimeout   Int          @default(5)
   leaderboardEnabled Boolean      @default(true)
   createdAt          DateTime     @default(now())
+  lastlogin          DateTime     @default(now())
   heartbeats         Heartbeats[]
   summaries          Summaries[]
 }
