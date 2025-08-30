@@ -92,7 +92,7 @@ async function createDataDumpRequest(apiKey: string): Promise<void> {
 
 async function pollForDataDump(
   apiKey: string,
-  job?: ImportJob
+  job?: ImportJob,
 ): Promise<WakatimeDataDump> {
   const url = `${Endpoints.WakatimeApiUrl}${Endpoints.WakatimeApiDataDumpUrl}`;
   const maxAttempts = 180;
@@ -107,7 +107,7 @@ async function pollForDataDump(
       });
 
       const heartbeatsDump = response.data.find(
-        (dump) => dump.type === "heartbeats"
+        (dump) => dump.type === "heartbeats",
       );
 
       if (!heartbeatsDump) {
@@ -125,7 +125,7 @@ async function pollForDataDump(
         heartbeatsDump.download_url
       ) {
         handleLog(
-          `Data dump ready for download: ${heartbeatsDump.percent_complete}% complete`
+          `Data dump ready for download: ${heartbeatsDump.percent_complete}% complete`,
         );
         if (job) {
           job.status = "Downloading";
@@ -136,7 +136,7 @@ async function pollForDataDump(
       }
 
       handleLog(
-        `Data dump progress: ${heartbeatsDump.percent_complete}% complete`
+        `Data dump progress: ${heartbeatsDump.percent_complete}% complete`,
       );
 
       await new Promise((resolve) => setTimeout(resolve, 10000));
@@ -152,7 +152,7 @@ async function pollForDataDump(
 
 async function downloadDataDump(
   downloadUrl: string,
-  job?: ImportJob
+  job?: ImportJob,
 ): Promise<WakatimeExportData> {
   if (!job) throw new Error("Job is required for progress tracking");
 
@@ -189,7 +189,7 @@ async function downloadDataDump(
       if (!isNaN(totalBytes)) {
         job.progress = Math.min(
           99,
-          Math.round((receivedBytes / totalBytes) * 100)
+          Math.round((receivedBytes / totalBytes) * 100),
         );
         activeJobs.set(job.id, job);
       }
@@ -206,7 +206,7 @@ async function downloadDataDump(
     const exportData: WakatimeExportData = JSON.parse(text);
 
     handleLog(
-      `Downloaded data dump with ${Array.isArray(exportData.days) ? exportData.days.length : 0} days of data`
+      `Downloaded data dump with ${Array.isArray(exportData.days) ? exportData.days.length : 0} days of data`,
     );
 
     job.progress = 100;
@@ -224,7 +224,7 @@ async function downloadDataDump(
 }
 
 async function fetchUserAgents(
-  apiKey: string
+  apiKey: string,
 ): Promise<Map<string, WakatimeUserAgent>> {
   const userAgents = new Map<string, WakatimeUserAgent>();
   let page = 1;
@@ -262,7 +262,7 @@ export function mapHeartbeat(
   heartbeat: WakatimeHeartbeat,
   userAgents: Map<string, WakatimeUserAgent>,
   userId: string,
-  lastPlugin?: string
+  lastPlugin?: string,
 ) {
   const userAgent = userAgents.get(heartbeat.user_agent_id || "");
 
@@ -297,7 +297,7 @@ export function mapHeartbeat(
 
 export async function handleWakatimeImport(
   apiKey: string,
-  userId: string
+  userId: string,
 ): Promise<{ success: boolean; imported: number; message?: string }> {
   const job: ImportJob = {
     id: randomUUID(),
@@ -343,41 +343,48 @@ export async function handleWakatimeImport(
     job.progress = 0;
     activeJobs.set(job.id, job);
 
-    const importResults = await Promise.all(
-      exportData.days.map(async (day) => {
-        if (!day.heartbeats || day.heartbeats.length === 0) return 0;
-
-        handleLog(
-          `Processing ${day.heartbeats.length} heartbeats for ${day.date}`
+    const importResults: number[] = [];
+    for (const day of exportData.days) {
+      if (!day.heartbeats || day.heartbeats.length === 0) {
+        importResults.push(0);
+        job.processedCount! += 1;
+        job.progress = Math.round(
+          (job.processedCount! / exportData.days.length) * 100,
         );
+        activeJobs.set(job.id, job);
+        continue;
+      }
 
-        const processedHeartbeats = day.heartbeats.map((h) =>
-          mapHeartbeat(h, userAgents, userId)
+      handleLog(
+        `Processing ${day.heartbeats.length} heartbeats for ${day.date}`,
+      );
+
+      const processedHeartbeats = day.heartbeats.map((h) =>
+        mapHeartbeat(h, userAgents, userId, exportData.user.last_plugin),
+      );
+
+      try {
+        await processHeartbeatsByDate(userId, processedHeartbeats);
+
+        job.processedCount! += 1;
+        job.progress = Math.round(
+          (job.processedCount! / exportData.days.length) * 100,
         );
+        activeJobs.set(job.id, job);
 
-        try {
-          await processHeartbeatsByDate(userId, processedHeartbeats);
+        importResults.push(processedHeartbeats.length);
+      } catch (error) {
+        handleLog(`Error processing heartbeats for ${day.date}: ${error}`);
 
-          job.processedCount! += 1;
-          job.progress = Math.round(
-            (job.processedCount! / exportData.days.length) * 100
-          );
-          activeJobs.set(job.id, job);
+        job.processedCount! += 1;
+        job.progress = Math.round(
+          (job.processedCount! / exportData.days.length) * 100,
+        );
+        activeJobs.set(job.id, job);
 
-          return processedHeartbeats.length;
-        } catch (error) {
-          handleLog(`Error processing heartbeats for ${day.date}: ${error}`);
-
-          job.processedCount! += 1;
-          job.progress = Math.round(
-            (job.processedCount! / exportData.days.length) * 100
-          );
-          activeJobs.set(job.id, job);
-
-          return 0;
-        }
-      })
-    );
+        importResults.push(0);
+      }
+    }
 
     const totalHeartbeats = importResults.reduce((acc, val) => acc + val, 0);
 
@@ -387,7 +394,7 @@ export async function handleWakatimeImport(
     activeJobs.set(job.id, job);
 
     handleLog(
-      `Successfully imported ${totalHeartbeats} heartbeats from WakaTime`
+      `Successfully imported ${totalHeartbeats} heartbeats from WakaTime`,
     );
 
     return {
@@ -406,7 +413,7 @@ export async function handleWakatimeImport(
     throw handleApiError(
       911,
       `WakaTime API import failed for user ${userId}: ${errorMessage}`,
-      "Failed to import data from WakaTime. Please check your API key and try again."
+      "Failed to import data from WakaTime. Please check your API key and try again.",
     );
   }
 }
@@ -414,7 +421,7 @@ export async function handleWakatimeImport(
 export async function handleWakatimeFileImport(
   exportData: WakatimeExportData,
   userId: string,
-  job: ImportJob
+  job: ImportJob,
 ): Promise<{ success: boolean; imported: number; message?: string }> {
   try {
     handleLog(`Starting WakaTime file import for user ${userId}`);
@@ -430,43 +437,50 @@ export async function handleWakatimeFileImport(
     job.progress = 0;
     activeJobs.set(job.id, job);
 
-    const importResults = await Promise.all(
-      exportData.days.map(async (day) => {
-        if (!day.heartbeats || day.heartbeats.length === 0) return 0;
-
-        handleLog(
-          `Processing ${day.heartbeats.length} heartbeats for ${day.date}`
+    const importResults: number[] = [];
+    for (const day of exportData.days) {
+      if (!day.heartbeats || day.heartbeats.length === 0) {
+        importResults.push(0);
+        job.processedCount! += 1;
+        job.progress = Math.round(
+          (job.processedCount! / exportData.days.length) * 100,
         );
+        activeJobs.set(job.id, job);
+        continue;
+      }
 
-        const userAgents = new Map<string, WakatimeUserAgent>();
+      handleLog(
+        `Processing ${day.heartbeats.length} heartbeats for ${day.date}`,
+      );
 
-        const processedHeartbeats = day.heartbeats.map((h) =>
-          mapHeartbeat(h, userAgents, userId, exportData.user.last_plugin)
+      const userAgents = new Map<string, WakatimeUserAgent>();
+
+      const processedHeartbeats = day.heartbeats.map((h) =>
+        mapHeartbeat(h, userAgents, userId, exportData.user.last_plugin),
+      );
+
+      try {
+        await processHeartbeatsByDate(userId, processedHeartbeats);
+
+        job.processedCount! += 1;
+        job.progress = Math.round(
+          (job.processedCount! / exportData.days.length) * 100,
         );
+        activeJobs.set(job.id, job);
 
-        try {
-          await processHeartbeatsByDate(userId, processedHeartbeats);
+        importResults.push(processedHeartbeats.length);
+      } catch (error) {
+        handleLog(`Error processing heartbeats for ${day.date}: ${error}`);
 
-          job.processedCount! += 1;
-          job.progress = Math.round(
-            (job.processedCount! / exportData.days.length) * 100
-          );
-          activeJobs.set(job.id, job);
+        job.processedCount! += 1;
+        job.progress = Math.round(
+          (job.processedCount! / exportData.days.length) * 100,
+        );
+        activeJobs.set(job.id, job);
 
-          return processedHeartbeats.length;
-        } catch (error) {
-          handleLog(`Error processing heartbeats for ${day.date}: ${error}`);
-
-          job.processedCount! += 1;
-          job.progress = Math.round(
-            (job.processedCount! / exportData.days.length) * 100
-          );
-          activeJobs.set(job.id, job);
-
-          return 0;
-        }
-      })
-    );
+        importResults.push(0);
+      }
+    }
 
     const totalHeartbeats = importResults.reduce((acc, val) => acc + val, 0);
 
@@ -476,7 +490,7 @@ export async function handleWakatimeFileImport(
     activeJobs.set(job.id, job);
 
     handleLog(
-      `Successfully imported ${totalHeartbeats} heartbeats from WakaTime file`
+      `Successfully imported ${totalHeartbeats} heartbeats from WakaTime file`,
     );
 
     return {
@@ -491,13 +505,13 @@ export async function handleWakatimeFileImport(
     activeJobs.set(job.id, job);
 
     handleLog(
-      `WakaTime file import failed for user ${userId}: ${errorMessage}`
+      `WakaTime file import failed for user ${userId}: ${errorMessage}`,
     );
 
     throw handleApiError(
       911,
       `WakaTime file import failed for user ${userId}: ${errorMessage}`,
-      "Failed to import data from WakaTime file. Please check your file and try again."
+      "Failed to import data from WakaTime file. Please check your file and try again.",
     );
   }
 }
@@ -558,7 +572,7 @@ export function parseUserAgent(userAgent: string): {
   }
 
   const browserMatch = userAgent.match(
-    /(Firefox|Chrome|Edge|Safari|Opera)\/([\d.]+)/i
+    /(Firefox|Chrome|Edge|Safari|Opera)\/([\d.]+)/i,
   );
   const osMatch = userAgent.match(/\(([^)]+)\)/);
 
