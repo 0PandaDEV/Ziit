@@ -404,7 +404,7 @@ export async function handleWakatimeImport(
     handleLog(`WakaTime API import failed for user ${userId}: ${errorMessage}`);
 
     throw handleApiError(
-      500,
+      911,
       `WakaTime API import failed for user ${userId}: ${errorMessage}`,
       "Failed to import data from WakaTime. Please check your API key and try again."
     );
@@ -495,7 +495,7 @@ export async function handleWakatimeFileImport(
     );
 
     throw handleApiError(
-      500,
+      911,
       `WakaTime file import failed for user ${userId}: ${errorMessage}`,
       "Failed to import data from WakaTime file. Please check your file and try again."
     );

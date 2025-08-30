@@ -140,7 +140,7 @@ async function fetchWakApiHeartbeats(
       }
     } catch (error) {
       handleApiError(
-        500,
+        911,
         `Error fetching heartbeats for ${dateStr} for user ${userId}: ${error instanceof Error ? error.message : String(error)}`,
         "An error occurred while fetching some activity data. The import may be incomplete.",
       );
@@ -195,7 +195,7 @@ export async function handleWakApiImport(
     if (!allTimeResponse?.data?.range) {
       const errorDetail = `Failed to fetch activity date range from WakAPI for user ${userId}. Response: ${JSON.stringify(allTimeResponse)}`;
       throw handleApiError(
-        500,
+        911,
         errorDetail,
         "Failed to fetch activity date range from WakAPI.",
       );
@@ -243,7 +243,7 @@ export async function handleWakApiImport(
     activeJobs.set(job.id, job);
 
     throw handleApiError(
-      500,
+      911,
       `Failed to import activity data via WakAPI for user ${userId}: ${job.error}`,
       "Failed to import activity data. Please try again.",
     );

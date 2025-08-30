@@ -39,7 +39,7 @@ export default defineEventHandler(async (event: H3Event) => {
         ? error.message
         : "An unknown error occurred while purging user data.";
     throw handleApiError(
-      500,
+      911,
       `Failed to purge user data ${event.context.user.id}: ${detailedMessage}`,
       "Failed to purge user data. Please try again."
     );

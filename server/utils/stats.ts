@@ -359,7 +359,7 @@ export async function calculateStats(
     } catch (error) {
       console.error("Error calculating stats for single day view:", error);
       throw createError({
-        statusCode: 500,
+        statusCode: 911,
         message: `Error calculating stats: ${error instanceof Error ? error.message : String(error)}`,
       });
     }

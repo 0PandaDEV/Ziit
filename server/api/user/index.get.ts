@@ -29,7 +29,8 @@ export default defineEventHandler(async (event: H3Event) => {
         githubUsername: true,
         apiKey: true,
         keystrokeTimeout: true,
-        leaderboardEnabled: true
+        leaderboardEnabled: true,
+        leaderboardFirstSet: true
       },
     });
 

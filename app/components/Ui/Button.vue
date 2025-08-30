@@ -2,7 +2,7 @@
   <button @click="$emit('click')" :type="type" :disabled="disabled">
     <div class="key-container" v-if="keyName">
       <template v-if="keyName && keyName.includes('+')">
-        <template v-for="part in keyName.split('+')" :key="index">
+        <template v-for="(part, index) in keyName.split('+')" :key="index">
           <UiKey :red="red" :keyName="part" />
         </template>
       </template>

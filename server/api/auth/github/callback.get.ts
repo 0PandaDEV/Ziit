@@ -116,7 +116,7 @@ export default defineEventHandler(async (event) => {
 
     if (!primaryEmail) {
       throw handleApiError(
-        500,
+        911,
         `GitHub callback error: No primary email found for GitHub user ID ${githubUser.id}. Emails received: ${JSON.stringify(emails)}`,
         "Could not retrieve email from GitHub"
       );
@@ -260,7 +260,7 @@ export default defineEventHandler(async (event) => {
         ? error.message
         : "An unknown error occurred during GitHub authentication.";
     throw handleApiError(
-      500,
+      911,
       `GitHub authentication failed: ${detailedMessage}`,
       "GitHub authentication failed. Please try again."
     );

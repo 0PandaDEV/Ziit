@@ -1,6 +1,7 @@
 <template>
   <NuxtLayout name="default">
     <div class="stats-dashboard">
+      <LeaderboardSetup v-if="!leaderboardSet" />
       <div class="chart-container">
         <div class="chart" ref="chartContainer"></div>
       </div>
@@ -281,6 +282,7 @@ let chart: Chart | null = null;
 const showListModal = ref(false);
 const modalTitle = ref("");
 const modalItems = ref<ItemWithTime[]>([]);
+const leaderboardSet = ref(true);
 
 const stats = ref(statsLib.getStats());
 const timeRange = ref(statsLib.getTimeRange());
@@ -413,12 +415,23 @@ function openListModal(title: string, items: ItemWithTime[]) {
 
 const HEARTBEAT_INTERVAL_SECONDS = 30;
 
+watch(
+  () => userState.value?.leaderboardFirstSet,
+  (newValue) => {
+    if (newValue !== undefined) {
+      leaderboardSet.value = newValue;
+    }
+  },
+  { immediate: true }
+);
+
 async function fetchUserData() {
   if (userState.value) return userState.value;
 
   try {
-    const data = await $fetch("/api/user");
-    userState.value = data as User;
+    const data = await $fetch<User>("/api/user");
+    userState.value = data;
+    leaderboardSet.value = userState.value.leaderboardFirstSet;
 
     if (data?.keystrokeTimeout) {
       statsLib.setKeystrokeTimeout(data.keystrokeTimeout);
@@ -430,7 +443,6 @@ async function fetchUserData() {
     return null;
   }
 }
-
 
 onMounted(async () => {
   await statsLib.refreshStats();
