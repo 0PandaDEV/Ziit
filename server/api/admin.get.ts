@@ -29,6 +29,7 @@ export default defineEventHandler(async (event: H3Event) => {
           email: true,
           githubUsername: true,
           createdAt: true,
+          lastlogin: true,
           _count: {
             select: {
               heartbeats: true,

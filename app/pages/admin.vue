@@ -48,6 +48,11 @@
             @click="setSort('createdAt')">
             Created At
           </td>
+          <td
+            :class="getHeaderClass('lastlogin')"
+            @click="setSort('lastlogin')">
+            Last Login
+          </td>
         </tr>
       </thead>
       <tbody>
@@ -76,6 +81,9 @@
           <td :class="getCellClass('createdAt')">
             {{ formatDate(user.createdAt) }}
           </td>
+          <td :class="getCellClass('lastlogin')">
+            {{ formatDate(user.lastlogin) }}
+          </td>
         </tr>
       </tbody>
     </table>
@@ -93,6 +101,7 @@ interface AdminUser {
   githubUsername: string | null;
   totalMinutes: number;
   createdAt: string;
+  lastlogin: string;
   _count: {
     heartbeats: number;
     summaries: number;
