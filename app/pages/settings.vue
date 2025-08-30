@@ -165,8 +165,16 @@
             v-if="importType === 'wakapi'" />
 
           <div v-if="importType === 'wakatime-api'" class="steps">
-            <p>1. Go to <a href="https://wakatime.com/settings/api-key" target="_blank">WakaTime API Key Settings</a></p>
-            <p>2. Copy your API key (format: waka_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)</p>
+            <p>
+              1. Go to
+              <a href="https://wakatime.com/settings/api-key" target="_blank"
+                >WakaTime API Key Settings</a
+              >
+            </p>
+            <p>
+              2. Copy your API key (format:
+              waka_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+            </p>
             <p>3. Paste it above and click Import Data</p>
           </div>
 
@@ -194,7 +202,10 @@
             v-if="importType === 'wakatime-file'" />
         </div>
 
-        <p class="setting-description">For a detailed guide refer to <a href="https://docs.ziit.app/data-import">Wakatime/Wakapi Import</a></p>
+        <p class="setting-description">
+          For a detailed guide refer to
+          <a href="https://docs.ziit.app/data-import">Wakatime/Wakapi Import</a>
+        </p>
 
         <UiButton
           text="Import Data"
@@ -293,12 +304,12 @@ const isLoading = ref(false);
 
 function useClampedRef(initialValue: number, min: number, max: number) {
   const _value = ref(initialValue);
-  
+
   return computed({
     get: () => _value.value,
     set: (value) => {
       _value.value = Math.max(min, Math.min(max, value));
-    }
+    },
   });
 }
 
@@ -406,10 +417,7 @@ function connectEventSource() {
 
   eventSource.onmessage = (event) => {
     const jobStatus = JSON.parse(event.data);
-    if (
-      !jobStatus ||
-      jobStatus.status === "no_job"
-    ) {
+    if (!jobStatus || jobStatus.status === "no_job") {
       importJob.value = null;
     } else if (
       jobStatus.status === "Completed" ||
@@ -803,7 +811,9 @@ function handleFileChange(event: Event) {
         `Large file detected (${fileSizeMB} MB). Will upload in ${chunks} chunks.`
       );
     } else {
-      toast.success(`Selected file: ${input.files[0]!.name} (${fileSizeMB} MB)`);
+      toast.success(
+        `Selected file: ${input.files[0]!.name} (${fileSizeMB} MB)`
+      );
     }
     importJob.value = null;
   } else {
@@ -849,12 +859,13 @@ async function importTrackingData() {
       if (fileSize <= CHUNK_SIZE) {
         const formData = new FormData();
         formData.append("file", selectedFile.value);
-        toast.success("WakaTime data import started");
 
         await $fetch("/api/import", {
           method: "POST",
           body: formData,
         });
+        
+        toast.success("WakaTime data import started");
       } else {
         const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
         toast.success(
@@ -921,7 +932,8 @@ async function importTrackingData() {
     }
 
     const payload: any = {
-      instanceType: importType.value === "wakatime-api" ? "wakatime" : importType.value,
+      instanceType:
+        importType.value === "wakatime-api" ? "wakatime" : importType.value,
     };
 
     if (importApiKey.value) {
@@ -939,20 +951,29 @@ async function importTrackingData() {
     connectEventSource();
 
     try {
-      const displayName = importType.value === "wakatime-api" ? "WakaTime" :
-                         importType.value === "wakapi" ? "WakAPI" : importType.value;
-      toast.success(`${displayName} data import started`);
+      const displayName =
+        importType.value === "wakatime-api"
+          ? "WakaTime"
+          : importType.value === "wakapi"
+            ? "WakAPI"
+            : importType.value;
 
       await $fetch("/api/import", {
         method: "POST",
         body: payload,
       });
 
+      toast.success(`${displayName} data import started`);
+
       importApiKey.value = "";
       wakapiInstanceUrl.value = "";
     } catch (error: any) {
-      const displayName = importType.value === "wakatime-api" ? "WakaTime" :
-                         importType.value === "wakapi" ? "WakAPI" : importType.value;
+      const displayName =
+        importType.value === "wakatime-api"
+          ? "WakaTime"
+          : importType.value === "wakapi"
+            ? "WakAPI"
+            : importType.value;
       console.error(`Error importing ${displayName} data:`, error);
       toast.error(
         error?.data?.message || `Failed to import ${displayName} data`
