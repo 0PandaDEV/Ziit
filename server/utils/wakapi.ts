@@ -1,6 +1,6 @@
 import { processHeartbeatsByDate } from "~~/server/utils/summarize";
 import { handleApiError, handleLog } from "~~/server/utils/logging";
-import { activeJobs, type ImportJob } from "~~/server/utils/import-jobs";
+import { activeJobs, type ImportJob } from "~~/server/utils/import-queue";
 import { randomUUID } from "crypto";
 import path from "path";
 import { parseUserAgent } from "./wakatime";

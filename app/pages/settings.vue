@@ -262,7 +262,7 @@ import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
 import { Key } from "@waradu/keyboard";
 import * as statsLib from "~~/lib/stats";
-import type { ImportJob } from "~~/server/utils/import-jobs";
+import type { ImportJob } from "~~/server/utils/import-queue";
 
 const userState = useState<User | null>("user");
 const user = computed(() => userState.value);
@@ -288,6 +288,9 @@ const uploadProgress = ref(0);
 const isUploading = ref(false);
 const importJob = ref<ImportJob | null>(null);
 let eventSource: EventSource | null = null;
+let reconnectAttempts = 0;
+let maxReconnectAttempts = 5;
+let reconnectTimeout: NodeJS.Timeout | null = null;
 const CHUNK_SIZE = 95 * 1024 * 1024;
 
 const spinnerChars = ["-", "/", "|", "\\"];
@@ -413,36 +416,62 @@ function connectEventSource() {
 
   eventSource.onopen = () => {
     console.log("EventSource connected");
+    reconnectAttempts = 0;
   };
 
   eventSource.onmessage = (event) => {
-    const jobStatus = JSON.parse(event.data);
-    if (!jobStatus || jobStatus.status === "no_job") {
-      importJob.value = null;
-    } else if (
-      jobStatus.status === "Completed" ||
-      jobStatus.status === "Failed"
-    ) {
-      importJob.value = jobStatus as ImportJob;
-      setTimeout(() => {
-        if (eventSource) {
-          eventSource.close();
-          eventSource = null;
-        }
-      }, 5000);
-    } else {
-      importJob.value = jobStatus as ImportJob;
+    try {
+      const response = JSON.parse(event.data);
+
+      console.log(response);
+
+      if (response.activeJob) {
+        importJob.value = response.activeJob as ImportJob;
+      } else if (!response.hasActiveJobs) {
+        importJob.value = null;
+      }
+    } catch (error) {
+      console.error("Error parsing EventSource message:", error);
     }
   };
 
   eventSource.onerror = (error) => {
     console.error("EventSource error:", error);
-    toast.error("An error occurred with the status connection.");
+
     if (eventSource) {
       eventSource.close();
       eventSource = null;
     }
+
+    if (reconnectAttempts < maxReconnectAttempts) {
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+      reconnectAttempts++;
+
+      console.log(
+        `Attempting to reconnect in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`
+      );
+
+      reconnectTimeout = setTimeout(() => {
+        connectEventSource();
+      }, delay);
+    } else {
+      toast.error("Connection lost. Please refresh the page.");
+    }
   };
+}
+
+function disconnectEventSource() {
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+  }
+
+  reconnectAttempts = 0;
 }
 
 onUnmounted(() => {
@@ -472,21 +501,7 @@ async function fetchUserData() {
 
 onMounted(async () => {
   await fetchUserData();
-
-  try {
-    const job = await $fetch<any>("/api/import/status");
-    if (
-      job &&
-      job.status !== "no_job" &&
-      job.status !== "Completed" &&
-      job.status !== "Failed"
-    ) {
-      importJob.value = job as ImportJob;
-      connectEventSource();
-    }
-  } catch (error) {
-    console.error("Error fetching initial import job status:", error);
-  }
+  connectEventSource();
 
   if (user.value) {
     keystrokeTimeout.value = user.value.keystrokeTimeout;
@@ -822,6 +837,10 @@ function handleFileChange(event: Event) {
   }
 }
 
+onBeforeUnmount(() => {
+  disconnectEventSource();
+});
+
 async function importTrackingData() {
   if (importType.value === "wakatime-file") {
     if (!selectedFile.value) {
@@ -854,8 +873,6 @@ async function importTrackingData() {
         fileId: fileId,
       };
 
-      connectEventSource();
-
       if (fileSize <= CHUNK_SIZE) {
         const formData = new FormData();
         formData.append("file", selectedFile.value);
@@ -864,7 +881,7 @@ async function importTrackingData() {
           method: "POST",
           body: formData,
         });
-        
+
         toast.success("WakaTime data import started");
       } else {
         const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
@@ -947,8 +964,6 @@ async function importTrackingData() {
       }
       payload.instanceUrl = wakapiInstanceUrl.value;
     }
-
-    connectEventSource();
 
     try {
       const displayName =

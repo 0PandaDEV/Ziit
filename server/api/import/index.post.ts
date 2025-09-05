@@ -1,12 +1,15 @@
 import { H3Event } from "h3";
 import z from "zod";
 import { handleApiError, handleLog } from "~~/server/utils/logging";
-import { handleWakApiImport } from "~~/server/utils/wakapi";
 import {
-  handleWakatimeImport,
-  handleWakatimeFileImport,
-} from "~~/server/utils/wakatime";
-import { activeJobs, type ImportJob } from "~~/server/utils/import-jobs";
+  activeJobs,
+  type ImportJob,
+  queueWakApiImport,
+  queueWakatimeApiImport,
+  queueWakatimeFileImport,
+  getQueueStatus,
+  getAllJobStatuses,
+} from "~~/server/utils/import-queue";
 import { randomUUID } from "crypto";
 import path from "path";
 import { mkdirSync, writeFileSync, existsSync, rmSync } from "fs";
@@ -183,13 +186,17 @@ async function processFileInBackground(fileId: string, userId: string) {
       `Processing WakaTime export with ${wakaData.days.length} days of data`
     );
 
-    const result = await handleWakatimeFileImport(
+    const queueJobId = queueWakatimeFileImport(
       wakaData as unknown as WakatimeExportData,
       userId,
-      job
+      job.id
     );
 
-    return result;
+    return {
+      success: true,
+      jobId: queueJobId,
+      message: "File import has been queued for processing",
+    };
   } catch (error) {
     job.status = "Failed";
     job.error = error instanceof Error ? error.message : String(error);
@@ -216,6 +223,21 @@ async function processFileInBackground(fileId: string, userId: string) {
 
 export default defineEventHandler(async (event: H3Event) => {
   const userId = event.context.user.id;
+
+  if (getMethod(event) === "GET") {
+    const queueStatus = getQueueStatus();
+    const userJobs = getAllJobStatuses(userId);
+
+    return {
+      success: true,
+      queue: queueStatus,
+      userJobs: userJobs.slice(0, 10),
+      hasActiveJobs: userJobs.some((job) =>
+        ["Processing", "Queued", "Uploading", "Pending"].includes(job.status)
+      ),
+    };
+  }
+
   handleLog("Processing for user ID:", userId);
 
   const contentType = getHeader(event, "content-type") || "";
@@ -276,12 +298,17 @@ export default defineEventHandler(async (event: H3Event) => {
         };
         activeJobs.set(userId, job);
 
-        const result = await handleWakatimeFileImport(
+        const queueJobId = queueWakatimeFileImport(
           wakaData as unknown as WakatimeExportData,
           userId,
-          job
+          job.id
         );
-        return result;
+
+        return {
+          success: true,
+          jobId: queueJobId,
+          message: "File import has been queued for processing",
+        };
       } catch (error: any) {
         if (error && typeof error === "object" && "__h3_error__" in error) {
           throw error;
@@ -358,7 +385,12 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     handleLog("Received WakAPI import request");
-    return handleWakApiImport(apiKey, instanceUrl, userId);
+    const jobId = queueWakApiImport(apiKey, instanceUrl, userId);
+    return {
+      success: true,
+      jobId,
+      message: "WakAPI import has been queued for processing",
+    };
   }
 
   if (instanceType === "wakatime") {
@@ -371,7 +403,12 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     handleLog("Received WakaTime API import request");
-    return handleWakatimeImport(apiKey, userId);
+    const jobId = queueWakatimeApiImport(apiKey, userId);
+    return {
+      success: true,
+      jobId,
+      message: "WakaTime API import has been queued for processing",
+    };
   }
 
   throw handleApiError(
