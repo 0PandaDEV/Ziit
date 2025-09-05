@@ -1,7 +1,6 @@
 import { createEventStream, getRequestHeader } from "h3";
 import type { User } from "@prisma/client";
 import {
-  activeJobs,
   getAllJobStatuses,
   getQueueStatus,
 } from "~~/server/utils/import-queue";
