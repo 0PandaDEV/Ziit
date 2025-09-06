@@ -219,7 +219,13 @@
             {{ importStatusText }}
           </p>
           <div class="bar-container">
-            <div class="bar" :style="{ width: importJob.progress + '%' }"></div>
+            <div
+              class="bar"
+              :style="{
+                width:
+                  (uploadProgress > 0 ? uploadProgress : importJob.progress) +
+                  '%',
+              }"></div>
           </div>
         </div>
       </section>
@@ -285,6 +291,8 @@ const wakaTimeFileInput = ref<HTMLInputElement | null>(null);
 const selectedFile = ref<File | null>(null);
 const selectedFileName = ref<string | null>(null);
 const uploadProgress = ref(0);
+const uploadedBytes = ref(0);
+const uploadStatus = ref("");
 const isUploading = ref(false);
 const importJob = ref<ImportJob | null>(null);
 let eventSource: EventSource | null = null;
@@ -332,9 +340,13 @@ const importStatusText = computed(() => {
   let status = job.status;
 
   if (job.status === "Uploading" && job.totalSize) {
-    const uploadedMB = ((job.uploadedSize || 0) / (1024 * 1024)).toFixed(2);
+    const currentProgress =
+      uploadProgress.value > 0 ? uploadProgress.value : job.progress;
+    const currentUploaded =
+      uploadedBytes.value > 0 ? uploadedBytes.value : job.uploadedSize || 0;
+    const uploadedMB = (currentUploaded / (1024 * 1024)).toFixed(2);
     const totalMB = (job.totalSize / (1024 * 1024)).toFixed(2);
-    return `Uploading: ${uploadedMB}MB / ${totalMB}MB (${job.progress}%)`;
+    return `${uploadStatus.value || "Uploading"}: ${uploadedMB}MB / ${totalMB}MB (${currentProgress}%)`;
   }
 
   if (job.status === "Creating data dump request") {
@@ -402,6 +414,9 @@ watch(importJob, (newJob) => {
     } else if (newJob.status === "Failed") {
       toast.error(`Import failed: ${newJob.error}`);
     }
+    uploadProgress.value = 0;
+    uploadedBytes.value = 0;
+    uploadStatus.value = "";
   } else if (newJob) {
     startSpinner();
   } else {
@@ -422,8 +437,6 @@ function connectEventSource() {
   eventSource.onmessage = (event) => {
     try {
       const response = JSON.parse(event.data);
-
-      console.log(response);
 
       if (response.activeJob) {
         importJob.value = response.activeJob as ImportJob;
@@ -854,40 +867,39 @@ async function importTrackingData() {
       const file = selectedFile.value;
       const fileSize = file.size;
 
-      console.log(
-        `Starting upload of ${file.name}, size: ${(
-          fileSize /
-          (1024 * 1024)
-        ).toFixed(2)}MB`
-      );
-
       const fileId = Date.now().toString();
       importJob.value = {
         id: fileId,
         fileName: file.name,
         status: "Uploading",
         progress: 0,
-        userId: "",
+        userId: user.value?.id || "",
         totalSize: fileSize,
         uploadedSize: 0,
         fileId: fileId,
       };
 
+      uploadProgress.value = 0;
+      uploadedBytes.value = 0;
+      uploadStatus.value = "Uploading";
+
       if (fileSize <= CHUNK_SIZE) {
         const formData = new FormData();
-        formData.append("file", selectedFile.value);
+        formData.append("file", file);
 
         await $fetch("/api/import", {
           method: "POST",
           body: formData,
         });
-
         toast.success("WakaTime data import started");
       } else {
         const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
         toast.success(
           `Processing large file (${(fileSize / (1024 * 1024)).toFixed(2)}MB) in ${totalChunks} chunks`
         );
+
+        let totalUploadedBytes = 0;
+        uploadStatus.value = "Uploading chunks";
 
         for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
           const start = chunkIndex * CHUNK_SIZE;
@@ -902,21 +914,43 @@ async function importTrackingData() {
           formData.append("fileSize", fileSize.toString());
           formData.append("chunk", chunk);
 
-          await $fetch("/api/import", {
-            method: "POST",
-            body: formData,
-            onUploadProgress: (progressEvent: ProgressEvent) => {
-              if (progressEvent.lengthComputable) {
-                const chunkProgress =
-                  progressEvent.loaded / progressEvent.total;
-                const totalProgress =
-                  (chunkIndex + chunkProgress) / totalChunks;
-                if (importJob.value && importJob.value.status === "Uploading") {
-                  importJob.value.progress = Math.round(totalProgress * 100);
-                }
+          await new Promise<void>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener("progress", (progressEvent) => {
+              if (progressEvent.lengthComputable && importJob.value) {
+                const chunkProgress = progressEvent.loaded;
+                const totalUploaded = totalUploadedBytes + chunkProgress;
+
+                uploadedBytes.value = totalUploaded;
+                uploadProgress.value = Math.round(
+                  (totalUploaded / fileSize) * 100
+                );
+
+                importJob.value.uploadedSize = totalUploaded;
+                importJob.value.progress = uploadProgress.value;
               }
-            },
+            });
+
+            xhr.addEventListener("load", () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve();
+              } else {
+                reject(
+                  new Error(`Chunk upload failed with status ${xhr.status}`)
+                );
+              }
+            });
+
+            xhr.addEventListener("error", () => {
+              reject(new Error("Chunk upload failed"));
+            });
+
+            xhr.open("POST", "/api/import");
+            xhr.send(formData);
           });
+
+          totalUploadedBytes += chunk.size;
         }
 
         await $fetch("/api/import", {

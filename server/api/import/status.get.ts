@@ -6,6 +6,11 @@ import {
 } from "~~/server/utils/import-queue";
 import { handleLog } from "~~/server/utils/logging";
 
+function isActiveJobStatus(status: string): boolean {
+  const activeStatuses = ["Processing", "Queued", "Uploading", "Pending"];
+  return activeStatuses.some((activeStatus) => status.startsWith(activeStatus));
+}
+
 export default defineEventHandler((event) => {
   const user = (event.context as any).user as User;
   if (!user) {
@@ -20,9 +25,7 @@ export default defineEventHandler((event) => {
   const queueStatus = getQueueStatus();
 
   const activeJob =
-    userJobs.find((j) => j.status === "Processing") ||
-    userJobs.find((j) => j.status === "Queued") ||
-    userJobs.find((j) => j.status === "Uploading") ||
+    userJobs.find((j) => isActiveJobStatus(j.status)) ||
     userJobs.sort((a, b) => b.id.localeCompare(a.id))[0];
 
   const acceptHeader = getRequestHeader(event, "accept");
@@ -35,9 +38,7 @@ export default defineEventHandler((event) => {
         busyWorkers: queueStatus.busyWorkers,
         availableWorkers: queueStatus.availableWorkers,
       },
-      hasActiveJobs: userJobs.some((j) =>
-        ["Processing", "Queued", "Uploading", "Pending"].includes(j.status)
-      ),
+      hasActiveJobs: userJobs.some((j) => isActiveJobStatus(j.status)),
     };
   }
 
@@ -53,11 +54,9 @@ export default defineEventHandler((event) => {
     const currentUserJobs = getAllJobStatuses(userId);
     const currentQueueStatus = getQueueStatus();
 
-    const currentActiveJob =
-      currentUserJobs.find((j) => j.status === "Processing") ||
-      currentUserJobs.find((j) => j.status === "Queued") ||
-      currentUserJobs.find((j) => j.status === "Uploading") ||
-      currentUserJobs.find((j) => j.status === "Pending");
+    const currentActiveJob = currentUserJobs.find((j) =>
+      isActiveJobStatus(j.status),
+    );
 
     const response = {
       activeJob: currentActiveJob,
@@ -66,9 +65,7 @@ export default defineEventHandler((event) => {
         busyWorkers: currentQueueStatus.busyWorkers,
         availableWorkers: currentQueueStatus.availableWorkers,
       },
-      hasActiveJobs: currentUserJobs.some((j) =>
-        ["Processing", "Queued", "Uploading", "Pending"].includes(j.status)
-      ),
+      hasActiveJobs: currentUserJobs.some((j) => isActiveJobStatus(j.status)),
       totalJobs: currentUserJobs.length,
       recentJobs: currentUserJobs.slice(0, 5),
       heartbeat: ++heartbeatsSent,
@@ -83,7 +80,7 @@ export default defineEventHandler((event) => {
     }
 
     const hasActiveJobs = currentUserJobs.some((j) =>
-      ["Processing", "Queued", "Uploading", "Pending"].includes(j.status)
+      isActiveJobStatus(j.status),
     );
 
     if (!hasActiveJobs && !isCompleted) {
@@ -98,7 +95,7 @@ export default defineEventHandler((event) => {
         eventStream.close();
       }
     }
-  }, 1000);
+  }, 250);
 
   eventStream.onClosed(() => {
     handleLog(`[sse] close for user ${userId}`);

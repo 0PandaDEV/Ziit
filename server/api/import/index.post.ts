@@ -104,22 +104,32 @@ async function handleChunkUpload(formData: any[], userId: string) {
       uploadedSize: 0,
       fileId: fileId,
     } as ImportJob;
-    activeJobs.set(userId, job);
+    activeJobs.set(fileId, job);
   }
 
-  job.uploadedSize = (job.uploadedSize || 0) + chunk.data.length;
-  job.progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
-  activeJobs.set(userId, job);
+  const previousUploadedSize = job.uploadedSize || 0;
+  const newUploadedSize = previousUploadedSize + chunk.data.length;
+  job.uploadedSize = newUploadedSize;
+  job.progress = Math.round((newUploadedSize / fileSize) * 100);
+  activeJobs.set(fileId, job);
+
+  const previousMB = Math.floor(previousUploadedSize / (1024 * 1024));
+  const currentMB = Math.floor(newUploadedSize / (1024 * 1024));
+  if (currentMB > previousMB) {
+    handleLog(
+      `Uploaded ${currentMB}MB of ${Math.ceil(fileSize / (1024 * 1024))}MB for file ${fileId}`
+    );
+  }
 
   handleLog(
-    `Received chunk ${chunkIndex + 1}/${totalChunks} for file ${fileId} for user ${userId}`
+    `Received chunk ${chunkIndex + 1}/${totalChunks} for file ${fileId} (${(newUploadedSize / (1024 * 1024)).toFixed(2)}MB/${(fileSize / (1024 * 1024)).toFixed(2)}MB)`
   );
 
   return { success: true, chunkIndex, totalChunks };
 }
 
 async function processFileInBackground(fileId: string, userId: string) {
-  const job = activeJobs.get(userId);
+  const job = activeJobs.get(fileId);
   if (!job || job.fileId !== fileId) {
     throw handleApiError(
       404,
@@ -130,7 +140,7 @@ async function processFileInBackground(fileId: string, userId: string) {
 
   job.status = "Processing";
   job.progress = 0;
-  activeJobs.set(userId, job);
+  activeJobs.set(fileId, job);
 
   const userTempDir = path.join(tmpdir(), "ziit-chunks", userId);
   const chunksDir = path.join(userTempDir, fileId);
@@ -189,7 +199,7 @@ async function processFileInBackground(fileId: string, userId: string) {
     const queueJobId = queueWakatimeFileImport(
       wakaData as unknown as WakatimeExportData,
       userId,
-      job.id
+      fileId
     );
 
     return {
@@ -200,7 +210,7 @@ async function processFileInBackground(fileId: string, userId: string) {
   } catch (error) {
     job.status = "Failed";
     job.error = error instanceof Error ? error.message : String(error);
-    activeJobs.set(userId, job);
+    activeJobs.set(fileId, job);
     handleLog(
       `Error processing file ${fileId}: ${error instanceof Error ? error.message : String(error)}`
     );
@@ -224,7 +234,7 @@ async function processFileInBackground(fileId: string, userId: string) {
 export default defineEventHandler(async (event: H3Event) => {
   const userId = event.context.user.id;
 
-  if (getMethod(event) === "GET") {
+  if (event.method === "GET") {
     const queueStatus = getQueueStatus();
     const userJobs = getAllJobStatuses(userId);
 
@@ -237,8 +247,6 @@ export default defineEventHandler(async (event: H3Event) => {
       ),
     };
   }
-
-  handleLog("Processing for user ID:", userId);
 
   const contentType = getHeader(event, "content-type") || "";
 
@@ -296,12 +304,12 @@ export default defineEventHandler(async (event: H3Event) => {
           progress: 0,
           userId,
         };
-        activeJobs.set(userId, job);
+        activeJobs.set(jobId, job);
 
         const queueJobId = queueWakatimeFileImport(
           wakaData as unknown as WakatimeExportData,
           userId,
-          job.id
+          jobId
         );
 
         return {

@@ -50,10 +50,10 @@ async function fetchWakApiHeartbeats(
   startDate: Date,
   endDate: Date,
   userId: string,
-  job?: ImportJob,
+  job?: ImportJob
 ) {
   handleLog(
-    `Fetching heartbeats from ${startDate.toISOString()} to ${endDate.toISOString()}`,
+    `Fetching heartbeats from ${startDate.toISOString()} to ${endDate.toISOString()}`
   );
 
   const today = new Date();
@@ -75,11 +75,11 @@ async function fetchWakApiHeartbeats(
   if (!allDateStrings.includes(tomorrowStr)) allDateStrings.push(tomorrowStr);
 
   handleLog(
-    `Generated ${allDateStrings.length} dates to check based on date range, including tomorrow to ensure all heartbeats are captured`,
+    `Generated ${allDateStrings.length} dates to check based on date range, including tomorrow to ensure all heartbeats are captured`
   );
 
   if (job) {
-    job.totalToProcess = allDateStrings.length;
+    job.totalToProcess = 0;
     job.processedCount = 0;
     job.status = "Processing heartbeats";
     activeJobs.set(job.id, job);
@@ -88,7 +88,7 @@ async function fetchWakApiHeartbeats(
   const heartbeatsByDate = new Map<string, any[]>();
   const progressUpdateInterval = Math.max(
     1,
-    Math.floor(allDateStrings.length / 10),
+    Math.floor(allDateStrings.length / 10)
   );
 
   for (let i = 0; i < allDateStrings.length; i++) {
@@ -96,7 +96,7 @@ async function fetchWakApiHeartbeats(
 
     if (i % progressUpdateInterval === 0 || i === allDateStrings.length - 1) {
       handleLog(
-        `Processing date ${i + 1}/${allDateStrings.length}: ${dateStr} (${Math.round(((i + 1) / allDateStrings.length) * 100)}% complete)`,
+        `Processing date ${i + 1}/${allDateStrings.length}: ${dateStr} (${Math.round(((i + 1) / allDateStrings.length) * 100)}% complete)`
       );
     }
 
@@ -107,7 +107,7 @@ async function fetchWakApiHeartbeats(
         {
           params: { date: dateStr },
           headers,
-        },
+        }
       );
 
       if (!heartbeatsResponse?.data || heartbeatsResponse.data.length === 0) {
@@ -118,31 +118,34 @@ async function fetchWakApiHeartbeats(
 
       if (i % progressUpdateInterval === 0) {
         handleLog(
-          `Found ${heartbeatsResponse.data.length} heartbeats for ${dateStr}`,
+          `Found ${heartbeatsResponse.data.length} heartbeats for ${dateStr}`
         );
       }
 
       const heartbeats = heartbeatsResponse.data.map((h) =>
-        processWakaApiHeartbeat(h, userId),
+        processWakaApiHeartbeat(h, userId)
       );
 
       if (heartbeats.length > 0) {
         heartbeatsByDate.set(dateStr, heartbeats);
         await processHeartbeatsByDate(userId, heartbeats);
-      }
 
-      if (job) {
-        job.processedCount! += 1;
-        job.progress = Math.round(
-          (job.processedCount! / job.totalToProcess!) * 100,
-        );
-        activeJobs.set(job.id, job);
+        if (job) {
+          job.processedCount! += 1;
+          job.totalToProcess! += 1;
+
+          const dateProgress = Math.round(
+            ((i + 1) / allDateStrings.length) * 100
+          );
+          job.progress = dateProgress;
+          activeJobs.set(job.id, job);
+        }
       }
     } catch (error) {
       handleApiError(
         911,
         `Error fetching heartbeats for ${dateStr} for user ${userId}: ${error instanceof Error ? error.message : String(error)}`,
-        "An error occurred while fetching some activity data. The import may be incomplete.",
+        "An error occurred while fetching some activity data. The import may be incomplete."
       );
     }
 
@@ -157,15 +160,19 @@ export async function handleWakApiImport(
   apiKey: string,
   instanceUrl: string,
   userId: string,
-) {
-  const job: ImportJob = {
+  existingJob?: ImportJob
+): Promise<{ success: boolean; imported?: number; message?: string }> {
+  const job: ImportJob = existingJob || {
     id: randomUUID(),
     fileName: `WakAPI Import ${new Date().toISOString()}`,
     status: "Pending",
     progress: 0,
     userId,
   };
-  activeJobs.set(job.id, job);
+
+  if (!existingJob) {
+    activeJobs.set(job.id, job);
+  }
 
   const headers = {
     Authorization: `Basic ${Buffer.from(apiKey).toString("base64")}`,
@@ -197,7 +204,7 @@ export async function handleWakApiImport(
       throw handleApiError(
         911,
         errorDetail,
-        "Failed to fetch activity date range from WakAPI.",
+        "Failed to fetch activity date range from WakAPI."
       );
     }
 
@@ -215,7 +222,7 @@ export async function handleWakApiImport(
       startDate,
       endDate,
       userId,
-      job,
+      job
     );
 
     if (heartbeatsByDate.size === 0) {
@@ -228,13 +235,13 @@ export async function handleWakApiImport(
     job.status = "Completed";
     job.importedCount = Array.from(heartbeatsByDate.values()).reduce(
       (acc, val) => acc + val.length,
-      0,
+      0
     );
     job.progress = 100;
     activeJobs.set(job.id, job);
 
     handleLog(
-      `Successfully imported data from ${heartbeatsByDate.size} days with activity`,
+      `Successfully imported data from ${heartbeatsByDate.size} days with activity`
     );
     return { success: true, imported: heartbeatsByDate.size };
   } catch (error: any) {
@@ -245,7 +252,7 @@ export async function handleWakApiImport(
     throw handleApiError(
       911,
       `Failed to import activity data via WakAPI for user ${userId}: ${job.error}`,
-      "Failed to import activity data. Please try again.",
+      "Failed to import activity data. Please try again."
     );
   }
 }
