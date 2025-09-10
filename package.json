@@ -11,13 +11,13 @@
   },
   "dependencies": {
     "@nuxtjs/sitemap": "7.4.3",
-    "@prisma/client": "6.15.0",
+    "@prisma/client": "6.16.0",
     "@vite-pwa/nuxt": "1.0.4",
     "@waradu/keyboard": "5.3.6",
     "badgen": "3.2.3",
     "bcrypt": "6.0.0",
     "chart.js": "4.5.0",
-    "lucide-vue-next": "0.542.0",
+    "lucide-vue-next": "0.543.0",
     "nuxt-cron": "1.8.0",
     "paseto-ts": "2.0.5",
     "stream-json": "1.9.1",
@@ -28,8 +28,8 @@
   "devDependencies": {
     "@types/bcrypt": "6.0.0",
     "prettier": "3.6.2",
-    "prisma": "6.15.0",
-    "sass-embedded": "1.92.0",
-    "nuxt": "4.1.0"
+    "prisma": "6.16.0",
+    "sass-embedded": "1.92.1",
+    "nuxt": "4.1.1"
   }
 }
