@@ -267,7 +267,7 @@
 <script setup lang="ts">
 import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
-import { Key } from "@waradu/keyboard";
+
 import * as statsLib from "~~/lib/stats";
 import type { ImportJob } from "~~/server/utils/import-jobs";
 
@@ -531,100 +531,100 @@ onMounted(async () => {
   }
 });
 
-useKeybind(
-  [Key.L],
-  async () => {
+useKeybind({
+  keys: ["l"],
+  run: async () => {
     if (!hasGithubAccount.value && !hasEpilogueAccount.value) {
       await linkGithub();
     }
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.M],
-  async () => {
+useKeybind({
+  keys: ["m"],
+  async run() {
     if (!hasEpilogueAccount.value && !hasGithubAccount.value) {
       await linkEpilogue();
     }
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true }
+});
 
-useKeybind(
-  [Key.O],
-  async () => {
+useKeybind({
+  keys: ["o"],
+  run: async () => {
     await toggleLeaderboard();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.E],
-  async () => {
+useKeybind({
+  keys: ["e"],
+  run: async () => {
     showEmailModal.value = true;
     newEmail.value = user.value?.email || "";
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.P],
-  async () => {
+useKeybind({
+  keys: ["p"],
+  run: async () => {
     showPasswordModal.value = true;
     newPassword.value = "";
     confirmPassword.value = "";
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.Alt, Key.L],
-  async () => {
+useKeybind({
+  keys: ["alt_l"],
+  run: async () => {
     try {
       window.location.href = "/api/auth/logout";
     } catch (e: any) {
       toast.error(e.data?.message || "Logout failed");
     }
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.S],
-  async () => {
+useKeybind({
+  keys: ["s"],
+  run: async () => {
     toggleApiKey();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.C],
-  async () => {
+useKeybind({
+  keys: ["c"],
+  run: async () => {
     await copyApiKey();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.R],
-  async () => {
+useKeybind({
+  keys: ["r"],
+  run: async () => {
     await regenerateApiKey();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.I],
-  async () => {
+useKeybind({
+  keys: ["i"],
+  run: async () => {
     await importTrackingData();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.Alt, Key.R],
-  async () => {
+useKeybind({
+  keys: ["alt_r"],
+  run: async () => {
     if (
       !confirm(
         "Confirm that you want to regenerate all your summaires which can take a while."
@@ -635,8 +635,24 @@ useKeybind(
 
     await regenerateSummaries();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
+
+useKeybind({
+  keys: ["control_c"],
+  run() {
+    countDown("purge");
+  },
+  config: { prevent: true, ignoreIfEditable: true },
+});
+
+useKeybind({
+  keys: ["control_d"],
+  run() {
+    countDown("delete");
+  },
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
 async function updateKeystrokeTimeout() {
   if (!user.value) return;
@@ -899,7 +915,7 @@ async function importTrackingData() {
           method: "POST",
           body: formData,
         });
-        
+
         toast.success("WakaTime data import started");
       } else {
         const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);

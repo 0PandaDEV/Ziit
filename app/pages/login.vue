@@ -52,7 +52,6 @@
 
 <script setup lang="ts">
 import { LucideKeyRound, LucideMail } from "lucide-vue-next";
-import { Key } from "@waradu/keyboard";
 
 const error = ref("");
 const email = ref("");
@@ -88,29 +87,29 @@ onMounted(() => {
   }
 });
 
-useKeybind(
-  [Key.G],
-  async () => {
+useKeybind({
+  keys: ["g"],
+  async run() {
     await githubAuth();
   },
-  { ignoreIfEditable: true }
-);
+  config: { ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.E],
-  async () => {
+useKeybind({
+  keys: ["e"],
+  async run() {
     await epilogueAuth();
   },
-  { ignoreIfEditable: true }
-);
+  config: { ignoreIfEditable: true }
+});
 
-useKeybind(
-  [Key.Enter],
-  async () => {
+useKeybind({
+  keys: ["enter"],
+  async run() {
     await login();
   },
-  { prevent: true }
-);
+  config: { prevent: true },
+});
 
 async function login() {
   error.value = "";
