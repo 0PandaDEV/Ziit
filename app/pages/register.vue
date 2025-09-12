@@ -55,7 +55,6 @@
 
 <script setup lang="ts">
 import { LucideKeyRound, LucideMail } from "lucide-vue-next";
-import { Key } from "@waradu/keyboard";
 
 const error = ref("");
 const email = ref("");
@@ -86,18 +85,18 @@ async function githubAuth() {
   window.location.href = "/api/auth/github";
 }
 
-useKeybind([Key.G], async () => {
+useKeybind({keys: ["g"], async run() {
   if (isInputFocused.value) return;
   await githubAuth();
-});
+}});
 
-useKeybind(
-  [Key.Enter],
-  async () => {
+useKeybind({
+  keys: ["enter"],
+  async run() {
     await register();
   },
-  { prevent: true }
-);
+  config: { prevent: true }
+});
 
 useSeoMeta({
   title: "Register - Ziit",

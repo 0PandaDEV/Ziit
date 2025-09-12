@@ -7,32 +7,28 @@
 
           <td
             :class="getHeaderClass('totalMinutes')"
-            @click="setSort('totalMinutes')"
-          >
+            @click="setSort('totalMinutes')">
             Total Time
           </td>
 
           <td
             v-if="!isMobile"
             :class="getHeaderClass('topLanguage')"
-            @click="setSort('topLanguage')"
-          >
+            @click="setSort('topLanguage')">
             Top Language
           </td>
 
           <td
             v-if="!isMobile"
             :class="getHeaderClass('topEditor')"
-            @click="setSort('topEditor')"
-          >
+            @click="setSort('topEditor')">
             Top Editor
           </td>
 
           <td
             v-if="!isMobile"
             :class="getHeaderClass('topOS')"
-            @click="setSort('topOS')"
-          >
+            @click="setSort('topOS')">
             Top OS
           </td>
         </tr>
@@ -40,19 +36,25 @@
       <tbody>
         <tr v-for="user in sortedLeaderboard" :key="user.userId" class="row">
           <td class="userid">{{ user.userId }}</td>
-          <td :class="getCellClass('totalMinutes')">{{ formatMinutes(user.totalMinutes) }}</td>
-          <td v-if="!isMobile" :class="getCellClass('topLanguage')">{{ user.topLanguage || "Unknown" }}</td>
-          <td v-if="!isMobile" :class="getCellClass('topEditor')">{{ user.topEditor || "Unknown" }}</td>
-          <td v-if="!isMobile" :class="getCellClass('topOS')">{{ user.topOS || "Unknown" }}</td>
+          <td :class="getCellClass('totalMinutes')">
+            {{ formatMinutes(user.totalMinutes) }}
+          </td>
+          <td v-if="!isMobile" :class="getCellClass('topLanguage')">
+            {{ user.topLanguage || "Unknown" }}
+          </td>
+          <td v-if="!isMobile" :class="getCellClass('topEditor')">
+            {{ user.topEditor || "Unknown" }}
+          </td>
+          <td v-if="!isMobile" :class="getCellClass('topOS')">
+            {{ user.topOS || "Unknown" }}
+          </td>
         </tr>
       </tbody>
     </table>
   </NuxtLayout>
 </template>
 
-
 <script setup lang="ts">
-import { Key } from "@waradu/keyboard";
 import { ref, onMounted, onUnmounted } from "vue";
 
 interface LeaderboardUser {
@@ -63,8 +65,9 @@ interface LeaderboardUser {
   topOS?: string;
 }
 
-const { data: leaderboard } =
-  await useFetch<LeaderboardUser[]>("/api/public/leaderboard");
+const { data: leaderboard } = await useFetch<LeaderboardUser[]>(
+  "/api/public/leaderboard"
+);
 
 const isMobile = ref(false);
 
@@ -128,17 +131,17 @@ function formatMinutes(minutes: number): string {
   return `${h}h ${m}m`;
 }
 
-useKeybind(
-  [Key.Alt, Key.L],
-  async () => {
+useKeybind({
+  keys: ["alt_l"],
+  run() {
     try {
       window.location.href = "/api/auth/logout";
     } catch (e: any) {
       useToast().error(e.data?.message || "Logout failed");
     }
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
 useSeoMeta({
   title: "Ziit - Leaderboard",

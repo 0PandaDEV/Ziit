@@ -15,7 +15,6 @@
 
 <script setup lang="ts">
 import type { User } from "@prisma/client";
-import { Key } from "@waradu/keyboard";
 
 const userState = useState<User | null>("user");
 
@@ -33,21 +32,21 @@ async function setLeaderboard(option: boolean) {
   }
 }
 
-useKeybind(
-  [Key.Alt, Key.Y],
-  async () => {
+useKeybind({
+  keys: ["alt_y"],
+  run() {
     setLeaderboard(true);
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.Alt, Key.N],
-  async () => {
+useKeybind({
+  keys: ["alt_n"],
+  run() {
     setLeaderboard(false);
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 </script>
 
 <style scoped lang="scss">

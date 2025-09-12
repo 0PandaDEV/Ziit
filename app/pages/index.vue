@@ -241,7 +241,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { LucideMaximize } from "lucide-vue-next";
 import type { User } from "@prisma/client";
-import { Key } from "@waradu/keyboard";
+
 import * as statsLib from "~~/lib/stats";
 import type { Heartbeat } from "~~/lib/stats";
 import {
@@ -256,6 +256,7 @@ import {
 } from "chart.js";
 import { useTimeRangeOptions } from "~/composables/useTimeRangeOptions";
 import UiListModal from "~/components/Ui/ListModal.vue";
+import type { KeyString } from "@waradu/keyboard";
 
 Chart.register(
   CategoryScale,
@@ -450,13 +451,13 @@ onMounted(async () => {
   timeRangeOptions.value.forEach(
     (option: { key: string; value: statsLib.TimeRange }) => {
       if (option.key && option.value) {
-        useKeybind(
-          [Key[option.key as keyof typeof Key]],
-          async () => {
+        useKeybind({
+          keys: [option.key.toLocaleLowerCase() as KeyString],
+          run: async () => {
             statsLib.setTimeRange(option.value);
           },
-          { prevent: true }
-        );
+          config: { prevent: true },
+        });
       }
     }
   );
@@ -466,17 +467,17 @@ onMounted(async () => {
   }
 });
 
-useKeybind(
-  [Key.Alt, Key.L],
-  async () => {
+useKeybind({
+  keys: ["alt_l"],
+  run: async () => {
     try {
       window.location.href = "/api/auth/logout";
     } catch (e: any) {
       toast.error(e.data?.message || "Logout failed");
     }
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
 onUnmounted(() => {
   if (chart) {
