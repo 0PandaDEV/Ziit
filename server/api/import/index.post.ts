@@ -289,7 +289,7 @@ export default defineEventHandler(async (event: H3Event) => {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         throw handleApiError(
-          911,
+          69,
           `Failed to process WakaTime file: ${errorMessage}`,
           "Failed to process uploaded file"
         );

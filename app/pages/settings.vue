@@ -281,7 +281,6 @@ const originalKeystrokeTimeout = ref(0);
 const timeoutChanged = ref(false);
 const hasGithubAccount = computed(() => !!user.value?.githubId);
 const hasEpilogueAccount = computed(() => !!user.value?.epilogueId);
-const WAKATIME = "wakatime" as const;
 const WAKATIME_API = "wakatime-api" as const;
 const WAKATIME_FILE = "wakatime-file" as const;
 const WAKAPI = "wakapi" as const;

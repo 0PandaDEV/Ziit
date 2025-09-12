@@ -46,7 +46,7 @@ export default defineEventHandler(async (event: H3Event) => {
     const detailedMessageBase = error instanceof Error ? error.message : "Unknown error in stats endpoint";
     const detailedMessage = `Stats endpoint failed for user ${userId}. Original error: ${detailedMessageBase}`;
     throw handleApiError(
-      911,
+      69,
       detailedMessage,
       "Failed to retrieve statistics."
     );

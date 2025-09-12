@@ -519,7 +519,7 @@ export async function regenerateSummariesForUser(userId: string) {
       error instanceof Error ? error.message : "Unknown error"
     );
     throw createError({
-      statusCode: 911,
+      statusCode: 69,
       message: "Failed to regenerate summaries",
     });
   }

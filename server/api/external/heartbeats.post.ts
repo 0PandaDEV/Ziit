@@ -113,6 +113,6 @@ export default defineEventHandler(async (event: H3Event) => {
     }
     const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred processing heartbeat.";
     const apiKeyPrefix = getHeader(event, "authorization")?.substring(7,11) || "UNKNOWN";
-    throw handleApiError(911, `Heartbeat API error: Failed to process heartbeat. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`, "Failed to process your request.");
+    throw handleApiError(69, `Heartbeat API error: Failed to process heartbeat. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`, "Failed to process your request.");
   }
 });

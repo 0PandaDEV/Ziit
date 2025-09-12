@@ -66,7 +66,7 @@ export default defineEventHandler(async (event: H3Event) => {
     const adminKey =
       getHeader(event, "authorization")?.substring(7, 11) || "UNKNOWN";
     throw handleApiError(
-      911,
+      69,
       `Admin API error: Error occurred getting the user data. API Key prefix: ${adminKey}... Error: ${
         error instanceof Error
           ? error.message

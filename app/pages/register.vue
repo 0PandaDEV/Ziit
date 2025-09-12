@@ -47,8 +47,8 @@
       </form>
       <div class="buttons">
         <UiButton text="Register" keyName="enter" @click="register" />
-        <UiButton text="Register with Github" keyName="g" @click="githubAuth" />
-        <UiButton text="Register with Epilogue" keyName="e" @click="epilogueAuth" />
+        <UiButton text="Github" keyName="g" @click="githubAuth" />
+        <UiButton text="Epilogue" keyName="e" @click="epilogueAuth" />
       </div>
     </main>
   </NuxtLayout>

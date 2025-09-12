@@ -60,7 +60,7 @@ export default defineEventHandler(async (event: H3Event) => {
         : "An unknown error occurred while deleting user.";
 
     throw handleApiError(
-      911,
+      69,
       `Failed to delete user ${event.context.user.id}: ${detailedMessage}`,
       "Failed to delete user. Please try again."
     );

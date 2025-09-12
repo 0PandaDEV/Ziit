@@ -127,6 +127,6 @@ export default defineEventHandler(async (event: H3Event) => {
     return { url: epilogueAuthUrl.toString() };
   } catch (error) {
     const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred while generating Epilogue auth URL.";
-    throw handleApiError(500, `Failed to generate Epilogue auth URL: ${detailedMessage}`, "Could not initiate Epilogue linking. Please try again.");
+    throw handleApiError(69, `Failed to generate Epilogue auth URL: ${detailedMessage}`, "Could not initiate Epilogue linking. Please try again.");
   }
 });

@@ -10,7 +10,12 @@ defineRouteMeta({
       "Handles Epilogue OAuth callback. Exchanges code for access token, signs in or links account, and redirects.",
     parameters: [
       { in: "query", name: "code", required: true, schema: { type: "string" } },
-      { in: "query", name: "state", required: true, schema: { type: "string" } },
+      {
+        in: "query",
+        name: "state",
+        required: true,
+        schema: { type: "string" },
+      },
     ],
     responses: {
       302: { description: "Redirect to application after login/link" },
@@ -50,7 +55,6 @@ export default defineEventHandler(async (event) => {
   deleteCookie(event, "epilogue_link_session");
 
   try {
-    // Exchange code for token
     const tokenResponse = await $fetch<{ token: string }>(
       `https://auth.epilogue.team/api/v1/authorize/${config.epilogueAppId}`,
       {
@@ -62,29 +66,38 @@ export default defineEventHandler(async (event) => {
           authorizationCode: code,
           applicationSecret: config.epilogueAppSecret,
         }),
-      },
+      }
     );
 
     const accessToken = tokenResponse.token;
 
-    // obtain user
-    const epilogueUser = await $fetch<EpilogueUser>("https://auth.epilogue.team/api/v1/app/me", {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+    const epilogueUser = await $fetch<EpilogueUser>(
+      "https://auth.epilogue.team/api/v1/app/me",
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
 
     if (!epilogueUser || !epilogueUser.id) {
-      throw handleApiError(500, `Epilogue callback error: Invalid user data received`, "Could not retrieve user information from Epilogue");
+      throw handleApiError(
+        69,
+        `Epilogue callback error: Invalid user data received`,
+        "Could not retrieve user information from Epilogue"
+      );
     }
 
-    // Handle account linking
     if (isLinking && linkSession) {
       try {
         const { payload } = decrypt(config.pasetoKey, linkSession);
-        
-        if (typeof payload === "object" && payload !== null && "userId" in payload) {
+
+        if (
+          typeof payload === "object" &&
+          payload !== null &&
+          "userId" in payload
+        ) {
           const userId = payload.userId;
           let redirectUrl = "/settings?success=epilogue_linked";
 
@@ -99,7 +112,6 @@ export default defineEventHandler(async (event) => {
             ]);
 
             if (existingEpilogueUser && existingEpilogueUser.id !== userId) {
-              // Merge accounts
               await Promise.all([
                 tx.heartbeats.updateMany({
                   where: { userId: existingEpilogueUser.id },
@@ -124,7 +136,6 @@ export default defineEventHandler(async (event) => {
 
               redirectUrl = "/settings?success=accounts_merged";
             } else if (currentUser?.epilogueId === epilogueUser.id) {
-              // Update token
               await tx.user.update({
                 where: { id: userId },
                 data: {
@@ -133,7 +144,6 @@ export default defineEventHandler(async (event) => {
               });
               redirectUrl = "/settings?success=epilogue_updated";
             } else {
-              // Link account
               await tx.user.update({
                 where: { id: userId },
                 data: {
@@ -152,17 +162,17 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Handle login/registration
-    const result = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       let user = await tx.user.findFirst({
         where: { epilogueId: epilogueUser.id },
       });
 
       if (!user) {
-        const userEmail = epilogueUser.email || `epilogue_${epilogueUser.id}@temp.ziit.app`;
-        const username = epilogueUser.username || `epilogue_user_${epilogueUser.id}`;
-        
-        // Create new user
+        const userEmail =
+          epilogueUser.email || `epilogue_${epilogueUser.id}@temp.ziit.app`;
+        const username =
+          epilogueUser.username || `epilogue_user_${epilogueUser.id}`;
+
         user = await tx.user.create({
           data: {
             email: userEmail,
@@ -173,9 +183,11 @@ export default defineEventHandler(async (event) => {
           },
         });
       } else {
-        // Update existing user
-        const username = epilogueUser.username || user.epilogueUsername || `epilogue_user_${epilogueUser.id}`;
-        
+        const username =
+          epilogueUser.username ||
+          user.epilogueUsername ||
+          `epilogue_user_${epilogueUser.id}`;
+
         user = await tx.user.update({
           where: { id: user.id },
           data: {
@@ -185,14 +197,10 @@ export default defineEventHandler(async (event) => {
         });
       }
 
-      // Create session token
-      const token = encrypt(
-        config.pasetoKey,
-        { 
-          userId: user.id,
-          exp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-        }
-      );
+      const token = encrypt(config.pasetoKey, {
+        userId: user.id,
+        exp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      });
 
       setCookie(event, "ziit_session", token, {
         httpOnly: true,
@@ -201,12 +209,23 @@ export default defineEventHandler(async (event) => {
         path: "/",
         sameSite: "lax",
       });
-      return "/";
+      return user;
     });
 
-    return sendRedirect(event, result);
+    setHeader(event, "Cache-Control", "no-cache, no-store, must-revalidate");
+    setHeader(event, "Pragma", "no-cache");
+    setHeader(event, "Expires", "0");
+
+    return sendRedirect(event, "/");
   } catch (error) {
-    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred during Epilogue authentication.";
-    throw handleApiError(500, `Epilogue authentication failed: ${detailedMessage}`, "Epilogue authentication failed. Please try again.");
+    const detailedMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown error occurred during Epilogue authentication.";
+    throw handleApiError(
+      69,
+      `Epilogue authentication failed: ${detailedMessage}`,
+      "Epilogue authentication failed. Please try again."
+    );
   }
 });
