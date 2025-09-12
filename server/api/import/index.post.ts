@@ -29,7 +29,7 @@ export const requestSchema = z.discriminatedUnion("instanceType", [
       .string()
       .regex(
         /^waka_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-        "API key must be in format waka_<uuid>"
+        "API key must be in format waka_<uuid>",
       )
       .optional(),
     instanceUrl: z.string().optional(),
@@ -57,23 +57,23 @@ const wakaTimeExportSchema = z.object({
           language: z.string().optional().nullable(),
           project: z.string().optional().nullable(),
           user_agent_id: z.string().optional().nullable(),
-        })
+        }),
       ),
-    })
+    }),
   ),
 });
 
 async function handleChunkUpload(formData: any[], userId: string) {
   const fileId = formData.find((p) => p.name === "fileId")?.data.toString();
   const chunkIndex = parseInt(
-    formData.find((p) => p.name === "chunkIndex")?.data.toString() || "0"
+    formData.find((p) => p.name === "chunkIndex")?.data.toString() || "0",
   );
   const totalChunks = parseInt(
-    formData.find((p) => p.name === "totalChunks")?.data.toString() || "0"
+    formData.find((p) => p.name === "totalChunks")?.data.toString() || "0",
   );
   const fileName = formData.find((p) => p.name === "fileName")?.data.toString();
   const fileSize = parseInt(
-    formData.find((p) => p.name === "fileSize")?.data.toString() || "0"
+    formData.find((p) => p.name === "fileSize")?.data.toString() || "0",
   );
   const chunk = formData.find((p) => p.name === "chunk");
 
@@ -81,7 +81,7 @@ async function handleChunkUpload(formData: any[], userId: string) {
     throw handleApiError(
       400,
       "Missing required fields for chunked upload",
-      "Missing upload data"
+      "Missing upload data",
     );
   }
 
@@ -117,12 +117,12 @@ async function handleChunkUpload(formData: any[], userId: string) {
   const currentMB = Math.floor(newUploadedSize / (1024 * 1024));
   if (currentMB > previousMB) {
     handleLog(
-      `Uploaded ${currentMB}MB of ${Math.ceil(fileSize / (1024 * 1024))}MB for file ${fileId}`
+      `Uploaded ${currentMB}MB of ${Math.ceil(fileSize / (1024 * 1024))}MB for file ${fileId}`,
     );
   }
 
   handleLog(
-    `Received chunk ${chunkIndex + 1}/${totalChunks} for file ${fileId} (${(newUploadedSize / (1024 * 1024)).toFixed(2)}MB/${(fileSize / (1024 * 1024)).toFixed(2)}MB)`
+    `Received chunk ${chunkIndex + 1}/${totalChunks} for file ${fileId} (${(newUploadedSize / (1024 * 1024)).toFixed(2)}MB/${(fileSize / (1024 * 1024)).toFixed(2)}MB)`,
   );
 
   return { success: true, chunkIndex, totalChunks };
@@ -134,7 +134,7 @@ async function processFileInBackground(fileId: string, userId: string) {
     throw handleApiError(
       404,
       `Job not found for file ID ${fileId}`,
-      "Import job not found."
+      "Import job not found.",
     );
   }
 
@@ -148,7 +148,7 @@ async function processFileInBackground(fileId: string, userId: string) {
 
   try {
     handleLog(
-      `Starting background processing for user ${userId}, fileId ${fileId}`
+      `Starting background processing for user ${userId}, fileId ${fileId}`,
     );
 
     if (!existsSync(chunksDir)) {
@@ -178,7 +178,7 @@ async function processFileInBackground(fileId: string, userId: string) {
       `Combined ${chunkFiles.length} chunks for file ${fileId} (${(
         combinedContent.length /
         (1024 * 1024)
-      ).toFixed(2)} MB).`
+      ).toFixed(2)} MB).`,
     );
 
     const fileContent = new TextDecoder().decode(combinedContent);
@@ -187,19 +187,22 @@ async function processFileInBackground(fileId: string, userId: string) {
     const validationResult = wakaTimeExportSchema.safeParse(parsedData);
     if (!validationResult.success) {
       throw new Error(
-        `Invalid WakaTime export format: ${validationResult.error.message}`
+        `Invalid WakaTime export format: ${validationResult.error.message}`,
       );
     }
 
     const wakaData = validationResult.data;
+    const daysWithData = wakaData.days.filter(
+      (day) => day.heartbeats && day.heartbeats.length > 0,
+    );
     handleLog(
-      `Processing WakaTime export with ${wakaData.days.length} days of data`
+      `Processing WakaTime export with ${daysWithData.length} days of data (${wakaData.days.length} total days in file)`,
     );
 
     const queueJobId = queueWakatimeFileImport(
       wakaData as unknown as WakatimeExportData,
       userId,
-      fileId
+      fileId,
     );
 
     return {
@@ -212,7 +215,7 @@ async function processFileInBackground(fileId: string, userId: string) {
     job.error = error instanceof Error ? error.message : String(error);
     activeJobs.set(fileId, job);
     handleLog(
-      `Error processing file ${fileId}: ${error instanceof Error ? error.message : String(error)}`
+      `Error processing file ${fileId}: ${error instanceof Error ? error.message : String(error)}`,
     );
     throw error;
   } finally {
@@ -225,7 +228,7 @@ async function processFileInBackground(fileId: string, userId: string) {
       }
     } catch (cleanupError) {
       handleLog(
-        `Warning: Error during cleanup for user ${userId}: ${cleanupError}`
+        `Warning: Error during cleanup for user ${userId}: ${cleanupError}`,
       );
     }
   }
@@ -243,7 +246,7 @@ export default defineEventHandler(async (event: H3Event) => {
       queue: queueStatus,
       userJobs: userJobs.slice(0, 10),
       hasActiveJobs: userJobs.some((job) =>
-        ["Processing", "Queued", "Uploading", "Pending"].includes(job.status)
+        ["Processing", "Queued", "Uploading", "Pending"].includes(job.status),
       ),
     };
   }
@@ -257,7 +260,7 @@ export default defineEventHandler(async (event: H3Event) => {
       throw handleApiError(
         400,
         "No form data received",
-        "No form data received"
+        "No form data received",
       );
     }
 
@@ -271,7 +274,7 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     const fileData = formData.find(
-      (item) => item.name === "file" && item.filename
+      (item) => item.name === "file" && item.filename,
     );
 
     if (fileData && fileData.data) {
@@ -286,13 +289,16 @@ export default defineEventHandler(async (event: H3Event) => {
           throw handleApiError(
             400,
             `Invalid WakaTime export format: ${validationResult.error.message}`,
-            "Invalid file format"
+            "Invalid file format",
           );
         }
 
         const wakaData = validationResult.data;
+        const daysWithData = wakaData.days.filter(
+          (day) => day.heartbeats && day.heartbeats.length > 0,
+        );
         handleLog(
-          `Processing WakaTime export with ${wakaData.days.length} days of data`
+          `Processing WakaTime export with ${daysWithData.length} days of data (${wakaData.days.length} total days in file)`,
         );
 
         const jobId = randomUUID();
@@ -309,7 +315,7 @@ export default defineEventHandler(async (event: H3Event) => {
         const queueJobId = queueWakatimeFileImport(
           wakaData as unknown as WakatimeExportData,
           userId,
-          jobId
+          jobId,
         );
 
         return {
@@ -326,7 +332,7 @@ export default defineEventHandler(async (event: H3Event) => {
         throw handleApiError(
           911,
           `Failed to process WakaTime file: ${errorMessage}`,
-          "Failed to process uploaded file"
+          "Failed to process uploaded file",
         );
       }
     }
@@ -334,7 +340,7 @@ export default defineEventHandler(async (event: H3Event) => {
     throw handleApiError(
       400,
       "Invalid form data",
-      "Invalid form data received"
+      "Invalid form data received",
     );
   }
 
@@ -353,7 +359,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
     processFileInBackground(body.fileId, userId).catch((error) => {
       handleLog(
-        `Error during background processing for user ${userId}: ${error}`
+        `Error during background processing for user ${userId}: ${error}`,
       );
     });
 
@@ -369,7 +375,7 @@ export default defineEventHandler(async (event: H3Event) => {
     throw handleApiError(
       400,
       `Invalid request data for user ${userId}: ${validationResult.error.message}`,
-      validationResult.error.message || "Invalid API request data."
+      validationResult.error.message || "Invalid API request data.",
     );
   }
 
@@ -380,7 +386,7 @@ export default defineEventHandler(async (event: H3Event) => {
       throw handleApiError(
         400,
         "WakAPI instance URL missing",
-        "WakAPI instance URL is missing"
+        "WakAPI instance URL is missing",
       );
     }
 
@@ -388,7 +394,7 @@ export default defineEventHandler(async (event: H3Event) => {
       throw handleApiError(
         400,
         "WakAPI API key missing",
-        "API key is required"
+        "API key is required",
       );
     }
 
@@ -406,7 +412,7 @@ export default defineEventHandler(async (event: H3Event) => {
       throw handleApiError(
         400,
         "WakaTime API key missing - use file upload instead",
-        "WakaTime API key is required for API import. Use file upload as alternative."
+        "WakaTime API key is required for API import. Use file upload as alternative.",
       );
     }
 
@@ -422,6 +428,6 @@ export default defineEventHandler(async (event: H3Event) => {
   throw handleApiError(
     400,
     "Invalid instance type",
-    "Invalid instance type specified"
+    "Invalid instance type specified",
   );
 });

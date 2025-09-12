@@ -276,11 +276,14 @@ class ImportQueue {
     if (!job.data.exportData?.days || !job.allocatedWorkers) return;
 
     const days = job.data.exportData.days;
+    const daysWithData = days.filter(
+      (day) => day.heartbeats && day.heartbeats.length > 0,
+    );
     const chunkSize = Math.ceil(days.length / job.allocatedWorkers);
 
     const existingJob = activeJobs.get(job.id);
     if (existingJob) {
-      existingJob.totalToProcess = days.length;
+      existingJob.totalToProcess = daysWithData.length;
       existingJob.processedCount = 0;
       existingJob.status = "Processing heartbeats";
       activeJobs.set(job.id, existingJob);
@@ -512,7 +515,11 @@ class ImportQueue {
           const existingJob = activeJobs.get(job.id);
           if (existingJob) {
             existingJob.status = "Processing";
-            existingJob.totalToProcess = job.data.exportData.days?.length || 0;
+            const daysWithData =
+              job.data.exportData.days?.filter(
+                (day) => day.heartbeats && day.heartbeats.length > 0,
+              ) || [];
+            existingJob.totalToProcess = daysWithData.length;
             existingJob.processedCount = 0;
             activeJobs.set(job.id, existingJob);
             result = await handleWakatimeFileImport(
@@ -521,13 +528,17 @@ class ImportQueue {
               existingJob,
             );
           } else {
+            const daysWithData =
+              job.data.exportData.days?.filter(
+                (day) => day.heartbeats && day.heartbeats.length > 0,
+              ) || [];
             const fileJob: ImportJob = {
               id: job.id,
               fileName: `WakaTime File Import ${new Date().toISOString()}`,
               status: "Processing",
               progress: 0,
               userId: job.userId,
-              totalToProcess: job.data.exportData.days?.length || 0,
+              totalToProcess: daysWithData.length,
               processedCount: 0,
             };
             activeJobs.set(job.id, fileJob);

@@ -212,8 +212,14 @@ async function downloadDataDump(
     const text = new TextDecoder().decode(combined);
     const exportData: WakatimeExportData = JSON.parse(text);
 
+    const daysWithData = Array.isArray(exportData.days)
+      ? exportData.days.filter(
+          (day) => day.heartbeats && day.heartbeats.length > 0,
+        )
+      : [];
+
     handleLog(
-      `Downloaded data dump with ${Array.isArray(exportData.days) ? exportData.days.length : 0} days of data`,
+      `Downloaded data dump with ${daysWithData.length} days of data (${Array.isArray(exportData.days) ? exportData.days.length : 0} total days in file)`,
     );
 
     job.progress = 100;
@@ -348,7 +354,6 @@ export async function handleWakatimeImport(
 
     if (!Array.isArray(exportData.days)) exportData.days = [];
 
-    
     const daysWithHeartbeats = exportData.days.filter(
       (day) => day.heartbeats && day.heartbeats.length > 0,
     );
@@ -437,7 +442,6 @@ export async function handleWakatimeFileImport(
 
     if (!Array.isArray(exportData.days)) exportData.days = [];
 
-    
     const daysWithHeartbeats = exportData.days.filter(
       (day) => day.heartbeats && day.heartbeats.length > 0,
     );
