@@ -439,8 +439,25 @@ function connectEventSource() {
       const response = JSON.parse(event.data);
 
       if (response.activeJob) {
-        importJob.value = response.activeJob as ImportJob;
-      } else if (!response.hasActiveJobs) {
+        const serverJob = response.activeJob as ImportJob;
+
+        if (
+          importJob.value &&
+          importJob.value.status === "Uploading" &&
+          isUploading.value &&
+          (serverJob.status === "Pending" || !serverJob.uploadedSize)
+        ) {
+          importJob.value = {
+            ...serverJob,
+            status: "Uploading",
+            progress: uploadProgress.value,
+            uploadedSize: uploadedBytes.value,
+            totalSize: importJob.value.totalSize,
+          };
+        } else {
+          importJob.value = serverJob;
+        }
+      } else if (!response.hasActiveJobs && !isUploading.value) {
         importJob.value = null;
       }
     } catch (error) {
@@ -891,6 +908,17 @@ async function importTrackingData() {
           method: "POST",
           body: formData,
         });
+
+        uploadProgress.value = 0;
+        uploadedBytes.value = 0;
+        uploadStatus.value = "";
+        isUploading.value = false;
+
+        if (importJob.value) {
+          importJob.value.status = "Processing";
+          importJob.value.progress = 0;
+        }
+
         toast.success("WakaTime data import started");
       } else {
         const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
@@ -959,15 +987,30 @@ async function importTrackingData() {
         });
       }
 
+      // Clear upload state and transition to processing
+      uploadProgress.value = 0;
+      uploadedBytes.value = 0;
+      uploadStatus.value = "";
+      isUploading.value = false;
+
+      if (importJob.value) {
+        importJob.value.status = "Processing";
+        importJob.value.progress = 0;
+      }
+
       selectedFile.value = null;
       selectedFileName.value = null;
-      uploadProgress.value = 0;
       if (wakaTimeFileInput.value) {
         wakaTimeFileInput.value.value = "";
       }
     } catch (error: any) {
       console.error("Error importing WakaTime data:", error);
       toast.error(error?.data?.message || "Failed to import WakaTime data");
+
+      uploadProgress.value = 0;
+      uploadedBytes.value = 0;
+      uploadStatus.value = "";
+      importJob.value = null;
     } finally {
       isUploading.value = false;
     }
