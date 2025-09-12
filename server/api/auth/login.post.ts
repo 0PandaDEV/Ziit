@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { encrypt } from "paseto-ts/v4";
 import { prisma } from "~~/prisma/prisma";
 import { z } from "zod";
-import { handleApiError} from "~~/server/utils/logging";
+import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
   openAPI: {
@@ -46,7 +46,11 @@ export default defineEventHandler(async (event) => {
   const validation = loginSchema.safeParse(body);
 
   if (!validation.success) {
-    throw handleApiError(400, `Login validation failed for email ${body.email}. Errors: ${JSON.stringify(validation.error)}`, validation.error.message || "Email and password are required");
+    throw handleApiError(
+      400,
+      `Login validation failed for email ${body.email}. Errors: ${JSON.stringify(validation.error)}`,
+      validation.error.message || "Email and password are required"
+    );
   }
 
   try {
@@ -58,24 +62,30 @@ export default defineEventHandler(async (event) => {
 
     if (!user || !user.passwordHash) {
       const errorDetail = `Invalid login attempt for email: ${email}. User not found or no password hash.`;
-      throw handleApiError(401, errorDetail , "Invalid email or password");
+      throw handleApiError(401, errorDetail, "Invalid email or password");
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
       const errorDetail = `Invalid login attempt for email: ${email}. Password mismatch.`;
-      throw handleApiError(401, errorDetail , "Invalid email or password");
+      throw handleApiError(401, errorDetail, "Invalid email or password");
     }
 
-    const token = encrypt(
-      config.pasetoKey,
-      {
-        userId: user.id,
-        email: user.email,
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      }
-    );
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        lastlogin: new Date(),
+      },
+    });
+
+    const token = encrypt(config.pasetoKey, {
+      userId: user.id,
+      email: user.email,
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
 
     setCookie(event, "ziit_session", token, {
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -90,7 +100,14 @@ export default defineEventHandler(async (event) => {
     if (error && typeof error === "object" && error.statusCode) {
       throw error;
     }
-    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred during login.";
-    throw handleApiError(500, `Authentication failed: ${detailedMessage}`, "Authentication failed. Please try again.");
+    const detailedMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown error occurred during login.";
+    throw handleApiError(
+      911,
+      `Authentication failed: ${detailedMessage}`,
+      "Authentication failed. Please try again."
+    );
   }
 });

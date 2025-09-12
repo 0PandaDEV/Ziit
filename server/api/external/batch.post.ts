@@ -140,7 +140,7 @@ export default defineEventHandler(async (event: H3Event) => {
     const apiKeyPrefix =
       getHeader(event, "authorization")?.substring(7, 11) || "UNKNOWN";
     throw handleApiError(
-      500,
+      911,
       `Batch API error: Failed to process heartbeats. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`,
       "Failed to process your request."
     );

@@ -2,13 +2,14 @@ import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
 import bcrypt from "bcrypt";
-import { handleApiError} from "~~/server/utils/logging";
+import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
   openAPI: {
     tags: ["User"],
     summary: "Update current user settings",
-    description: "Updates settings for the authenticated user (email, password, keystrokeTimeout).",
+    description:
+      "Updates settings for the authenticated user (email, password, keystrokeTimeout).",
     requestBody: {
       required: true,
       content: {
@@ -18,8 +19,15 @@ defineRouteMeta({
             properties: {
               keystrokeTimeout: { type: "integer", minimum: 1, maximum: 60 },
               email: { type: "string", format: "email" },
-              password: { type: "string", description: "At least 12 chars with complexity." },
-              leaderboardEnabled: { type: "boolean", description: "Opt-in or out of showing up on leaderboardEnabled" },
+              password: {
+                type: "string",
+                description: "At least 12 chars with complexity.",
+              },
+              leaderboardEnabled: {
+                type: "boolean",
+                description:
+                  "Opt-in or out of showing up on leaderboardEnabled",
+              },
             },
           },
         },
@@ -52,7 +60,8 @@ const userSettingsSchema = z.object({
   keystrokeTimeout: z.number().min(1).max(60).optional(),
   email: z.string().email().optional(),
   password: passwordSchema.optional(),
-  leaderboardEnabled: z.boolean().optional()
+  leaderboardEnabled: z.boolean().optional(),
+  leaderboardFirstSet: z.boolean().optional(),
 });
 
 export default defineEventHandler(async (event: H3Event) => {
@@ -63,8 +72,9 @@ export default defineEventHandler(async (event: H3Event) => {
 
     if (!validatedData.success) {
       const errorDetail = `Invalid user settings data for user ${event.context.user.id}: ${validatedData.error.message}`;
-      const clientMessage = validatedData.error.message || "Invalid user settings data.";
-      throw handleApiError(400, errorDetail, clientMessage );
+      const clientMessage =
+        validatedData.error.message || "Invalid user settings data.";
+      throw handleApiError(400, errorDetail, clientMessage);
     }
 
     const updateData: {
@@ -72,14 +82,19 @@ export default defineEventHandler(async (event: H3Event) => {
       email?: string;
       passwordHash?: string;
       leaderboardEnabled?: boolean;
+      leaderboardFirstSet?: boolean;
     } = {};
 
     if (validatedData.data.keystrokeTimeout !== undefined) {
       updateData.keystrokeTimeout = validatedData.data.keystrokeTimeout;
     }
 
-    if (validatedData.data.leaderboardEnabled !== undefined){
+    if (validatedData.data.leaderboardEnabled !== undefined) {
       updateData.leaderboardEnabled = validatedData.data.leaderboardEnabled;
+    }
+
+    if (validatedData.data.leaderboardFirstSet !== undefined) {
+      updateData.leaderboardFirstSet = validatedData.data.leaderboardFirstSet;
     }
 
     if (validatedData.data.email !== undefined) {
@@ -115,12 +130,15 @@ export default defineEventHandler(async (event: H3Event) => {
 
     return { success: true };
   } catch (error: any) {
-    if (error && typeof error === 'object' && '__h3_error__' in error) {
+    if (error && typeof error === "object" && "__h3_error__" in error) {
       throw error;
     }
-    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred while updating user settings.";
+    const detailedMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown error occurred while updating user settings.";
     throw handleApiError(
-      500,
+      911,
       `Failed to update user settings for user ${event.context.user.id}: ${detailedMessage}`,
       "Failed to update user settings. Please try again."
     );

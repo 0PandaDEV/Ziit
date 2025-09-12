@@ -84,7 +84,7 @@ export default defineEventHandler(async () => {
     return leaderboard;
   } catch (error: any) {
     throw handleApiError(
-      500,
+      911,
       error instanceof Error ? error.message : "Unknown leaderboard error",
       "Failed to fetch leaderboard",
     );
