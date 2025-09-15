@@ -91,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { Key } from "@waradu/keyboard";
+
 import { LucideKeyRound } from "lucide-vue-next";
 import { ref, onMounted, onUnmounted } from "vue";
 
@@ -220,25 +220,25 @@ function formatDate(date: string): string {
   });
 }
 
-useKeybind(
-  [Key.Alt, Key.L],
-  async () => {
+useKeybind({
+  keys: ["alt_l"],
+  run: async () => {
     try {
       window.location.href = "/api/auth/logout";
     } catch (e: any) {
       useToast().error(e.data?.message || "Logout failed");
     }
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.Enter],
-  async () => {
+useKeybind({
+  keys: ["enter"],
+  run: async () => {
     authenticate();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
 function formatMinutes(minutes: number): string {
   const h = Math.floor(minutes / 60);

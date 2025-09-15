@@ -44,6 +44,6 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     if (error && typeof error === "object" && error.statusCode) throw error;
     const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred during GitHub auth initialization.";
-    throw handleApiError(911, `Failed to initialize GitHub authentication: ${detailedMessage}`, "Could not initiate GitHub authentication. Please try again.");
+    throw handleApiError(69, `Failed to initialize GitHub authentication: ${detailedMessage}`, "Could not initiate GitHub authentication. Please try again.");
   }
 });

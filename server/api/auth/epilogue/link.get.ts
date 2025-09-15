@@ -1,13 +1,13 @@
 import { H3Event } from "h3";
 import { decrypt, encrypt } from "paseto-ts/v4";
-import { handleApiError} from "~~/server/utils/logging";
+import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
   openAPI: {
-    tags: ["Auth", "GitHub"],
-    summary: "Begin GitHub account linking",
+    tags: ["Auth", "Epilogue"],
+    summary: "Begin Epilogue account linking",
     description:
-      "Starts OAuth flow to link a GitHub account to the authenticated user. Returns an authorization URL.",
+      "Starts OAuth flow to link an Epilogue account to the authenticated user. Returns an authorization URL.",
     responses: {
       200: {
         description: "Authorization URL generated",
@@ -21,9 +21,9 @@ defineRouteMeta({
         },
       },
       401: { description: "Unauthorized or invalid session" },
-      500: { description: "Failed to generate GitHub auth URL" },
+      500: { description: "Failed to generate Epilogue auth URL" },
     },
-    operationId: "getGithubLink",
+    operationId: "getEpilogueLink",
   },
 });
 
@@ -38,14 +38,14 @@ export default defineEventHandler(async (event: H3Event) => {
   }
 
   if (!event.context.user) {
-    console.error("GitHub Link error: Unauthorized access attempt");
+    console.error("Epilogue Link error: Unauthorized access attempt");
     throw createError({
       statusCode: 401,
       message: "Unauthorized",
     });
   }
 
-  const sessionCookie = getCookie(event, "session");
+  const sessionCookie = getCookie(event, "ziit_session");
 
   if (!sessionCookie) {
     throw createError({
@@ -76,9 +76,16 @@ export default defineEventHandler(async (event: H3Event) => {
     });
   }
 
+  if (!config.epilogueAppId || !config.epilogueRedirectUri) {
+    throw createError({
+      statusCode: 500,
+      message: "Epilogue auth is not configured",
+    });
+  }
+
   const state = crypto.randomUUID();
 
-  setCookie(event, "github_oauth_state", state, {
+  setCookie(event, "epilogue_oauth_state", state, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 10,
@@ -86,7 +93,7 @@ export default defineEventHandler(async (event: H3Event) => {
     sameSite: "lax",
   });
 
-  setCookie(event, "github_link_account", "true", {
+  setCookie(event, "epilogue_link_account", "true", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 10,
@@ -99,7 +106,7 @@ export default defineEventHandler(async (event: H3Event) => {
     exp: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
   });
 
-  setCookie(event, "github_link_session", token, {
+  setCookie(event, "epilogue_link_session", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 10,
@@ -107,16 +114,19 @@ export default defineEventHandler(async (event: H3Event) => {
     sameSite: "lax",
   });
 
-  const githubAuthUrl = new URL("https://github.com/login/oauth/authorize");
-  githubAuthUrl.searchParams.append("client_id", config.githubClientId);
-  githubAuthUrl.searchParams.append("redirect_uri", config.githubRedirectUri);
-  githubAuthUrl.searchParams.append("state", state);
-  githubAuthUrl.searchParams.append("scope", "read:user user:email");
+  const epilogueAuthUrl = new URL("https://auth.epilogue.team/authorize/");
+  epilogueAuthUrl.searchParams.append("app_id", config.epilogueAppId);
+  epilogueAuthUrl.searchParams.append("redirect_url", config.epilogueRedirectUri);
+  const host = getHeader(event, "host");
+  const protocol = getHeader(event, "x-forwarded-proto") || "http";
+  const frontendUrl = `${protocol}://${host}`;
+  epilogueAuthUrl.searchParams.append("cancel_url", `${frontendUrl}/settings?error=link_cancelled`);
+  epilogueAuthUrl.searchParams.append("state", state);
 
   try {
-    return { url: githubAuthUrl.toString() };
+    return { url: epilogueAuthUrl.toString() };
   } catch (error) {
-    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred while generating GitHub auth URL.";
-    throw handleApiError(69, `Failed to generate GitHub auth URL: ${detailedMessage}`, "Could not initiate GitHub linking. Please try again.");
+    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred while generating Epilogue auth URL.";
+    throw handleApiError(69, `Failed to generate Epilogue auth URL: ${detailedMessage}`, "Could not initiate Epilogue linking. Please try again.");
   }
 });

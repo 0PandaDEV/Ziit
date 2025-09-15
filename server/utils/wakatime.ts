@@ -422,7 +422,7 @@ export async function handleWakatimeImport(
     handleLog(`WakaTime API import failed for user ${userId}: ${errorMessage}`);
 
     throw handleApiError(
-      911,
+      69,
       `WakaTime API import failed for user ${userId}: ${errorMessage}`,
       "Failed to import data from WakaTime. Please check your API key and try again.",
     );
@@ -514,7 +514,7 @@ export async function handleWakatimeFileImport(
     );
 
     throw handleApiError(
-      911,
+      69,
       `WakaTime file import failed for user ${userId}: ${errorMessage}`,
       "Failed to import data from WakaTime file. Please check your file and try again.",
     );
@@ -529,6 +529,7 @@ export function parseUserAgent(userAgent: string): {
     cursor: "Cursor",
     "visual studio code": "Visual Studio Code",
     vscode: "Visual Studio Code",
+    "vs code": "Visual Studio Code",
     "sublime text": "Sublime Text",
     atom: "Atom",
     vim: "Vim",
@@ -538,6 +539,8 @@ export function parseUserAgent(userAgent: string): {
     "zed dev": "Zed Preview",
     pearai: "PearAI",
     "intellij idea": "IntelliJ IDEA",
+    "intellij community edition": "IntelliJ IDEA",
+    "intellij ultimate edition": "IntelliJ IDEA",
     intellijidea: "IntelliJ IDEA",
     pycharm: "PyCharm",
     webstorm: "WebStorm",

@@ -47,7 +47,8 @@
       </form>
       <div class="buttons">
         <UiButton text="Register" keyName="enter" @click="register" />
-        <UiButton text="Register with Github" keyName="g" @click="githubAuth" />
+        <UiButton text="Github" keyName="g" @click="githubAuth" />
+        <UiButton text="Epilogue" keyName="e" @click="epilogueAuth" />
       </div>
     </main>
   </NuxtLayout>
@@ -55,7 +56,6 @@
 
 <script setup lang="ts">
 import { LucideKeyRound, LucideMail } from "lucide-vue-next";
-import { Key } from "@waradu/keyboard";
 
 const error = ref("");
 const email = ref("");
@@ -86,18 +86,27 @@ async function githubAuth() {
   window.location.href = "/api/auth/github";
 }
 
-useKeybind([Key.G], async () => {
+async function epilogueAuth() {
+  window.location.href = "/api/auth/epilogue";
+}
+
+useKeybind({keys: ["g"], async run() {
   if (isInputFocused.value) return;
   await githubAuth();
-});
+}});
 
-useKeybind(
-  [Key.Enter],
-  async () => {
+useKeybind({keys: ["e"], async run() {
+  if (isInputFocused.value) return;
+  await epilogueAuth();
+}});
+
+useKeybind({
+  keys: ["enter"],
+  async run() {
     await register();
   },
-  { prevent: true }
-);
+  config: { prevent: true }
+});
 
 useSeoMeta({
   title: "Register - Ziit",

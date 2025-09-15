@@ -7,15 +7,13 @@
 </template>
 
 <script setup lang="ts">
-import { Key } from "@waradu/keyboard";
-
-useKeybind(
-  [Key.F],
-  async () => {
+useKeybind({
+  keys: ["f"],
+  run() {
     useToast().success("You payed respect to the easter egg");
   },
-  { ignoreIfEditable: true }
-);
+  config: { ignoreIfEditable: true },
+});
 </script>
 
 <style lang="scss">

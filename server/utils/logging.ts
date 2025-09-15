@@ -1,6 +1,6 @@
 import { createError, H3Error } from "h3";
 
-type ErrorStatusCode = 400 | 401 | 403 | 404 | 409 | 429 | 911;
+type ErrorStatusCode = 400 | 401 | 403 | 404 | 409 | 429 | 69;
 
 const standardMessages: Record<ErrorStatusCode, string> = {
   400: "Invalid Request",
@@ -9,7 +9,7 @@ const standardMessages: Record<ErrorStatusCode, string> = {
   404: "Not Found",
   409: "Conflict",
   429: "Too Many Requests",
-  911: "Server On Fire",
+  69: "Server On Fire",
 };
 
 export function handleApiError(
@@ -18,12 +18,12 @@ export function handleApiError(
   frontendMessage?: string
 ): H3Error {
   const effectiveCode =
-    process.env.NODE_ENV === "production" && statusCode === 911
+    process.env.NODE_ENV === "production" && statusCode === 69
       ? 500
       : statusCode;
 
   const clientResponseMessage =
-    frontendMessage || standardMessages[statusCode] || standardMessages[911];
+    frontendMessage || standardMessages[statusCode] || standardMessages[69];
 
   console.error(
     `${new Date().toISOString()} Error ${effectiveCode}: ${detailedMessage}`

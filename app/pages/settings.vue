@@ -8,21 +8,28 @@
             <p>User ID</p>
             <p>Email</p>
             <p>Github Linked</p>
+            <p>Epilogue Linked</p>
             <p>Show up on Leaderboard</p>
           </div>
           <div class="values">
             <p>{{ user?.id }}</p>
             <p>{{ user?.email }}</p>
             <p>{{ hasGithubAccount ? "yes" : "no" }}</p>
+            <p>{{ hasEpilogueAccount ? "yes" : "no" }}</p>
             <p>{{ user?.leaderboardEnabled ? "yes" : "no" }}</p>
           </div>
         </div>
         <div class="buttons">
           <UiButton
-            v-if="!hasGithubAccount"
+            v-if="!hasGithubAccount && !hasEpilogueAccount"
             text="Link Github"
             keyName="L"
             @click="linkGithub" />
+          <UiButton
+            v-if="!hasEpilogueAccount && !hasGithubAccount"
+            text="Link Epilogue"
+            keyName="M"
+            @click="linkEpilogue" />
           <UiButton
             :text="
               user?.leaderboardEnabled
@@ -266,7 +273,7 @@
 <script setup lang="ts">
 import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
-import { Key } from "@waradu/keyboard";
+
 import * as statsLib from "~~/lib/stats";
 import type { ImportJob } from "~~/server/utils/import-queue";
 
@@ -279,6 +286,7 @@ const keystrokeTimeout = ref(0);
 const originalKeystrokeTimeout = ref(0);
 const timeoutChanged = ref(false);
 const hasGithubAccount = computed(() => !!user.value?.githubId);
+const hasEpilogueAccount = computed(() => !!user.value?.epilogueId);
 const WAKATIME_API = "wakatime-api" as const;
 const WAKATIME_FILE = "wakatime-file" as const;
 const WAKAPI = "wakapi" as const;
@@ -540,11 +548,13 @@ onMounted(async () => {
 
   if (route.query.error) {
     const errorMessages: Record<string, string> = {
-      link_failed: "Failed to link GitHub account",
+      link_failed: "Failed to link account",
       invalid_state: "Invalid state parameter",
       no_code: "No code provided",
       no_email: "No email found",
       github_auth_failed: "GitHub authentication failed",
+      epilogue_auth_failed: "Epilogue authentication failed",
+      link_cancelled: "Account linking was cancelled",
     };
 
     const message = errorMessages[route.query.error as string] || "Error";
@@ -555,6 +565,8 @@ onMounted(async () => {
     const successMessages: Record<string, string> = {
       github_linked: "GitHub account successfully linked",
       github_updated: "GitHub credentials updated",
+      epilogue_linked: "Epilogue account successfully linked",
+      epilogue_updated: "Epilogue credentials updated",
       accounts_merged: "Accounts successfully merged",
     };
 
@@ -563,90 +575,100 @@ onMounted(async () => {
   }
 });
 
-useKeybind(
-  [Key.L],
-  async () => {
-    if (hasGithubAccount) {
+useKeybind({
+  keys: ["l"],
+  run: async () => {
+    if (!hasGithubAccount.value && !hasEpilogueAccount.value) {
       await linkGithub();
     }
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.O],
-  async () => {
+useKeybind({
+  keys: ["m"],
+  async run() {
+    if (!hasEpilogueAccount.value && !hasGithubAccount.value) {
+      await linkEpilogue();
+    }
+  },
+  config: { prevent: true, ignoreIfEditable: true }
+});
+
+useKeybind({
+  keys: ["o"],
+  run: async () => {
     await toggleLeaderboard();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.E],
-  async () => {
+useKeybind({
+  keys: ["e"],
+  run: async () => {
     showEmailModal.value = true;
     newEmail.value = user.value?.email || "";
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.P],
-  async () => {
+useKeybind({
+  keys: ["p"],
+  run: async () => {
     showPasswordModal.value = true;
     newPassword.value = "";
     confirmPassword.value = "";
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.Alt, Key.L],
-  async () => {
+useKeybind({
+  keys: ["alt_l"],
+  run: async () => {
     try {
       window.location.href = "/api/auth/logout";
     } catch (e: any) {
       toast.error(e.data?.message || "Logout failed");
     }
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.S],
-  async () => {
+useKeybind({
+  keys: ["s"],
+  run: async () => {
     toggleApiKey();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.C],
-  async () => {
+useKeybind({
+  keys: ["c"],
+  run: async () => {
     await copyApiKey();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.R],
-  async () => {
+useKeybind({
+  keys: ["r"],
+  run: async () => {
     await regenerateApiKey();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.I],
-  async () => {
+useKeybind({
+  keys: ["i"],
+  run: async () => {
     await importTrackingData();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.Alt, Key.R],
-  async () => {
+useKeybind({
+  keys: ["alt_r"],
+  run: async () => {
     if (
       !confirm(
         "Confirm that you want to regenerate all your summaires which can take a while."
@@ -657,8 +679,24 @@ useKeybind(
 
     await regenerateSummaries();
   },
-  { prevent: true, ignoreIfEditable: true }
-);
+  config: { prevent: true, ignoreIfEditable: true },
+});
+
+useKeybind({
+  keys: ["control_c"],
+  run() {
+    countDown("purge");
+  },
+  config: { prevent: true, ignoreIfEditable: true },
+});
+
+useKeybind({
+  keys: ["control_d"],
+  run() {
+    countDown("delete");
+  },
+  config: { prevent: true, ignoreIfEditable: true },
+});
 
 async function updateKeystrokeTimeout() {
   if (!user.value) return;
@@ -816,6 +854,18 @@ async function logout() {
 
 async function linkGithub() {
   window.location.href = "/api/auth/github/link";
+}
+
+async function linkEpilogue() {
+  try {
+    const response = await $fetch("/api/auth/epilogue/link");
+    if (response?.url) {
+      window.location.href = response.url;
+    }
+  } catch (error: any) {
+    console.error("Error initiating Epilogue link:", error);
+    toast.error("Failed to initiate Epilogue linking");
+  }
 }
 
 async function toggleLeaderboard() {

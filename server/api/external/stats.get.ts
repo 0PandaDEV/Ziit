@@ -66,6 +66,6 @@ export default defineEventHandler(async (event: H3Event) => {
     if (error && typeof error === "object" && error.statusCode) throw error;
     const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred fetching external stats.";
     const apiKeyPrefix = getHeader(event, "authorization")?.substring(7,11) || "UNKNOWN";
-    throw handleApiError(911, `External Stats API: Failed to fetch statistics. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`, "Failed to fetch statistics.");
+    throw handleApiError(69, `External Stats API: Failed to fetch statistics. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`, "Failed to fetch statistics.");
   }
 });

@@ -43,7 +43,8 @@
       </form>
       <div class="buttons">
         <UiButton text="Login" keyName="enter" @click="login" />
-        <UiButton text="Login with Github" keyName="g" @click="githubAuth" />
+        <UiButton text="Github" keyName="g" @click="githubAuth" />
+        <UiButton text="Epilogue" keyName="e" @click="epilogueAuth" />
       </div>
     </main>
   </NuxtLayout>
@@ -51,7 +52,6 @@
 
 <script setup lang="ts">
 import { LucideKeyRound, LucideMail } from "lucide-vue-next";
-import { Key } from "@waradu/keyboard";
 
 const error = ref("");
 const email = ref("");
@@ -66,6 +66,10 @@ onMounted(() => {
       no_code: "No authorization code received",
       no_email: "No email address found in your GitHub account",
       github_auth_failed: "GitHub authentication failed",
+      epilogue_auth_failed: "Epilogue authentication failed",
+      link_failed: "Account linking failed, please try again",
+      cancelled: "Authentication was cancelled",
+      link_cancelled: "Account linking was cancelled",
     };
 
     const message =
@@ -83,21 +87,29 @@ onMounted(() => {
   }
 });
 
-useKeybind(
-  [Key.G],
-  async () => {
+useKeybind({
+  keys: ["g"],
+  async run() {
     await githubAuth();
   },
-  { ignoreIfEditable: true }
-);
+  config: { ignoreIfEditable: true },
+});
 
-useKeybind(
-  [Key.Enter],
-  async () => {
+useKeybind({
+  keys: ["e"],
+  async run() {
+    await epilogueAuth();
+  },
+  config: { ignoreIfEditable: true }
+});
+
+useKeybind({
+  keys: ["enter"],
+  async run() {
     await login();
   },
-  { prevent: true }
-);
+  config: { prevent: true },
+});
 
 async function login() {
   error.value = "";
@@ -118,6 +130,10 @@ async function login() {
 
 async function githubAuth() {
   window.location.href = "/api/auth/github";
+}
+
+async function epilogueAuth() {
+  window.location.href = "/api/auth/epilogue";
 }
 
 useSeoMeta({

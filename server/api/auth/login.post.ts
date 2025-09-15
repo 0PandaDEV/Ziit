@@ -105,7 +105,7 @@ export default defineEventHandler(async (event) => {
         ? error.message
         : "An unknown error occurred during login.";
     throw handleApiError(
-      911,
+      69,
       `Authentication failed: ${detailedMessage}`,
       "Authentication failed. Please try again."
     );

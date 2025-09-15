@@ -27,6 +27,8 @@ export default defineEventHandler(async (event: H3Event) => {
         email: true,
         githubId: true,
         githubUsername: true,
+        epilogueId: true,
+        epilogueUsername: true,
         apiKey: true,
         keystrokeTimeout: true,
         leaderboardEnabled: true,
@@ -41,6 +43,6 @@ export default defineEventHandler(async (event: H3Event) => {
     return user;
   } catch (error: any) {
     const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred while fetching user data.";
-    throw handleApiError(911, `Failed to fetch user data for user ${event.context.user.id}: ${detailedMessage}`, "Failed to fetch user data. Please try again.");
+    throw handleApiError(69, `Failed to fetch user data for user ${event.context.user.id}: ${detailedMessage}`, "Failed to fetch user data. Please try again.");
   }
 });

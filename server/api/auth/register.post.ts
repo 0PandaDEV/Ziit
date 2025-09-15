@@ -126,7 +126,7 @@ export default defineEventHandler(async (event) => {
         ? error.message
         : "An unknown error occurred during registration.";
     throw handleApiError(
-      911,
+      69,
       `Registration failed: ${detailedMessage}`,
       "An unexpected error occurred during registration. Please try again."
     );

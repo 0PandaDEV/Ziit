@@ -56,7 +56,7 @@ export default defineEventHandler(async (event) => {
   if (!code) {
     throw handleApiError(
       400,
-      "GitHub callback error: No authorization code provided."
+      "GitHub callback error: No authorization code provided.",
     );
   }
 
@@ -89,7 +89,7 @@ export default defineEventHandler(async (event) => {
           code,
           redirect_uri: config.githubRedirectUri,
         }),
-      }
+      },
     );
 
     const accessToken = tokenResponse.access_token;
@@ -108,7 +108,7 @@ export default defineEventHandler(async (event) => {
           Authorization: `Bearer ${accessToken}`,
           Accept: "application/vnd.github.v3+json",
         },
-      }
+      },
     );
 
     const primaryEmail =
@@ -116,9 +116,9 @@ export default defineEventHandler(async (event) => {
 
     if (!primaryEmail) {
       throw handleApiError(
-        911,
+        69,
         `GitHub callback error: No primary email found for GitHub user ID ${githubUser.id}. Emails received: ${JSON.stringify(emails)}`,
-        "Could not retrieve email from GitHub"
+        "Could not retrieve email from GitHub",
       );
     }
 
@@ -195,7 +195,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       let user = await tx.user.findFirst({
         where: { githubId: githubUser.id.toString() },
       });
@@ -250,19 +250,23 @@ export default defineEventHandler(async (event) => {
         sameSite: "lax",
       });
 
-      return "/";
+      return user;
     });
 
-    return sendRedirect(event, result);
+    setHeader(event, "Cache-Control", "no-cache, no-store, must-revalidate");
+    setHeader(event, "Pragma", "no-cache");
+    setHeader(event, "Expires", "0");
+
+    return sendRedirect(event, "/");
   } catch (error) {
     const detailedMessage =
       error instanceof Error
         ? error.message
         : "An unknown error occurred during GitHub authentication.";
     throw handleApiError(
-      911,
+      69,
       `GitHub authentication failed: ${detailedMessage}`,
-      "GitHub authentication failed. Please try again."
+      "GitHub authentication failed. Please try again.",
     );
   }
 });

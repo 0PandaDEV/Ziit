@@ -19,6 +19,9 @@ model User {
   githubId            String?      @unique
   githubUsername      String?
   githubAccessToken   String?
+  epilogueId          String?      @unique
+  epilogueUsername    String?
+  epilogueToken       String?
   apiKey              String       @unique @default(uuid())
   keystrokeTimeout    Int          @default(5)
   leaderboardEnabled  Boolean      @default(false)

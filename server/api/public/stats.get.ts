@@ -63,7 +63,7 @@ export default defineEventHandler(async (event) => {
         ? error.message
         : "An unknown error occurred fetching stats";
     throw handleApiError(
-      911,
+      69,
       `Failed to fetch public stats: ${detailedMessage}`,
       "Failed to fetch stats"
     );

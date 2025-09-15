@@ -7,7 +7,7 @@
         "@nuxtjs/sitemap": "7.4.3",
         "@prisma/client": "6.16.0",
         "@vite-pwa/nuxt": "1.0.4",
-        "@waradu/keyboard": "5.3.6",
+        "@waradu/keyboard": "6.0.0",
         "badgen": "3.2.3",
         "bcrypt": "6.0.0",
         "chart.js": "4.5.0",
@@ -679,7 +679,7 @@
 
     "@vue/shared": ["@vue/shared@3.5.21", "", {}, "sha512-+2k1EQpnYuVuu3N7atWyG3/xoFWIVJZq4Mz8XNOdScFI0etES75fbny/oU4lKWk/577P1zmg0ioYvpGEDZ3DLw=="],
 
-    "@waradu/keyboard": ["@waradu/keyboard@5.3.6", "", { "peerDependencies": { "typescript": "^5.9.2" } }, "sha512-6i4QzvSs/RpPYlyrVtBtjYw+t4uWHqbNQrXGSSs+huaFYm3boAzxzbipNoO20pmt+ilefDaZ/6BV8sGVFVCJwA=="],
+    "@waradu/keyboard": ["@waradu/keyboard@6.0.0", "", { "peerDependencies": { "typescript": "^5.9.2" } }, "sha512-ja0BslIxERcPlJJkl1ced0JWxDNLhCTD+xo4BjBiWNUIk7p8eN83N1JjBPLGRuM9yCIQ3AXdocdTVsQBrhzL0g=="],
 
     "@whatwg-node/disposablestack": ["@whatwg-node/disposablestack@0.0.6", "", { "dependencies": { "@whatwg-node/promise-helpers": "^1.0.0", "tslib": "^2.6.3" } }, "sha512-LOtTn+JgJvX8WfBVJtF08TGrdjuFzGJc4mkP8EdDI8ADbvO7kiexYep1o8dwnt0okb0jYclCDXF13xU7Ge4zSw=="],
 

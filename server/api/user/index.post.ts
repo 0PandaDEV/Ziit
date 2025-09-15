@@ -138,7 +138,7 @@ export default defineEventHandler(async (event: H3Event) => {
         ? error.message
         : "An unknown error occurred while updating user settings.";
     throw handleApiError(
-      911,
+      69,
       `Failed to update user settings for user ${event.context.user.id}: ${detailedMessage}`,
       "Failed to update user settings. Please try again."
     );
