@@ -126,8 +126,6 @@ async function authenticate() {
       },
     });
 
-    console.log(data);
-
     if (data) {
       adminUsers.value = data as AdminUser[];
       isAuthenticated.value = true;
@@ -212,7 +210,6 @@ const sortedAdminUsers = computed(() => {
 
 function formatDate(date: string): string {
   const userLocale: string = navigator.language || "en-US";
-  console.log(userLocale);
   return new Date(date).toLocaleDateString(userLocale, {
     year: "numeric",
     month: "short",

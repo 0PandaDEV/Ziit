@@ -1,6 +1,6 @@
 import { processHeartbeatsByDate } from "~~/server/utils/summarize";
 import { handleApiError, handleLog } from "~~/server/utils/logging";
-import { activeJobs, type ImportJob } from "~~/server/utils/import-jobs";
+import { activeJobs, type ImportJob } from "~~/server/utils/import-queue";
 import { randomUUID } from "crypto";
 import path from "path";
 import { parseUserAgent } from "./wakatime";
@@ -79,7 +79,7 @@ async function fetchWakApiHeartbeats(
   );
 
   if (job) {
-    job.totalToProcess = allDateStrings.length;
+    job.totalToProcess = 0;
     job.processedCount = 0;
     job.status = "Processing heartbeats";
     activeJobs.set(job.id, job);
@@ -129,14 +129,17 @@ async function fetchWakApiHeartbeats(
       if (heartbeats.length > 0) {
         heartbeatsByDate.set(dateStr, heartbeats);
         await processHeartbeatsByDate(userId, heartbeats);
-      }
 
-      if (job) {
-        job.processedCount! += 1;
-        job.progress = Math.round(
-          (job.processedCount! / job.totalToProcess!) * 100,
-        );
-        activeJobs.set(job.id, job);
+        if (job) {
+          job.processedCount! += 1;
+          job.totalToProcess! += 1;
+
+          const dateProgress = Math.round(
+            ((i + 1) / allDateStrings.length) * 100,
+          );
+          job.progress = dateProgress;
+          activeJobs.set(job.id, job);
+        }
       }
     } catch (error) {
       handleApiError(
@@ -149,7 +152,9 @@ async function fetchWakApiHeartbeats(
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 
-  handleLog(`Completed processing all ${allDateStrings.length} dates`);
+  handleLog(
+    `Completed processing all ${allDateStrings.length} dates - found data on ${heartbeatsByDate.size} days with activity`,
+  );
   return heartbeatsByDate;
 }
 
@@ -157,15 +162,19 @@ export async function handleWakApiImport(
   apiKey: string,
   instanceUrl: string,
   userId: string,
-) {
-  const job: ImportJob = {
+  existingJob?: ImportJob,
+): Promise<{ success: boolean; imported?: number; message?: string }> {
+  const job: ImportJob = existingJob || {
     id: randomUUID(),
     fileName: `WakAPI Import ${new Date().toISOString()}`,
     status: "Pending",
     progress: 0,
     userId,
   };
-  activeJobs.set(job.id, job);
+
+  if (!existingJob) {
+    activeJobs.set(job.id, job);
+  }
 
   const headers = {
     Authorization: `Basic ${Buffer.from(apiKey).toString("base64")}`,
@@ -234,7 +243,7 @@ export async function handleWakApiImport(
     activeJobs.set(job.id, job);
 
     handleLog(
-      `Successfully imported data from ${heartbeatsByDate.size} days with activity`,
+      `Successfully imported data from ${heartbeatsByDate.size} days with activity (checked ${Array.from(heartbeatsByDate.values()).reduce((acc, val) => acc + val.length, 0)} heartbeats total)`,
     );
     return { success: true, imported: heartbeatsByDate.size };
   } catch (error: any) {

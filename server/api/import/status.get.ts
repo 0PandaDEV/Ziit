@@ -1,7 +1,15 @@
 import { createEventStream, getRequestHeader } from "h3";
 import type { User } from "@prisma/client";
-import { activeJobs } from "~~/server/utils/import-jobs";
+import {
+  getAllJobStatuses,
+  getQueueStatus,
+} from "~~/server/utils/import-queue";
 import { handleLog } from "~~/server/utils/logging";
+
+function isActiveJobStatus(status: string): boolean {
+  const activeStatuses = ["Processing", "Queued", "Uploading", "Pending"];
+  return activeStatuses.some((activeStatus) => status.startsWith(activeStatus));
+}
 
 export default defineEventHandler((event) => {
   const user = (event.context as any).user as User;
@@ -13,14 +21,25 @@ export default defineEventHandler((event) => {
   }
 
   const userId = user.id;
-  const job = Array.from(activeJobs.values()).find((j) => j.userId === userId);
+  const userJobs = getAllJobStatuses(userId);
+  const queueStatus = getQueueStatus();
+
+  const activeJob =
+    userJobs.find((j) => isActiveJobStatus(j.status)) ||
+    userJobs.sort((a, b) => b.id.localeCompare(a.id))[0];
 
   const acceptHeader = getRequestHeader(event, "accept");
   if (!acceptHeader?.includes("text/event-stream")) {
-    if (job) {
-      return job;
-    }
-    return { status: "no_job" };
+    return {
+      activeJob,
+      allJobs: userJobs.slice(0, 10),
+      queueStatus: {
+        queueLength: queueStatus.queueLength,
+        busyWorkers: queueStatus.busyWorkers,
+        availableWorkers: queueStatus.availableWorkers,
+      },
+      hasActiveJobs: userJobs.some((j) => isActiveJobStatus(j.status)),
+    };
   }
 
   const eventStream = createEventStream(event);
@@ -29,35 +48,54 @@ export default defineEventHandler((event) => {
 
   let completedMessagesSent = 0;
   let isCompleted = false;
+  let heartbeatsSent = 0;
 
   const interval = setInterval(() => {
-    const job = Array.from(activeJobs.values()).find(
-      (j) => j.userId === userId,
+    const currentUserJobs = getAllJobStatuses(userId);
+    const currentQueueStatus = getQueueStatus();
+
+    const currentActiveJob = currentUserJobs.find((j) =>
+      isActiveJobStatus(j.status),
     );
 
-    if (job) {
-      eventStream.push(JSON.stringify(job));
+    const response = {
+      activeJob: currentActiveJob,
+      queueStatus: {
+        queueLength: currentQueueStatus.queueLength,
+        busyWorkers: currentQueueStatus.busyWorkers,
+        availableWorkers: currentQueueStatus.availableWorkers,
+      },
+      hasActiveJobs: currentUserJobs.some((j) => isActiveJobStatus(j.status)),
+      totalJobs: currentUserJobs.length,
+      recentJobs: currentUserJobs.slice(0, 5),
+      heartbeat: ++heartbeatsSent,
+    };
 
-      if (
-        (job.status === "Completed" || job.status === "Failed") &&
-        !isCompleted
-      ) {
-        isCompleted = true;
-        completedMessagesSent = 0;
-      }
-
-      if (isCompleted) {
-        completedMessagesSent++;
-        if (completedMessagesSent >= 10) {
-          clearInterval(interval);
-          activeJobs.delete(userId);
-          eventStream.close();
-        }
-      }
-    } else {
-      eventStream.push(JSON.stringify({ status: "no_job" }));
+    try {
+      eventStream.push(JSON.stringify(response));
+    } catch (error) {
+      handleLog(`[sse] Error sending message to user ${userId}: ${error}`);
+      clearInterval(interval);
+      return;
     }
-  }, 200);
+
+    const hasActiveJobs = currentUserJobs.some((j) =>
+      isActiveJobStatus(j.status),
+    );
+
+    if (!hasActiveJobs && !isCompleted) {
+      isCompleted = true;
+      completedMessagesSent = 0;
+    }
+
+    if (isCompleted) {
+      completedMessagesSent++;
+      if (completedMessagesSent >= 120) {
+        clearInterval(interval);
+        eventStream.close();
+      }
+    }
+  }, 250);
 
   eventStream.onClosed(() => {
     handleLog(`[sse] close for user ${userId}`);

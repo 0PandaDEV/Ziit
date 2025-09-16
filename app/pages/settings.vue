@@ -226,7 +226,13 @@
             {{ importStatusText }}
           </p>
           <div class="bar-container">
-            <div class="bar" :style="{ width: importJob.progress + '%' }"></div>
+            <div
+              class="bar"
+              :style="{
+                width:
+                  (uploadProgress > 0 ? uploadProgress : importJob.progress) +
+                  '%',
+              }"></div>
           </div>
         </div>
       </section>
@@ -269,7 +275,7 @@ import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
 
 import * as statsLib from "~~/lib/stats";
-import type { ImportJob } from "~~/server/utils/import-jobs";
+import type { ImportJob } from "~~/server/utils/import-queue";
 
 const userState = useState<User | null>("user");
 const user = computed(() => userState.value);
@@ -293,9 +299,14 @@ const wakaTimeFileInput = ref<HTMLInputElement | null>(null);
 const selectedFile = ref<File | null>(null);
 const selectedFileName = ref<string | null>(null);
 const uploadProgress = ref(0);
+const uploadedBytes = ref(0);
+const uploadStatus = ref("");
 const isUploading = ref(false);
 const importJob = ref<ImportJob | null>(null);
 let eventSource: EventSource | null = null;
+let reconnectAttempts = 0;
+let maxReconnectAttempts = 5;
+let reconnectTimeout: NodeJS.Timeout | null = null;
 const CHUNK_SIZE = 95 * 1024 * 1024;
 
 const spinnerChars = ["-", "/", "|", "\\"];
@@ -337,9 +348,13 @@ const importStatusText = computed(() => {
   let status = job.status;
 
   if (job.status === "Uploading" && job.totalSize) {
-    const uploadedMB = ((job.uploadedSize || 0) / (1024 * 1024)).toFixed(2);
+    const currentProgress =
+      uploadProgress.value > 0 ? uploadProgress.value : job.progress;
+    const currentUploaded =
+      uploadedBytes.value > 0 ? uploadedBytes.value : job.uploadedSize || 0;
+    const uploadedMB = (currentUploaded / (1024 * 1024)).toFixed(2);
     const totalMB = (job.totalSize / (1024 * 1024)).toFixed(2);
-    return `Uploading: ${uploadedMB}MB / ${totalMB}MB (${job.progress}%)`;
+    return `${uploadStatus.value || "Uploading"}: ${uploadedMB}MB / ${totalMB}MB (${currentProgress}%)`;
   }
 
   if (job.status === "Creating data dump request") {
@@ -407,6 +422,9 @@ watch(importJob, (newJob) => {
     } else if (newJob.status === "Failed") {
       toast.error(`Import failed: ${newJob.error}`);
     }
+    uploadProgress.value = 0;
+    uploadedBytes.value = 0;
+    uploadStatus.value = "";
   } else if (newJob) {
     startSpinner();
   } else {
@@ -421,36 +439,77 @@ function connectEventSource() {
 
   eventSource.onopen = () => {
     console.log("EventSource connected");
+    reconnectAttempts = 0;
   };
 
   eventSource.onmessage = (event) => {
-    const jobStatus = JSON.parse(event.data);
-    if (!jobStatus || jobStatus.status === "no_job") {
-      importJob.value = null;
-    } else if (
-      jobStatus.status === "Completed" ||
-      jobStatus.status === "Failed"
-    ) {
-      importJob.value = jobStatus as ImportJob;
-      setTimeout(() => {
-        if (eventSource) {
-          eventSource.close();
-          eventSource = null;
+    try {
+      const response = JSON.parse(event.data);
+
+      if (response.activeJob) {
+        const serverJob = response.activeJob as ImportJob;
+
+        if (
+          importJob.value &&
+          importJob.value.status === "Uploading" &&
+          isUploading.value &&
+          (serverJob.status === "Pending" || !serverJob.uploadedSize)
+        ) {
+          importJob.value = {
+            ...serverJob,
+            status: "Uploading",
+            progress: uploadProgress.value,
+            uploadedSize: uploadedBytes.value,
+            totalSize: importJob.value.totalSize,
+          };
+        } else {
+          importJob.value = serverJob;
         }
-      }, 5000);
-    } else {
-      importJob.value = jobStatus as ImportJob;
+      } else if (!response.hasActiveJobs && !isUploading.value) {
+        importJob.value = null;
+      }
+    } catch (error) {
+      console.error("Error parsing EventSource message:", error);
     }
   };
 
   eventSource.onerror = (error) => {
     console.error("EventSource error:", error);
-    toast.error("An error occurred with the status connection.");
+
     if (eventSource) {
       eventSource.close();
       eventSource = null;
     }
+
+    if (reconnectAttempts < maxReconnectAttempts) {
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+      reconnectAttempts++;
+
+      console.log(
+        `Attempting to reconnect in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`
+      );
+
+      reconnectTimeout = setTimeout(() => {
+        connectEventSource();
+      }, delay);
+    } else {
+      toast.error("Connection lost. Please refresh the page.");
+    }
   };
+}
+
+function disconnectEventSource() {
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+  }
+
+  reconnectAttempts = 0;
 }
 
 onUnmounted(() => {
@@ -480,21 +539,7 @@ async function fetchUserData() {
 
 onMounted(async () => {
   await fetchUserData();
-
-  try {
-    const job = await $fetch<any>("/api/import/status");
-    if (
-      job &&
-      job.status !== "no_job" &&
-      job.status !== "Completed" &&
-      job.status !== "Failed"
-    ) {
-      importJob.value = job as ImportJob;
-      connectEventSource();
-    }
-  } catch (error) {
-    console.error("Error fetching initial import job status:", error);
-  }
+  connectEventSource();
 
   if (user.value) {
     keystrokeTimeout.value = user.value.keystrokeTimeout;
@@ -872,6 +917,10 @@ function handleFileChange(event: Event) {
   }
 }
 
+onBeforeUnmount(() => {
+  disconnectEventSource();
+});
+
 async function importTrackingData() {
   if (importType.value === "wakatime-file") {
     if (!selectedFile.value) {
@@ -885,35 +934,40 @@ async function importTrackingData() {
       const file = selectedFile.value;
       const fileSize = file.size;
 
-      console.log(
-        `Starting upload of ${file.name}, size: ${(
-          fileSize /
-          (1024 * 1024)
-        ).toFixed(2)}MB`
-      );
-
       const fileId = Date.now().toString();
       importJob.value = {
         id: fileId,
         fileName: file.name,
         status: "Uploading",
         progress: 0,
-        userId: "",
+        userId: user.value?.id || "",
         totalSize: fileSize,
         uploadedSize: 0,
         fileId: fileId,
       };
 
-      connectEventSource();
+      uploadProgress.value = 0;
+      uploadedBytes.value = 0;
+      uploadStatus.value = "Uploading";
 
       if (fileSize <= CHUNK_SIZE) {
         const formData = new FormData();
-        formData.append("file", selectedFile.value);
+        formData.append("file", file);
 
         await $fetch("/api/import", {
           method: "POST",
           body: formData,
         });
+
+        uploadProgress.value = 0;
+        uploadedBytes.value = 0;
+        uploadStatus.value = "";
+        isUploading.value = false;
+
+        if (importJob.value) {
+          importJob.value.status = "Processing";
+          importJob.value.progress = 0;
+        }
 
         toast.success("WakaTime data import started");
       } else {
@@ -921,6 +975,9 @@ async function importTrackingData() {
         toast.success(
           `Processing large file (${(fileSize / (1024 * 1024)).toFixed(2)}MB) in ${totalChunks} chunks`
         );
+
+        let totalUploadedBytes = 0;
+        uploadStatus.value = "Uploading chunks";
 
         for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
           const start = chunkIndex * CHUNK_SIZE;
@@ -935,21 +992,43 @@ async function importTrackingData() {
           formData.append("fileSize", fileSize.toString());
           formData.append("chunk", chunk);
 
-          await $fetch("/api/import", {
-            method: "POST",
-            body: formData,
-            onUploadProgress: (progressEvent: ProgressEvent) => {
-              if (progressEvent.lengthComputable) {
-                const chunkProgress =
-                  progressEvent.loaded / progressEvent.total;
-                const totalProgress =
-                  (chunkIndex + chunkProgress) / totalChunks;
-                if (importJob.value && importJob.value.status === "Uploading") {
-                  importJob.value.progress = Math.round(totalProgress * 100);
-                }
+          await new Promise<void>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener("progress", (progressEvent) => {
+              if (progressEvent.lengthComputable && importJob.value) {
+                const chunkProgress = progressEvent.loaded;
+                const totalUploaded = totalUploadedBytes + chunkProgress;
+
+                uploadedBytes.value = totalUploaded;
+                uploadProgress.value = Math.round(
+                  (totalUploaded / fileSize) * 100
+                );
+
+                importJob.value.uploadedSize = totalUploaded;
+                importJob.value.progress = uploadProgress.value;
               }
-            },
+            });
+
+            xhr.addEventListener("load", () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve();
+              } else {
+                reject(
+                  new Error(`Chunk upload failed with status ${xhr.status}`)
+                );
+              }
+            });
+
+            xhr.addEventListener("error", () => {
+              reject(new Error("Chunk upload failed"));
+            });
+
+            xhr.open("POST", "/api/import");
+            xhr.send(formData);
           });
+
+          totalUploadedBytes += chunk.size;
         }
 
         await $fetch("/api/import", {
@@ -958,15 +1037,30 @@ async function importTrackingData() {
         });
       }
 
+      // Clear upload state and transition to processing
+      uploadProgress.value = 0;
+      uploadedBytes.value = 0;
+      uploadStatus.value = "";
+      isUploading.value = false;
+
+      if (importJob.value) {
+        importJob.value.status = "Processing";
+        importJob.value.progress = 0;
+      }
+
       selectedFile.value = null;
       selectedFileName.value = null;
-      uploadProgress.value = 0;
       if (wakaTimeFileInput.value) {
         wakaTimeFileInput.value.value = "";
       }
     } catch (error: any) {
       console.error("Error importing WakaTime data:", error);
       toast.error(error?.data?.message || "Failed to import WakaTime data");
+
+      uploadProgress.value = 0;
+      uploadedBytes.value = 0;
+      uploadStatus.value = "";
+      importJob.value = null;
     } finally {
       isUploading.value = false;
     }
@@ -997,8 +1091,6 @@ async function importTrackingData() {
       }
       payload.instanceUrl = wakapiInstanceUrl.value;
     }
-
-    connectEventSource();
 
     try {
       const displayName =
