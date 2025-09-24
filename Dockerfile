@@ -1,16 +1,27 @@
-FROM oven/bun:latest
+FROM oven/bun:alpine AS builder
+WORKDIR /app
 
-WORKDIR /ziit
+RUN apk add --no-cache openssl
 
-RUN apt-get update -y && apt-get install -y openssl
-
-COPY package.json bun.lock ./
-RUN bun install
+COPY package.json bun.lock* ./
+RUN bun install --frozen-lockfile
 
 COPY . .
 RUN bunx prisma generate
 RUN bun run build
 
-EXPOSE 3000
+FROM alpine:3.19
+WORKDIR /app
 
-CMD ["sh", "-c", "bunx prisma generate && bunx prisma migrate deploy && bun run .output/server/index.mjs"]
+RUN apk add --no-cache nodejs=~20 npm && \
+  npm install -g prisma@latest --omit=dev && \
+  rm -rf /var/cache/apk/* /tmp/* /var/tmp/* ~/.npm
+
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/.output ./.output
+
+USER nobody
+EXPOSE 3000
+CMD ["sh", "-c", "prisma migrate deploy && node ./.output/server/index.mjs"]
