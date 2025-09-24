@@ -25,7 +25,9 @@ export default defineNuxtConfig({
     preset: "node-server",
     experimental: {
       openAPI: process.env.NODE_ENV === "development",
+      wasm: false,
     },
+    minify: true,
   },
   app: {
     head: {
