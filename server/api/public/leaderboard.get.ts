@@ -1,4 +1,5 @@
 import { prisma } from "~~/prisma/prisma";
+import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
   openAPI: {
@@ -16,70 +17,68 @@ defineRouteMeta({
 
 export default defineEventHandler(async () => {
   try {
-    const users = await prisma.user.findMany({
-      select: { id: true },
-      where: {
-        leaderboardEnabled: true,
-      },
-    });
+    const leaderboardData = await prisma.$queryRaw<
+      Array<{
+        userId: string;
+        totalMinutes: string;
+      }>
+    >`
+      SELECT
+        "userId",
+        SUM("totalMinutes")::text as "totalMinutes"
+      FROM "Summaries" s
+      WHERE EXISTS (
+        SELECT 1 FROM "User" u
+        WHERE u.id = s."userId"
+        AND u."leaderboardEnabled" = true
+      )
+      GROUP BY "userId"
+      HAVING SUM("totalMinutes") > 0
+      ORDER BY SUM("totalMinutes") DESC
+      LIMIT 100
+    `;
 
     const leaderboard = await Promise.all(
-      users.map(async (user) => {
-        const summaries = await prisma.summaries.findMany({
-          where: { userId: user.id },
-          select: {
-            totalMinutes: true,
-            editors: true,
-            os: true,
-            languages: true,
-          },
-        });
-
-        const totalMinutes = summaries.reduce(
-          (sum, s) => sum + (s.totalMinutes || 0),
-          0,
-        );
-
-        function getTop(obj?: Record<string, number> | null): string | null {
-          if (!obj) return null;
-          const entries = Object.entries(obj);
-          if (entries.length === 0) return null;
-          return entries.sort((a, b) => b[1] - a[1])[0][0];
-        }
-
-        const mergedEditors: Record<string, number> = {};
-        const mergedOS: Record<string, number> = {};
-        const mergedLanguages: Record<string, number> = {};
-
-        for (const s of summaries) {
-          if (s.editors) {
-            for (const [k, v] of Object.entries(s.editors)) {
-              mergedEditors[k] = (mergedEditors[k] || 0) + (v as number);
-            }
-          }
-          if (s.os) {
-            for (const [k, v] of Object.entries(s.os)) {
-              mergedOS[k] = (mergedOS[k] || 0) + (v as number);
-            }
-          }
-          if (s.languages) {
-            for (const [k, v] of Object.entries(s.languages)) {
-              mergedLanguages[k] = (mergedLanguages[k] || 0) + (v as number);
-            }
-          }
-        }
+      leaderboardData.map(async (item) => {
+        const [topEditor, topOS, topLanguage] = await Promise.all([
+          prisma.$queryRaw<Array<{ editor: string }>>`
+            SELECT editor
+            FROM "Heartbeats"
+            WHERE "userId" = ${item.userId}
+              AND editor IS NOT NULL
+            GROUP BY editor
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+          `,
+          prisma.$queryRaw<Array<{ os: string }>>`
+            SELECT os
+            FROM "Heartbeats"
+            WHERE "userId" = ${item.userId}
+              AND os IS NOT NULL
+            GROUP BY os
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+          `,
+          prisma.$queryRaw<Array<{ language: string }>>`
+            SELECT language
+            FROM "Heartbeats"
+            WHERE "userId" = ${item.userId}
+              AND language IS NOT NULL
+            GROUP BY language
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+          `,
+        ]);
 
         return {
-          userId: user.id,
-          totalMinutes,
-          topEditor: getTop(mergedEditors),
-          topOS: getTop(mergedOS),
-          topLanguage: getTop(mergedLanguages),
+          userId: item.userId,
+          totalMinutes: parseInt(item.totalMinutes),
+          topEditor: topEditor[0]?.editor || null,
+          topOS: topOS[0]?.os || null,
+          topLanguage: topLanguage[0]?.language || null,
         };
       }),
     );
-
-    leaderboard.sort((a, b) => b.totalMinutes - a.totalMinutes);
 
     return leaderboard;
   } catch (error: any) {

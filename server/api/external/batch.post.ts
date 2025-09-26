@@ -7,7 +7,8 @@ defineRouteMeta({
   openAPI: {
     tags: ["External", "Heartbeats"],
     summary: "Create multiple heartbeats",
-    description: "Accepts up to 2000 heartbeats in a single request authenticated via Bearer API key.",
+    description:
+      "Accepts up to 2000 heartbeats in a single request authenticated via Bearer API key.",
     security: [{ bearerAuth: [] }],
     requestBody: {
       required: true,
@@ -18,7 +19,11 @@ defineRouteMeta({
             items: {
               type: "object",
               properties: {
-                timestamp: { type: "string", format: "date-time", description: "ISO 8601; numeric epoch also accepted." },
+                timestamp: {
+                  type: "string",
+                  format: "date-time",
+                  description: "ISO 8601; numeric epoch also accepted.",
+                },
                 project: { type: "string" },
                 language: { type: "string" },
                 editor: { type: "string" },
@@ -26,7 +31,14 @@ defineRouteMeta({
                 branch: { type: "string" },
                 file: { type: "string" },
               },
-              required: ["timestamp", "project", "language", "editor", "os", "file"],
+              required: [
+                "timestamp",
+                "project",
+                "language",
+                "editor",
+                "os",
+                "file",
+              ],
             },
           },
         },
@@ -35,7 +47,17 @@ defineRouteMeta({
     responses: {
       200: {
         description: "Heartbeats processed",
-        content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean" }, count: { type: "number" } } } } },
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                success: { type: "boolean" },
+                count: { type: "number" },
+              },
+            },
+          },
+        },
       },
       400: { description: "Validation error" },
       401: { description: "Invalid or missing API key" },
@@ -116,10 +138,21 @@ export default defineEventHandler(async (event: H3Event) => {
       };
     });
 
-    const result = await prisma.heartbeats.createMany({
-      data: heartbeatsData,
-      skipDuplicates: true,
-    });
+    let insertCount = 0;
+    const BATCH_SIZE = 1000;
+
+    for (let i = 0; i < heartbeatsData.length; i += BATCH_SIZE) {
+      const batch = heartbeatsData.slice(i, i + BATCH_SIZE);
+
+      const result = await prisma.heartbeats.createMany({
+        data: batch,
+        skipDuplicates: true,
+      });
+
+      insertCount += result.count;
+    }
+
+    const result = { count: insertCount };
 
     return {
       success: true,

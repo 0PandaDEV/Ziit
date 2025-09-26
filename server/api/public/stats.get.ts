@@ -16,37 +16,80 @@ defineRouteMeta({
 
 const prisma = new PrismaClient();
 
+let cachedStats: any = null;
+let cacheExpiry = 0;
+const CACHE_DURATION = 5 * 60 * 1000;
+
 export default defineEventHandler(async (event) => {
   try {
+    if (cachedStats && Date.now() < cacheExpiry) {
+      setResponseHeaders(event, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET",
+        "Cache-Control": "public, max-age=300",
+      });
+      return cachedStats;
+    }
+
     const latestStats = await prisma.stats.findFirst({
-      orderBy: {
-        date: "desc",
-      },
+      orderBy: { date: "desc" },
     });
 
-    const totalUsers = await prisma.user.count();
-    const totalHeartbeats = await prisma.heartbeats.count();
+    let totalUsers: number;
+    let totalHeartbeats: number;
+    let totalHours: number;
 
-    const summariesAggregate = await prisma.summaries.aggregate({
-      _sum: {
-        totalMinutes: true,
-      },
-    });
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    const totalHours = Math.floor(
-      Number(summariesAggregate._sum.totalMinutes || 0) / 60
-    );
+    if (latestStats && latestStats.date >= oneDayAgo) {
+      totalUsers = Number(latestStats.totalUsers);
+      totalHeartbeats = latestStats.totalHeartbeats;
+      totalHours = latestStats.totalHours;
+
+      const [newUsersCount, newHeartbeatsResult, newSummariesAggregate] =
+        await Promise.all([
+          prisma.user.count({
+            where: { createdAt: { gt: latestStats.date } },
+          }),
+          prisma.$queryRaw`
+          SELECT COUNT(*) as count
+          FROM "Heartbeats"
+          WHERE "createdAt" > ${latestStats.date}
+        ` as Promise<[{ count: string }]>,
+          prisma.summaries.aggregate({
+            _sum: { totalMinutes: true },
+            where: { createdAt: { gt: latestStats.date } },
+          }),
+        ]);
+
+      totalUsers += newUsersCount;
+      totalHeartbeats += Number(newHeartbeatsResult[0]?.count || 0);
+      totalHours += Math.floor(
+        Number(newSummariesAggregate._sum.totalMinutes || 0) / 60
+      );
+    } else {
+      const [usersCount, heartbeatsResult, summariesAggregate] =
+        await Promise.all([
+          prisma.user.count(),
+          prisma.$queryRaw`SELECT COUNT(*) as count FROM "Heartbeats"` as Promise<
+            [{ count: string }]
+          >,
+          prisma.summaries.aggregate({ _sum: { totalMinutes: true } }),
+        ]);
+
+      totalUsers = usersCount;
+      totalHeartbeats = Number(heartbeatsResult[0]?.count || 0);
+      totalHours = Math.floor(
+        Number(summariesAggregate._sum.totalMinutes || 0) / 60
+      );
+    }
 
     const topEditor = latestStats?.topEditor || "Unknown";
     const topLanguage = latestStats?.topLanguage || "Unknown";
     const topOS = latestStats?.topOS || "Unknown";
 
-    setResponseHeaders(event, {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET",
-    });
-
-    return {
+    const result = {
       totalUsers,
       totalHeartbeats,
       totalHours,
@@ -56,6 +99,17 @@ export default defineEventHandler(async (event) => {
       lastUpdated: latestStats?.createdAt || new Date(),
       source: latestStats ? "mixed" : "live",
     };
+
+    cachedStats = result;
+    cacheExpiry = Date.now() + CACHE_DURATION;
+
+    setResponseHeaders(event, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET",
+      "Cache-Control": "public, max-age=300",
+    });
+
+    return result;
   } catch (error: any) {
     if (error && typeof error === "object" && error.statusCode) throw error;
     const detailedMessage =

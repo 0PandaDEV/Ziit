@@ -7,7 +7,8 @@ defineRouteMeta({
   openAPI: {
     tags: ["External", "Heartbeats"],
     summary: "Create a single heartbeat",
-    description: "Accepts one heartbeat payload authenticated via Bearer API key.",
+    description:
+      "Accepts one heartbeat payload authenticated via Bearer API key.",
     security: [{ bearerAuth: [] }],
     requestBody: {
       required: true,
@@ -16,7 +17,11 @@ defineRouteMeta({
           schema: {
             type: "object",
             properties: {
-              timestamp: { type: "string", format: "date-time", description: "ISO 8601 timestamp; numeric epoch also accepted." },
+              timestamp: {
+                type: "string",
+                format: "date-time",
+                description: "ISO 8601 timestamp; numeric epoch also accepted.",
+              },
               project: { type: "string" },
               language: { type: "string" },
               editor: { type: "string" },
@@ -24,7 +29,14 @@ defineRouteMeta({
               branch: { type: "string" },
               file: { type: "string" },
             },
-            required: ["timestamp", "project", "language", "editor", "os", "file"],
+            required: [
+              "timestamp",
+              "project",
+              "language",
+              "editor",
+              "os",
+              "file",
+            ],
           },
         },
       },
@@ -32,7 +44,17 @@ defineRouteMeta({
     responses: {
       200: {
         description: "Heartbeat created",
-        content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean" }, id: { type: "number" } } } } },
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                success: { type: "boolean" },
+                id: { type: "string" },
+              },
+            },
+          },
+        },
       },
       400: { description: "Validation error" },
       401: { description: "Invalid or missing API key" },
@@ -43,7 +65,7 @@ defineRouteMeta({
 });
 
 const prisma = new PrismaClient({
-  log: ['warn', 'error'],
+  log: ["warn", "error"],
 });
 
 const apiKeySchema = z.uuid();
@@ -62,14 +84,20 @@ export default defineEventHandler(async (event: H3Event) => {
   try {
     const authHeader = getHeader(event, "authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw handleApiError(401, "Heartbeat API error: Missing or invalid API key format in header.");
+      throw handleApiError(
+        401,
+        "Heartbeat API error: Missing or invalid API key format in header."
+      );
     }
 
     const apiKey = authHeader.substring(7);
     const validationResult = apiKeySchema.safeParse(apiKey);
 
     if (!validationResult.success) {
-      throw handleApiError(401, `Heartbeat API error: Invalid API key format. Key: ${apiKey.substring(0,4)}...`);
+      throw handleApiError(
+        401,
+        `Heartbeat API error: Invalid API key format. Key: ${apiKey.substring(0, 4)}...`
+      );
     }
 
     const user = await prisma.user.findUnique({
@@ -78,7 +106,10 @@ export default defineEventHandler(async (event: H3Event) => {
     });
 
     if (!user || user.apiKey !== apiKey) {
-      throw handleApiError(401, `Heartbeat API error: Invalid API key. Key: ${apiKey.substring(0,4)}...`);
+      throw handleApiError(
+        401,
+        `Heartbeat API error: Invalid API key. Key: ${apiKey.substring(0, 4)}...`
+      );
     }
 
     const body = await readBody(event);
@@ -109,10 +140,21 @@ export default defineEventHandler(async (event: H3Event) => {
   } catch (error: any) {
     if (error && typeof error === "object" && error.statusCode) throw error;
     if (error instanceof z.ZodError) {
-      throw handleApiError(400, `Heartbeat API error: Validation error. Details: ${error.message}`);
+      throw handleApiError(
+        400,
+        `Heartbeat API error: Validation error. Details: ${error.message}`
+      );
     }
-    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred processing heartbeat.";
-    const apiKeyPrefix = getHeader(event, "authorization")?.substring(7,11) || "UNKNOWN";
-    throw handleApiError(69, `Heartbeat API error: Failed to process heartbeat. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`, "Failed to process your request.");
+    const detailedMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown error occurred processing heartbeat.";
+    const apiKeyPrefix =
+      getHeader(event, "authorization")?.substring(7, 11) || "UNKNOWN";
+    throw handleApiError(
+      69,
+      `Heartbeat API error: Failed to process heartbeat. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`,
+      "Failed to process your request."
+    );
   }
 });

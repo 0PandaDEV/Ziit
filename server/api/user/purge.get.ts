@@ -5,14 +5,15 @@ import { handleApiError } from "~~/server/utils/logging";
 defineRouteMeta({
   openAPI: {
     tags: ["User"],
-    summary: "Delete current user",
-    description: "Deletes the authenticated user from the database.",
+    summary: "Delete current user data",
+    description:
+      "Deletes all heartbeats and summaries for the authenticated user using optimized bulk operations.",
     responses: {
-      200: { description: "Deleted user object" },
+      200: { description: "User data purged successfully" },
       404: { description: "User not found" },
-      500: { description: "Failed to delete user" },
+      500: { description: "Failed to delete user data" },
     },
-    operationId: "deleteUser",
+    operationId: "purgeUserData",
   },
 });
 
@@ -20,18 +21,29 @@ const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event: H3Event) => {
   try {
-    await prisma.summaries.deleteMany({
-      where: { userId: event.context.user.id },
-    });
+    const userId = event.context.user.id;
 
-    await prisma.heartbeats.deleteMany({
-      where: { userId: event.context.user.id },
+    await prisma.$transaction(async (tx) => {
+      const summariesResult = await tx.$executeRaw`
+        DELETE FROM "Summaries"
+        WHERE "userId" = ${userId}
+      `;
+
+      const heartbeatsResult = await tx.$executeRaw`
+        DELETE FROM "Heartbeats"
+        WHERE "userId" = ${userId}
+      `;
+
+      return {
+        summariesDeleted: summariesResult,
+        heartbeatsDeleted: heartbeatsResult,
+      };
     });
 
     return {
       success: true,
       message: "User data successfully purged",
-      userId: event.context.user.id,
+      userId: userId,
     };
   } catch (error: any) {
     const detailedMessage =
@@ -41,7 +53,7 @@ export default defineEventHandler(async (event: H3Event) => {
     throw handleApiError(
       69,
       `Failed to purge user data ${event.context.user.id}: ${detailedMessage}`,
-      "Failed to purge user data. Please try again."
+      "Failed to purge user data. Please try again.",
     );
   }
 });

@@ -10,7 +10,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       throw handleApiError(
         401,
-        "Admin API error: Missing or invalid Admin key format in header."
+        "Admin API error: Missing or invalid Admin key format in header.",
       );
     }
 
@@ -23,42 +23,58 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     if (validatedAdminKey.data === config.adminKey) {
-      const users = await prisma.user.findMany({
-        select: {
-          id: true,
-          email: true,
-          githubUsername: true,
-          createdAt: true,
-          lastlogin: true,
-          _count: {
-            select: {
-              heartbeats: true,
-              summaries: true,
-            },
-          },
+      const usersWithStats = await prisma.$queryRaw<
+        Array<{
+          id: string;
+          email: string;
+          githubUsername: string | null;
+          createdAt: Date;
+          lastlogin: Date;
+          heartbeats_count: string;
+          summaries_count: string;
+          total_minutes: string;
+        }>
+      >`
+        SELECT
+          u.id,
+          u.email,
+          u."githubUsername",
+          u."createdAt",
+          u.lastlogin,
+          COALESCE(h.heartbeats_count, 0)::text as heartbeats_count,
+          COALESCE(s.summaries_count, 0)::text as summaries_count,
+          COALESCE(s.total_minutes, 0)::text as total_minutes
+        FROM "User" u
+        LEFT JOIN (
+          SELECT
+            "userId",
+            COUNT(*) as heartbeats_count
+          FROM "Heartbeats"
+          GROUP BY "userId"
+        ) h ON u.id = h."userId"
+        LEFT JOIN (
+          SELECT
+            "userId",
+            COUNT(*) as summaries_count,
+            SUM("totalMinutes") as total_minutes
+          FROM "Summaries"
+          GROUP BY "userId"
+        ) s ON u.id = s."userId"
+        ORDER BY u."createdAt" DESC
+      `;
+
+      const usersWithTotalMinutes = usersWithStats.map((user) => ({
+        id: user.id,
+        email: user.email,
+        githubUsername: user.githubUsername,
+        createdAt: user.createdAt,
+        lastlogin: user.lastlogin,
+        _count: {
+          heartbeats: parseInt(user.heartbeats_count),
+          summaries: parseInt(user.summaries_count),
         },
-      });
-
-      const usersWithTotalMinutes = await Promise.all(
-        users.map(async (user) => {
-          const summaries = await prisma.summaries.findMany({
-            where: { userId: user.id },
-            select: {
-              totalMinutes: true,
-            },
-          });
-
-          const totalMinutes = summaries.reduce(
-            (sum, s) => sum + (s.totalMinutes || 0),
-            0
-          );
-
-          return {
-            ...user,
-            totalMinutes,
-          };
-        })
-      );
+        totalMinutes: parseInt(user.total_minutes),
+      }));
 
       return usersWithTotalMinutes;
     }
@@ -72,7 +88,7 @@ export default defineEventHandler(async (event: H3Event) => {
           ? error.message
           : "An unknown error occurred getting the user data."
       }`,
-      "Failed to process your request."
+      "Failed to process your request.",
     );
   }
 });

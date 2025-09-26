@@ -33,18 +33,17 @@ model User {
 }
 
 model Heartbeats {
-  id          String     @default(cuid())
+  id          String   @default(cuid())
   timestamp   BigInt
   userId      String
-  user        User       @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
   project     String?
   editor      String?
   language    String?
   os          String?
   file        String?
   branch      String?
-  createdAt   DateTime   @default(now())
-  summaries   Summaries? @relation(fields: [summariesId], references: [id])
+  createdAt   DateTime @default(now())
   summariesId String?
 
   @@id([id, timestamp])
@@ -56,13 +55,14 @@ model Heartbeats {
   @@index([userId, os, timestamp(sort: Desc)])
   @@index([branch])
   @@index([file])
+  @@index([summariesId])
 }
 
 model Summaries {
-  id           String       @id @default(cuid())
+  id           String   @default(cuid())
   userId       String
-  user         User         @relation(fields: [userId], references: [id])
-  date         DateTime     @db.Date
+  user         User     @relation(fields: [userId], references: [id])
+  date         DateTime @db.Date
   totalMinutes Int
   projects     Json?
   languages    Json?
@@ -70,10 +70,9 @@ model Summaries {
   os           Json?
   files        Json?
   branches     Json?
-  heartbeats   Heartbeats[]
-  createdAt    DateTime     @default(now())
+  createdAt    DateTime @default(now())
 
-  @@unique([userId, date])
+  @@id([id, date])
   @@index([userId, date(sort: Desc)])
 }
 
