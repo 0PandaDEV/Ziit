@@ -22,10 +22,6 @@ async function safeReadMultipartFormData(event: H3Event): Promise<any[]> {
   const contentLength = getHeader(event, "content-length");
   const contentType = getHeader(event, "content-type") || "";
 
-  handleLog(
-    `Processing multipart upload - Content-Type: ${contentType}, Content-Length: ${contentLength || "not set"}`
-  );
-
   if (contentLength) {
     const size = parseInt(contentLength);
     const MAX_SIZE = 2 * 1024 * 1024 * 1024;
@@ -56,8 +52,6 @@ async function safeReadMultipartFormData(event: H3Event): Promise<any[]> {
     const maxFieldSize = 1024 * 1024;
 
     try {
-      handleLog("Using streaming Busboy parser for large file upload...");
-
       const bb = busboy({
         headers: {
           "content-type": contentType,
@@ -72,21 +66,12 @@ async function safeReadMultipartFormData(event: H3Event): Promise<any[]> {
 
       bb.on("file", (fieldname: string, file: any, info: any) => {
         const { filename, encoding, mimeType } = info;
-        handleLog(`Processing file field: ${fieldname}, filename: ${filename}`);
-
         const chunks: Buffer[] = [];
         let totalSize = 0;
 
         file.on("data", (chunk: Buffer) => {
           totalSize += chunk.length;
           chunks.push(chunk);
-
-          if (totalSize > 10 * 1024 * 1024) {
-            const mb = Math.floor(totalSize / (1024 * 1024));
-            if (mb % 10 === 0) {
-              handleLog(`Received ${mb}MB for file ${filename}`);
-            }
-          }
         });
 
         file.on("end", () => {
@@ -116,7 +101,6 @@ async function safeReadMultipartFormData(event: H3Event): Promise<any[]> {
       });
 
       bb.on("field", (fieldname: string, value: string) => {
-        handleLog(`Processing field: ${fieldname}`);
         fields.push({
           name: fieldname,
           data: Buffer.from(value, "utf-8"),
