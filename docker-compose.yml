@@ -17,7 +17,8 @@ services:
       NUXT_EPILOGUE_REDIRECT_URI: "" # redirect url e.g. http://localhost:3000/api/auth/epilogue/callback
     restart: unless-stopped
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - ziit-network
 
@@ -34,6 +35,12 @@ services:
       ziit-network:
         aliases:
           - postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ziit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   postgres:
