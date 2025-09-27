@@ -11,13 +11,13 @@ export default defineNuxtConfig({
   ssr: true,
   runtimeConfig: {
     pasetoKey: process.env.NUXT_PASETO_KEY,
+    adminKey: process.env.NUXT_ADMIN_KEY,
+    baseUrl: process.env.NUXT_BASE_URL,
+    disableRegistering: process.env.NUXT_DISABLE_REGISTRATION,
     githubClientId: process.env.NUXT_GITHUB_CLIENT_ID,
     githubClientSecret: process.env.NUXT_GITHUB_CLIENT_SECRET,
     epilogueAppId: process.env.NUXT_EPILOGUE_APP_ID,
     epilogueAppSecret: process.env.NUXT_EPILOGUE_APP_SECRET,
-    baseUrl: process.env.NUXT_BASE_URL,
-    disableRegistering: process.env.NUXT_DISABLE_REGISTRATION,
-    adminKey: process.env.NUXT_ADMIN_KEY,
   },
   nitro: {
     preset: "node-server",
