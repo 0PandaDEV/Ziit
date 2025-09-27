@@ -2,7 +2,7 @@ import { useRuntimeConfig } from "#imports";
 
 export default defineEventHandler((event) => {
   const config = useRuntimeConfig();
-  const corsOrigin = config.corsOrigin || event.node.req.headers.origin || "";
+  const corsOrigin = config.baseUrl || event.node.req.headers.origin || "";
   const isProduction = process.env.NODE_ENV === "production";
 
   if (event.path?.startsWith("/api/")) {

@@ -36,7 +36,10 @@ export default defineEventHandler(async (event) => {
 
     const githubAuthUrl = new URL("https://github.com/login/oauth/authorize");
     githubAuthUrl.searchParams.append("client_id", config.githubClientId);
-    githubAuthUrl.searchParams.append("redirect_uri", config.githubRedirectUri);
+    githubAuthUrl.searchParams.append(
+      "redirect_uri",
+      `${config.baseUrl}/api/auth/github/callback`
+    );
     githubAuthUrl.searchParams.append("state", state);
     githubAuthUrl.searchParams.append("scope", "read:user user:email");
 

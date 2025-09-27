@@ -76,7 +76,7 @@ export default defineEventHandler(async (event: H3Event) => {
     });
   }
 
-  if (!config.epilogueAppId || !config.epilogueRedirectUri) {
+  if (!config.epilogueAppId || !config.baseUrl) {
     throw createError({
       statusCode: 500,
       message: "Epilogue auth is not configured",
@@ -116,7 +116,10 @@ export default defineEventHandler(async (event: H3Event) => {
 
   const epilogueAuthUrl = new URL("https://auth.epilogue.team/authorize/");
   epilogueAuthUrl.searchParams.append("app_id", config.epilogueAppId);
-  epilogueAuthUrl.searchParams.append("redirect_url", config.epilogueRedirectUri);
+  epilogueAuthUrl.searchParams.append(
+    "redirect_url",
+    `${config.baseUrl}/api/auth/epilogue/callback`
+  );
   const host = getHeader(event, "host");
   const protocol = getHeader(event, "x-forwarded-proto") || "http";
   const frontendUrl = `${protocol}://${host}`;

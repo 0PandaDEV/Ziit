@@ -7,14 +7,12 @@ services:
       NUXT_DATABASE_URL: "postgresql://postgres:CHANGEME@postgres:5432/ziit" # change the password for production use
       NUXT_PASETO_KEY: "" # RUN THIS COMMAND IN YOUR TERMINAL AND USE THE OUTPUT -> echo k4.local.$(openssl rand -base64 32)
       NUXT_ADMIN_KEY: "" # This is the password for the admin dashboard. RUN THIS COMMAND IN YOUR TERMINAL AND USE THE OUTPUT -> openssl rand -hex 64
-      NUXT_HOST: "" # The domain where ziit will be hosted e.g. ziit.example.com
+      NUXT_HOST: "" # Base URL of the Ziit instance, including protocol e.g. https://ziit.example.com
       NUXT_DISABLE_REGISTRATION: false # By default users are allowed to register a new account
       NUXT_GITHUB_CLIENT_ID: "" # client id https://docs.ziit.app/deploy/github-oauth
       NUXT_GITHUB_CLIENT_SECRET: "" # client secret https://docs.ziit.app/deploy/github-oauth
-      NUXT_GITHUB_REDIRECT_URI: "" # redirect url e.g. http://localhost:3000/api/auth/github/callback
       NUXT_EPILOGUE_APP_ID: "" # application id https://docs.ziit.app/deploy/epilogue-oauth
       NUXT_EPILOGUE_APP_SECRET: "" # application secret https://docs.ziit.app/deploy/epilogue-oauth
-      NUXT_EPILOGUE_REDIRECT_URI: "" # redirect url e.g. http://localhost:3000/api/auth/epilogue/callback
     restart: unless-stopped
     depends_on:
       postgres:

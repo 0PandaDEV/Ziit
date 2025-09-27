@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    if (!config.epilogueAppId || !config.epilogueRedirectUri) {
+    if (!config.epilogueAppId || !config.baseUrl) {
       throw createError({
         statusCode: 500,
         message: "Epilogue auth is not configured",
@@ -50,11 +50,11 @@ export default defineEventHandler(async (event) => {
     epilogueAuthUrl.searchParams.append("app_id", config.epilogueAppId);
     epilogueAuthUrl.searchParams.append(
       "redirect_url",
-      config.epilogueRedirectUri,
+      `${config.baseUrl}/api/auth/epilogue/callback`
     );
     epilogueAuthUrl.searchParams.append(
       "cancel_url",
-      `${frontendUrl}/login?error=cancelled`,
+      `${frontendUrl}/login?error=cancelled`
     );
     epilogueAuthUrl.searchParams.append("state", state);
 
@@ -68,7 +68,7 @@ export default defineEventHandler(async (event) => {
     throw handleApiError(
       69,
       `Failed to initialize Epilogue authentication: ${detailedMessage}`,
-      "Could not initiate Epilogue authentication. Please try again.",
+      "Could not initiate Epilogue authentication. Please try again."
     );
   }
 });
