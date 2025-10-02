@@ -277,13 +277,18 @@ import { ref, onMounted, computed } from "vue";
 import * as statsLib from "~~/lib/stats";
 import type { ImportJob } from "~~/server/utils/import-queue";
 
-const userState = useState<User | null>("user");
+const { data: fetchedUser } = await useFetch("/api/user");
+const userState = useState<User | null>(
+  "user",
+  () => fetchedUser.value as User
+);
+
 const user = computed(() => userState.value);
 const showApiKey = ref(false);
 const toast = useToast();
 const route = useRoute();
-const keystrokeTimeout = ref(0);
-const originalKeystrokeTimeout = ref(0);
+const keystrokeTimeout = ref(fetchedUser.value?.keystrokeTimeout || 15);
+const originalKeystrokeTimeout = ref(fetchedUser.value?.keystrokeTimeout || 15);
 const timeoutChanged = ref(false);
 const hasGithubAccount = computed(() => !!user.value?.githubId);
 const hasEpilogueAccount = computed(() => !!user.value?.epilogueId);
@@ -307,6 +312,8 @@ let eventSource: EventSource | null = null;
 let reconnectAttempts = 0;
 let maxReconnectAttempts = 5;
 let reconnectTimeout: NodeJS.Timeout | null = null;
+let isPageVisible = ref(true);
+let connectionDelay: NodeJS.Timeout | null = null;
 const CHUNK_SIZE = 95 * 1024 * 1024;
 
 const spinnerChars = ["-", "/", "|", "\\"];
@@ -433,69 +440,79 @@ watch(importJob, (newJob) => {
 });
 
 function connectEventSource() {
-  if (eventSource) return;
+  if (
+    !isPageVisible.value ||
+    (eventSource && eventSource.readyState !== EventSource.CLOSED)
+  )
+    return;
 
-  eventSource = new EventSource("/api/import/status");
+  try {
+    eventSource = new EventSource("/api/import/status");
 
-  eventSource.onopen = () => {
-    console.log("EventSource connected");
-    reconnectAttempts = 0;
-  };
+    eventSource.onopen = () => {
+      console.log("EventSource connected");
+      reconnectAttempts = 0;
+    };
 
-  eventSource.onmessage = (event) => {
-    try {
-      const response = JSON.parse(event.data);
+    eventSource.onmessage = (event) => {
+      try {
+        const response = JSON.parse(event.data);
 
-      if (response.activeJob) {
-        const serverJob = response.activeJob as ImportJob;
+        if (response.activeJob) {
+          const serverJob = response.activeJob as ImportJob;
 
-        if (
-          importJob.value &&
-          importJob.value.status === "Uploading" &&
-          isUploading.value &&
-          (serverJob.status === "Pending" || !serverJob.uploadedSize)
-        ) {
-          importJob.value = {
-            ...serverJob,
-            status: "Uploading",
-            progress: uploadProgress.value,
-            uploadedSize: uploadedBytes.value,
-            totalSize: importJob.value.totalSize,
-          };
-        } else {
-          importJob.value = serverJob;
+          if (
+            importJob.value &&
+            importJob.value.status === "Uploading" &&
+            isUploading.value &&
+            (serverJob.status === "Pending" || !serverJob.uploadedSize)
+          ) {
+            importJob.value = {
+              ...serverJob,
+              status: "Uploading",
+              progress: uploadProgress.value,
+              uploadedSize: uploadedBytes.value,
+              totalSize: importJob.value.totalSize,
+            };
+          } else {
+            importJob.value = serverJob;
+          }
+        } else if (!response.hasActiveJobs && !isUploading.value) {
+          importJob.value = null;
         }
-      } else if (!response.hasActiveJobs && !isUploading.value) {
-        importJob.value = null;
+      } catch (error) {
+        console.error("Error parsing EventSource message:", error);
       }
-    } catch (error) {
-      console.error("Error parsing EventSource message:", error);
-    }
-  };
+    };
 
-  eventSource.onerror = (error) => {
-    console.error("EventSource error:", error);
+    eventSource.onerror = (error) => {
+      console.error("EventSource error:", error);
 
-    if (eventSource) {
-      eventSource.close();
+      if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+        eventSource.close();
+      }
       eventSource = null;
-    }
 
-    if (reconnectAttempts < maxReconnectAttempts) {
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-      reconnectAttempts++;
+      if (reconnectAttempts < maxReconnectAttempts) {
+        reconnectAttempts++;
+        const delay = Math.min(1000 + (reconnectAttempts - 1) * 2000, 10000);
 
-      console.log(
-        `Attempting to reconnect in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`
-      );
+        console.log(
+          `Attempting to reconnect in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`
+        );
 
-      reconnectTimeout = setTimeout(() => {
-        connectEventSource();
-      }, delay);
-    } else {
-      toast.error("Connection lost. Please refresh the page.");
-    }
-  };
+        reconnectTimeout = setTimeout(() => {
+          connectEventSource();
+        }, delay);
+      } else {
+        console.error("Max reconnection attempts reached");
+        toast.error("Connection lost. Please refresh the page.");
+      }
+    };
+  } catch (error) {
+    console.error("Failed to create EventSource:", error);
+    toast.error("Failed to establish connection. Please refresh the page.");
+  }
 }
 
 function disconnectEventSource() {
@@ -504,46 +521,67 @@ function disconnectEventSource() {
     reconnectTimeout = null;
   }
 
-  if (eventSource) {
-    eventSource.close();
-    eventSource = null;
+  if (connectionDelay) {
+    clearTimeout(connectionDelay);
+    connectionDelay = null;
   }
+
+  if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+    eventSource.close();
+  }
+  eventSource = null;
 
   reconnectAttempts = 0;
 }
 
-onUnmounted(() => {
-  if (eventSource) {
-    eventSource.close();
-  }
-  stopSpinner();
-});
-
-async function fetchUserData() {
-  if (userState.value) return userState.value;
-
-  try {
-    const data = await $fetch("/api/user");
-    userState.value = data as User;
-
-    if (data?.keystrokeTimeout) {
-      statsLib.setKeystrokeTimeout(data.keystrokeTimeout);
-    }
-
-    return data;
-  } catch (error) {
-    console.error("Error fetching user data:", error);
-    return null;
+function handleVisibilityChange() {
+  if (document.hidden) {
+    isPageVisible.value = false;
+    disconnectEventSource();
+  } else {
+    isPageVisible.value = true;
+    connectionDelay = setTimeout(() => {
+      connectEventSource();
+    }, 500);
   }
 }
 
-onMounted(async () => {
-  await fetchUserData();
-  connectEventSource();
+function handleBeforeUnload() {
+  disconnectEventSource();
+}
 
-  if (user.value) {
-    keystrokeTimeout.value = user.value.keystrokeTimeout;
-    originalKeystrokeTimeout.value = user.value.keystrokeTimeout;
+onMounted(() => {
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  window.addEventListener("beforeunload", handleBeforeUnload);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
+  window.removeEventListener("beforeunload", handleBeforeUnload);
+
+  disconnectEventSource();
+  stopSpinner();
+});
+
+if (user.value?.keystrokeTimeout) {
+  statsLib.setKeystrokeTimeout(user.value.keystrokeTimeout);
+}
+
+onMounted(() => {
+  if (document.readyState === "complete") {
+    connectionDelay = setTimeout(() => {
+      connectEventSource();
+    }, 500);
+  } else {
+    window.addEventListener(
+      "load",
+      () => {
+        connectionDelay = setTimeout(() => {
+          connectEventSource();
+        }, 200);
+      },
+      { once: true }
+    );
   }
 
   if (route.query.error) {
@@ -592,7 +630,7 @@ useKeybind({
       await linkEpilogue();
     }
   },
-  config: { prevent: true, ignoreIfEditable: true }
+  config: { prevent: true, ignoreIfEditable: true },
 });
 
 useKeybind({
@@ -1037,7 +1075,6 @@ async function importTrackingData() {
         });
       }
 
-      // Clear upload state and transition to processing
       uploadProgress.value = 0;
       uploadedBytes.value = 0;
       uploadStatus.value = "";

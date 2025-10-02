@@ -49,57 +49,94 @@ export default defineEventHandler((event) => {
   let completedMessagesSent = 0;
   let isCompleted = false;
   let heartbeatsSent = 0;
+  let lastActiveJobState: any = null;
+  let connectionStartTime = Date.now();
 
-  const interval = setInterval(() => {
-    const currentUserJobs = getAllJobStatuses(userId);
-    const currentQueueStatus = getQueueStatus();
+  let currentInterval = 1000;
+  const ACTIVE_INTERVAL = 500;
+  const INACTIVE_INTERVAL = 5000;
+  const MAX_CONNECTION_TIME = 30 * 60 * 1000;
 
-    const currentActiveJob = currentUserJobs.find((j) =>
-      isActiveJobStatus(j.status),
-    );
-
-    const response = {
-      activeJob: currentActiveJob,
-      queueStatus: {
-        queueLength: currentQueueStatus.queueLength,
-        busyWorkers: currentQueueStatus.busyWorkers,
-        availableWorkers: currentQueueStatus.availableWorkers,
-      },
-      hasActiveJobs: currentUserJobs.some((j) => isActiveJobStatus(j.status)),
-      totalJobs: currentUserJobs.length,
-      recentJobs: currentUserJobs.slice(0, 5),
-      heartbeat: ++heartbeatsSent,
-    };
-
+  const sendUpdate = () => {
     try {
-      eventStream.push(JSON.stringify(response));
+      if (Date.now() - connectionStartTime > MAX_CONNECTION_TIME) {
+        handleLog(`[sse] Connection timeout for user ${userId}`);
+        clearTimeout(timeoutId);
+        eventStream.close();
+        return;
+      }
+
+      const currentUserJobs = getAllJobStatuses(userId);
+      const currentQueueStatus = getQueueStatus();
+
+      const currentActiveJob = currentUserJobs.find((j) =>
+        isActiveJobStatus(j.status)
+      );
+
+      const hasActiveJobs = currentUserJobs.some((j) =>
+        isActiveJobStatus(j.status)
+      );
+
+      const currentJobState = JSON.stringify(currentActiveJob);
+      const shouldSendUpdate =
+        currentJobState !== lastActiveJobState ||
+        heartbeatsSent % 10 === 0 ||
+        hasActiveJobs;
+
+      if (shouldSendUpdate) {
+        const response = {
+          activeJob: currentActiveJob,
+          queueStatus: {
+            queueLength: currentQueueStatus.queueLength,
+            busyWorkers: currentQueueStatus.busyWorkers,
+            availableWorkers: currentQueueStatus.availableWorkers,
+          },
+          hasActiveJobs,
+          totalJobs: currentUserJobs.length,
+          recentJobs: currentUserJobs.slice(0, 5),
+          heartbeat: ++heartbeatsSent,
+        };
+
+        eventStream.push(JSON.stringify(response));
+        lastActiveJobState = currentJobState;
+      }
+
+      const newInterval = hasActiveJobs ? ACTIVE_INTERVAL : INACTIVE_INTERVAL;
+      if (newInterval !== currentInterval) {
+        currentInterval = newInterval;
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(sendUpdate, currentInterval);
+        return;
+      }
+
+      if (!hasActiveJobs && !isCompleted) {
+        isCompleted = true;
+        completedMessagesSent = 0;
+      }
+
+      if (isCompleted) {
+        completedMessagesSent++;
+        if (completedMessagesSent >= 24) {
+          clearTimeout(timeoutId);
+          eventStream.close();
+          return;
+        }
+      }
     } catch (error) {
       handleLog(`[sse] Error sending message to user ${userId}: ${error}`);
-      clearInterval(interval);
+      clearTimeout(timeoutId);
+      eventStream.close();
       return;
     }
 
-    const hasActiveJobs = currentUserJobs.some((j) =>
-      isActiveJobStatus(j.status),
-    );
+    timeoutId = setTimeout(sendUpdate, currentInterval);
+  };
 
-    if (!hasActiveJobs && !isCompleted) {
-      isCompleted = true;
-      completedMessagesSent = 0;
-    }
-
-    if (isCompleted) {
-      completedMessagesSent++;
-      if (completedMessagesSent >= 120) {
-        clearInterval(interval);
-        eventStream.close();
-      }
-    }
-  }, 250);
+  let timeoutId = setTimeout(sendUpdate, 100);
 
   eventStream.onClosed(() => {
     handleLog(`[sse] close for user ${userId}`);
-    clearInterval(interval);
+    clearTimeout(timeoutId);
   });
 
   return eventStream.send();
