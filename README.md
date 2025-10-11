@@ -19,6 +19,8 @@
 <br>
 
 [![Better Stack Badge](https://uptime.betterstack.com/status-badges/v3/monitor/1ym1e.svg)](https://status.ziit.app)
+ ![ziit](https://ziit.app/api/public/badge/cm98il90n0000o52c3my0bf5p/ziit)
+
 
 > [!IMPORTANT]
 > Upvote Ziit on [AlternativeTo](https://alternativeto.net/software/ziit/about/), [ProductHunt](https://www.producthunt.com/posts/ziit), [PeerPush](https://peerpush.net/p/ziit) to help me promote it.
