@@ -1,6 +1,6 @@
 import { createError, H3Error } from "h3";
 
-type ErrorStatusCode = 400 | 401 | 403 | 404 | 409 | 429 | 69;
+type ErrorStatusCode = 400 | 401 | 403 | 404 | 409 | 413 | 429 | 69;
 
 const standardMessages: Record<ErrorStatusCode, string> = {
   400: "Invalid Request",
@@ -8,6 +8,7 @@ const standardMessages: Record<ErrorStatusCode, string> = {
   403: "Forbidden",
   404: "Not Found",
   409: "Conflict",
+  413: "Content Too Large",
   429: "Too Many Requests",
   69: "Server On Fire",
 };

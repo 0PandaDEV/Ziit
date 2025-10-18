@@ -1,6 +1,6 @@
 import { processHeartbeatsByDate } from "~~/server/utils/summarize";
 import { handleApiError, handleLog } from "~~/server/utils/logging";
-import { activeJobs } from "~~/server/utils/import-jobs";
+import { activeJobs, type ImportJob } from "~~/server/utils/import-queue";
 import path from "path";
 import { randomUUID } from "crypto";
 
@@ -175,6 +175,8 @@ async function downloadDataDump(
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let receivedBytes = 0;
+    const PROGRESS_UPDATE_SIZE = 1024 * 1024;
+    let nextProgressUpdate = PROGRESS_UPDATE_SIZE;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -182,16 +184,21 @@ async function downloadDataDump(
 
       if (value) {
         chunks.push(value);
-      }
+        receivedBytes += value.length;
 
-      receivedBytes += value?.length || 0;
+        if (receivedBytes >= nextProgressUpdate) {
+          const megabytes = Math.floor(receivedBytes / (1024 * 1024));
+          handleLog(`Downloaded ${megabytes}MB...`);
+          nextProgressUpdate += PROGRESS_UPDATE_SIZE;
+        }
 
-      if (!isNaN(totalBytes)) {
-        job.progress = Math.min(
-          99,
-          Math.round((receivedBytes / totalBytes) * 100),
-        );
-        activeJobs.set(job.id, job);
+        if (!isNaN(totalBytes)) {
+          job.progress = Math.min(
+            99,
+            Math.round((receivedBytes / totalBytes) * 100),
+          );
+          activeJobs.set(job.id, job);
+        }
       }
     }
 
@@ -205,8 +212,14 @@ async function downloadDataDump(
     const text = new TextDecoder().decode(combined);
     const exportData: WakatimeExportData = JSON.parse(text);
 
+    const daysWithData = Array.isArray(exportData.days)
+      ? exportData.days.filter(
+          (day) => day.heartbeats && day.heartbeats.length > 0,
+        )
+      : [];
+
     handleLog(
-      `Downloaded data dump with ${Array.isArray(exportData.days) ? exportData.days.length : 0} days of data`,
+      `Downloaded data dump with ${daysWithData.length} days of data (${Array.isArray(exportData.days) ? exportData.days.length : 0} total days in file)`,
     );
 
     job.progress = 100;
@@ -298,15 +311,19 @@ export function mapHeartbeat(
 export async function handleWakatimeImport(
   apiKey: string,
   userId: string,
+  existingJob?: ImportJob,
 ): Promise<{ success: boolean; imported: number; message?: string }> {
-  const job: ImportJob = {
+  const job: ImportJob = existingJob || {
     id: randomUUID(),
     fileName: `WakaTime Import ${new Date().toISOString()}`,
     status: "Pending",
     progress: 0,
     userId,
   };
-  activeJobs.set(job.id, job);
+
+  if (!existingJob) {
+    activeJobs.set(job.id, job);
+  }
 
   try {
     handleLog(`Starting WakaTime API import for user ${userId}`);
@@ -337,24 +354,18 @@ export async function handleWakatimeImport(
 
     if (!Array.isArray(exportData.days)) exportData.days = [];
 
-    job.totalToProcess = exportData.days.length;
+    const daysWithHeartbeats = exportData.days.filter(
+      (day) => day.heartbeats && day.heartbeats.length > 0,
+    );
+
+    job.totalToProcess = daysWithHeartbeats.length;
     job.status = "Processing heartbeats";
     job.processedCount = 0;
     job.progress = 0;
     activeJobs.set(job.id, job);
 
     const importResults: number[] = [];
-    for (const day of exportData.days) {
-      if (!day.heartbeats || day.heartbeats.length === 0) {
-        importResults.push(0);
-        job.processedCount! += 1;
-        job.progress = Math.round(
-          (job.processedCount! / exportData.days.length) * 100,
-        );
-        activeJobs.set(job.id, job);
-        continue;
-      }
-
+    for (const day of daysWithHeartbeats) {
       handleLog(
         `Processing ${day.heartbeats.length} heartbeats for ${day.date}`,
       );
@@ -368,7 +379,7 @@ export async function handleWakatimeImport(
 
         job.processedCount! += 1;
         job.progress = Math.round(
-          (job.processedCount! / exportData.days.length) * 100,
+          (job.processedCount! / daysWithHeartbeats.length) * 100,
         );
         activeJobs.set(job.id, job);
 
@@ -378,7 +389,7 @@ export async function handleWakatimeImport(
 
         job.processedCount! += 1;
         job.progress = Math.round(
-          (job.processedCount! / exportData.days.length) * 100,
+          (job.processedCount! / daysWithHeartbeats.length) * 100,
         );
         activeJobs.set(job.id, job);
 
@@ -431,24 +442,18 @@ export async function handleWakatimeFileImport(
 
     if (!Array.isArray(exportData.days)) exportData.days = [];
 
-    job.totalToProcess = exportData.days.length;
+    const daysWithHeartbeats = exportData.days.filter(
+      (day) => day.heartbeats && day.heartbeats.length > 0,
+    );
+
+    job.totalToProcess = daysWithHeartbeats.length;
     job.status = "Processing heartbeats";
     job.processedCount = 0;
     job.progress = 0;
     activeJobs.set(job.id, job);
 
     const importResults: number[] = [];
-    for (const day of exportData.days) {
-      if (!day.heartbeats || day.heartbeats.length === 0) {
-        importResults.push(0);
-        job.processedCount! += 1;
-        job.progress = Math.round(
-          (job.processedCount! / exportData.days.length) * 100,
-        );
-        activeJobs.set(job.id, job);
-        continue;
-      }
-
+    for (const day of daysWithHeartbeats) {
       handleLog(
         `Processing ${day.heartbeats.length} heartbeats for ${day.date}`,
       );
@@ -464,7 +469,7 @@ export async function handleWakatimeFileImport(
 
         job.processedCount! += 1;
         job.progress = Math.round(
-          (job.processedCount! / exportData.days.length) * 100,
+          (job.processedCount! / daysWithHeartbeats.length) * 100,
         );
         activeJobs.set(job.id, job);
 
@@ -474,7 +479,7 @@ export async function handleWakatimeFileImport(
 
         job.processedCount! += 1;
         job.progress = Math.round(
-          (job.processedCount! / exportData.days.length) * 100,
+          (job.processedCount! / daysWithHeartbeats.length) * 100,
         );
         activeJobs.set(job.id, job);
 

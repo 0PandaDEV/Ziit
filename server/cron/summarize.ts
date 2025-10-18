@@ -4,7 +4,7 @@ import { processSummariesByDate } from "~~/server/utils/summarize";
 import { handleLog } from "../utils/logging";
 
 const prisma = new PrismaClient({
-  log: ['warn', 'error'],
+  log: ["warn", "error"],
 });
 
 export default defineCronHandler(
@@ -18,31 +18,50 @@ export default defineCronHandler(
       const BATCH_SIZE = 5000;
       let processedCount = 0;
       let hasMore = true;
-      
+
       while (hasMore) {
-        const heartbeatsToSummarize = await prisma.heartbeats.findMany({
-          where: {
-            timestamp: { lt: nowTimestamp },
-            summariesId: null,
-          },
-          orderBy: {
-            timestamp: "asc",
-          },
-          include: {
-            user: {
-              select: {
-                keystrokeTimeout: true,
-              },
-            },
-          },
-          take: BATCH_SIZE,
-        });
-        
+        const heartbeatsToSummarize = await prisma.$queryRaw<
+          Array<{
+            id: string;
+            timestamp: bigint;
+            userId: string;
+            project: string | null;
+            editor: string | null;
+            language: string | null;
+            os: string | null;
+            file: string | null;
+            branch: string | null;
+            createdAt: Date;
+            summariesId: string | null;
+            keystrokeTimeout: number;
+          }>
+        >`
+          SELECT DISTINCT ON (h."userId", h.timestamp, h.id)
+            h.id,
+            h.timestamp,
+            h."userId",
+            h.project,
+            h.editor,
+            h.language,
+            h.os,
+            h.file,
+            h.branch,
+            h."createdAt",
+            h."summariesId",
+            u."keystrokeTimeout"
+          FROM "Heartbeats" h
+          INNER JOIN "User" u ON h."userId" = u.id
+          WHERE h.timestamp < ${nowTimestamp.toString()}::bigint
+            AND h."summariesId" IS NULL
+          ORDER BY h."userId", h.timestamp ASC, h.id
+          LIMIT ${BATCH_SIZE}
+        `;
+
         if (heartbeatsToSummarize.length === 0) {
           hasMore = false;
           break;
         }
-        
+
         processedCount += heartbeatsToSummarize.length;
 
         const userHeartbeats: Record<
@@ -63,7 +82,7 @@ export default defineCronHandler(
         for (const userId in userHeartbeats) {
           await processSummariesByDate(userId, userHeartbeats[userId]);
         }
-        
+
         if (heartbeatsToSummarize.length < BATCH_SIZE) {
           hasMore = false;
         }
@@ -72,7 +91,7 @@ export default defineCronHandler(
       await generatePublicStats(now);
 
       handleLog(
-        `Summarization complete. Processed ${processedCount} heartbeats.`
+        `Summarization complete. Processed ${processedCount} heartbeats.`,
       );
     } catch (error) {
       console.error("Error in summarization cron job", error);
@@ -81,7 +100,7 @@ export default defineCronHandler(
   {
     timeZone: "UTC",
     runOnInit: true,
-  }
+  },
 );
 
 async function generatePublicStats(date: Date) {
@@ -89,80 +108,70 @@ async function generatePublicStats(date: Date) {
     const statsDate = new Date(date);
     statsDate.setHours(0, 0, 0, 0);
 
-    const existingStats = await prisma.stats.findUnique({
-      where: { date: statsDate },
-    });
+    const existingStats = await prisma.$queryRaw<Array<{ count: string }>>`
+      SELECT COUNT(*) as count
+      FROM "Stats"
+      WHERE date = ${statsDate}::date
+    `;
 
-    if (existingStats) {
+    if (parseInt(existingStats[0].count) > 0) {
       return;
     }
 
-    const totalUsers = await prisma.user.count();
-    const totalHeartbeats = await prisma.heartbeats.count();
+    const [
+      userCountResult,
+      heartbeatCountResult,
+      summariesAggregateResult,
+      topEditorResult,
+      topLanguageResult,
+      topOSResult,
+    ] = await Promise.all([
+      prisma.$queryRaw<Array<{ count: string }>>`
+        SELECT COUNT(*) as count FROM "User"
+      `,
 
-    const summariesAggregate = await prisma.summaries.aggregate({
-      _sum: {
-        totalMinutes: true,
-      },
-    });
+      prisma.$queryRaw<Array<{ count: string }>>`
+        SELECT COUNT(*) as count FROM "Heartbeats"
+      `,
 
+      prisma.$queryRaw<Array<{ total_minutes: string }>>`
+        SELECT COALESCE(SUM("totalMinutes"), 0) as total_minutes
+        FROM "Summaries"
+      `,
+
+      prisma.$queryRaw<Array<{ editor: string; count: string }>>`
+        SELECT editor, COUNT(*) as count
+        FROM "Heartbeats"
+        WHERE editor IS NOT NULL
+        GROUP BY editor
+        ORDER BY COUNT(*) DESC
+        LIMIT 1
+      `,
+
+      prisma.$queryRaw<Array<{ language: string; count: string }>>`
+        SELECT language, COUNT(*) as count
+        FROM "Heartbeats"
+        WHERE language IS NOT NULL
+        GROUP BY language
+        ORDER BY COUNT(*) DESC
+        LIMIT 1
+      `,
+
+      prisma.$queryRaw<Array<{ os: string; count: string }>>`
+        SELECT os, COUNT(*) as count
+        FROM "Heartbeats"
+        WHERE os IS NOT NULL
+        GROUP BY os
+        ORDER BY COUNT(*) DESC
+        LIMIT 1
+      `,
+    ]);
+
+    const totalUsers = parseInt(userCountResult[0].count);
+    const totalHeartbeats = parseInt(heartbeatCountResult[0].count);
     const totalHours = Math.floor(
-      Number(summariesAggregate._sum.totalMinutes || 0) / 60
+      parseInt(summariesAggregateResult[0].total_minutes) / 60,
     );
-
-    const topEditorResult = await prisma.heartbeats.groupBy({
-      by: ["editor"],
-      _count: {
-        editor: true,
-      },
-      where: {
-        editor: {
-          not: null,
-        },
-      },
-      orderBy: {
-        _count: {
-          editor: "desc",
-        },
-      },
-      take: 1,
-    });
-
-    const topLanguageResult = await prisma.heartbeats.groupBy({
-      by: ["language"],
-      _count: {
-        language: true,
-      },
-      where: {
-        language: {
-          not: null,
-        },
-      },
-      orderBy: {
-        _count: {
-          language: "desc",
-        },
-      },
-      take: 1,
-    });
-
-    const topOSResult = await prisma.heartbeats.groupBy({
-      by: ["os"],
-      _count: {
-        os: true,
-      },
-      where: {
-        os: {
-          not: null,
-        },
-      },
-      orderBy: {
-        _count: {
-          os: "desc",
-        },
-      },
-      take: 1,
-    });
 
     const topEditor = topEditorResult[0]?.editor || "Unknown";
     const topLanguage = topLanguageResult[0]?.language || "Unknown";
@@ -181,7 +190,7 @@ async function generatePublicStats(date: Date) {
     });
 
     handleLog(
-      `Generated public stats for ${statsDate.toISOString().split("T")[0]}`
+      `Generated public stats for ${statsDate.toISOString().split("T")[0]}: ${totalUsers} users, ${totalHeartbeats} heartbeats, ${totalHours} hours`,
     );
   } catch (error) {
     console.error("Error generating public stats:", error);

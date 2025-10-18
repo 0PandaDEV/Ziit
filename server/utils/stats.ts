@@ -1,6 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 import { TimeRangeEnum, TimeRange, Summary } from "~~/lib/stats";
-import type { Heartbeats } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -147,56 +146,53 @@ export async function calculateStats(
   }
 
   const summaryMap = new Map<string, Summary>();
-  let heartbeats: Heartbeats[] = [];
+  let heartbeats: any[] = [];
 
   if (!isSingleDayView) {
     const startDate = new Date(Number(fetchStartTimestamp));
     const endDate = new Date(Number(fetchEndTimestamp));
 
-    const summaries = await prisma.summaries.findMany({
-      where: {
-        userId,
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-      select: {
-        date: true,
-        totalMinutes: true,
-        projects: true,
-        languages: true,
-        editors: true,
-        os: true,
-        files: true,
-        branches: true,
-      },
-      orderBy: {
-        date: "asc",
-      },
-    });
+    const summariesData = await prisma.$queryRaw<
+      Array<{
+        date: Date;
+        totalMinutes: number;
+        projects: any;
+        languages: any;
+        editors: any;
+        os: any;
+        files: any;
+        branches: any;
+      }>
+    >`
+      SELECT
+        date,
+        "totalMinutes",
+        projects,
+        languages,
+        editors,
+        os,
+        files,
+        branches
+      FROM "Summaries"
+      WHERE "userId" = ${userId}
+        AND date >= ${startDate}::date
+        AND date <= ${endDate}::date
+      ORDER BY date ASC
+    `;
 
-    for (const summary of summaries) {
+    for (const summary of summariesData) {
       const dateStr = summary.date.toISOString().split("T")[0];
 
       if (!summaryMap.has(dateStr)) {
         summaryMap.set(dateStr, {
           date: dateStr,
           totalSeconds: summary.totalMinutes * 60,
-          projects: summary.projects
-            ? JSON.parse(JSON.stringify(summary.projects))
-            : {},
-          languages: summary.languages
-            ? JSON.parse(JSON.stringify(summary.languages))
-            : {},
-          editors: summary.editors
-            ? JSON.parse(JSON.stringify(summary.editors))
-            : {},
-          os: summary.os ? JSON.parse(JSON.stringify(summary.os)) : {},
-          files: summary.files ? JSON.parse(JSON.stringify(summary.files)) : {},
-          branches: summary.branches
-            ? JSON.parse(JSON.stringify(summary.branches))
-            : {},
+          projects: summary.projects || {},
+          languages: summary.languages || {},
+          editors: summary.editors || {},
+          os: summary.os || {},
+          files: summary.files || {},
+          branches: summary.branches || {},
           hourlyData: Array(24)
             .fill(null)
             .map(() => ({ seconds: Math.floor(0) })),
@@ -205,18 +201,35 @@ export async function calculateStats(
     }
   } else {
     try {
-      heartbeats = await prisma.heartbeats.findMany({
-        where: {
-          userId,
-          timestamp: {
-            gte: fetchStartTimestamp,
-            lte: fetchEndTimestamp,
-          },
-        },
-        orderBy: {
-          timestamp: "asc",
-        },
-      });
+      const heartbeatsData = await prisma.$queryRaw<
+        Array<{
+          id: string;
+          timestamp: bigint;
+          project: string | null;
+          language: string | null;
+          editor: string | null;
+          os: string | null;
+          file: string | null;
+          branch: string | null;
+        }>
+      >`
+        SELECT
+          id,
+          timestamp,
+          project,
+          language,
+          editor,
+          os,
+          file,
+          branch
+        FROM "Heartbeats"
+        WHERE "userId" = ${userId}
+          AND timestamp >= ${fetchStartTimestamp.toString()}::bigint
+          AND timestamp <= ${fetchEndTimestamp.toString()}::bigint
+        ORDER BY timestamp ASC
+      `;
+
+      heartbeats = heartbeatsData;
 
       const viewDateReferenceTimestamp = Number(fetchStartTimestamp);
       const viewDateSimulated = new Date(viewDateReferenceTimestamp - offsetMs);

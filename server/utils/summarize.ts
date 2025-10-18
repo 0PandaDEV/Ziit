@@ -1,18 +1,18 @@
 import { PrismaClient } from "@prisma/client";
-import type { Heartbeats } from "@prisma/client";
+import type { Heartbeats, Summaries } from "@prisma/client";
 
 const prisma = new PrismaClient({
-  log: ['warn', 'error'],
+  log: ["warn", "error"],
 });
 
 export function calculateTotalMinutesFromHeartbeats(
   heartbeats: Heartbeats[],
-  idleThresholdMinutes: number
+  idleThresholdMinutes: number,
 ): number {
   if (heartbeats.length === 0) return 0;
 
   const sortedHeartbeats = [...heartbeats].sort(
-    (a, b) => Number(a.timestamp) - Number(b.timestamp)
+    (a, b) => Number(a.timestamp) - Number(b.timestamp),
   );
 
   let totalMinutes = 0;
@@ -38,7 +38,7 @@ export function calculateTotalMinutesFromHeartbeats(
 
 export function calculateCategoryTimes(
   heartbeats: Heartbeats[],
-  idleThresholdMinutes: number
+  idleThresholdMinutes: number,
 ) {
   const projectsTime: Record<string, number> = {};
   const editorsTime: Record<string, number> = {};
@@ -48,11 +48,18 @@ export function calculateCategoryTimes(
   const branchesTime: Record<string, number> = {};
 
   if (heartbeats.length === 0) {
-    return { projectsTime, editorsTime, languagesTime, osTime, filesTime, branchesTime };
+    return {
+      projectsTime,
+      editorsTime,
+      languagesTime,
+      osTime,
+      filesTime,
+      branchesTime,
+    };
   }
 
   const sortedHeartbeats = [...heartbeats].sort(
-    (a, b) => Number(a.timestamp) - Number(b.timestamp)
+    (a, b) => Number(a.timestamp) - Number(b.timestamp),
   );
 
   let lastTimestamp: number | null = null;
@@ -81,15 +88,18 @@ export function calculateCategoryTimes(
         const secondsDiff = timeDiff / 1000;
 
         if (lastProject) {
-          projectsTime[lastProject] = (projectsTime[lastProject] || 0) + secondsDiff;
+          projectsTime[lastProject] =
+            (projectsTime[lastProject] || 0) + secondsDiff;
         }
 
         if (lastEditor) {
-          editorsTime[lastEditor] = (editorsTime[lastEditor] || 0) + secondsDiff;
+          editorsTime[lastEditor] =
+            (editorsTime[lastEditor] || 0) + secondsDiff;
         }
 
         if (lastLanguage) {
-          languagesTime[lastLanguage] = (languagesTime[lastLanguage] || 0) + secondsDiff;
+          languagesTime[lastLanguage] =
+            (languagesTime[lastLanguage] || 0) + secondsDiff;
         }
 
         if (lastOs) {
@@ -101,7 +111,8 @@ export function calculateCategoryTimes(
         }
 
         if (lastBranch) {
-          branchesTime[lastBranch] = (branchesTime[lastBranch] || 0) + secondsDiff;
+          branchesTime[lastBranch] =
+            (branchesTime[lastBranch] || 0) + secondsDiff;
         }
       }
     }
@@ -139,13 +150,20 @@ export function calculateCategoryTimes(
     branchesTime[key] = Math.round(branchesTime[key]);
   });
 
-  return { projectsTime, editorsTime, languagesTime, osTime, filesTime, branchesTime };
+  return {
+    projectsTime,
+    editorsTime,
+    languagesTime,
+    osTime,
+    filesTime,
+    branchesTime,
+  };
 }
 
 export async function createOrUpdateSummary(
   userId: string,
   dateStr: string,
-  heartbeats: any[]
+  heartbeats: any[],
 ) {
   if (heartbeats.length === 0) return null;
 
@@ -188,13 +206,13 @@ export async function createOrUpdateSummary(
       });
 
       const newHeartbeats = heartbeats.filter(
-        (h) => !existingMap.has(`${h.timestamp}-${h.file || ""}`)
+        (h) => !existingMap.has(`${h.timestamp}-${h.file || ""}`),
       );
 
       if (newHeartbeats.length === 0) {
         return null;
       }
-      
+
       const BATCH_SIZE = 2000;
       for (let i = 0; i < newHeartbeats.length; i += BATCH_SIZE) {
         const batch = newHeartbeats.slice(i, i + BATCH_SIZE);
@@ -223,16 +241,15 @@ export async function createOrUpdateSummary(
     const startTimestamp = BigInt(startOfDay.getTime());
     const endTimestamp = BigInt(endOfDay.getTime());
 
-    const existingHeartbeatsForImport = await prisma.heartbeats.findMany({
-      where: {
-        userId,
-        timestamp: {
-          gte: startTimestamp,
-          lte: endTimestamp,
-        },
-      },
-      select: { timestamp: true, file: true },
-    });
+    const existingHeartbeatsForImport = await prisma.$queryRaw<
+      Array<{ timestamp: bigint; file: string | null }>
+    >`
+      SELECT timestamp, file
+      FROM "Heartbeats"
+      WHERE "userId" = ${userId}
+        AND timestamp >= ${startTimestamp.toString()}::bigint
+        AND timestamp <= ${endTimestamp.toString()}::bigint
+    `;
 
     const existingMapForImport = new Map();
     existingHeartbeatsForImport.forEach((h) => {
@@ -240,13 +257,14 @@ export async function createOrUpdateSummary(
     });
 
     const newHeartbeatsForImport = heartbeats.filter(
-      (h) => !existingMapForImport.has(`${h.timestamp}-${h.file || ""}`)
+      (h) => !existingMapForImport.has(`${h.timestamp}-${h.file || ""}`),
     );
 
     if (newHeartbeatsForImport.length > 0) {
       const BATCH_SIZE = 2000;
       for (let i = 0; i < newHeartbeatsForImport.length; i += BATCH_SIZE) {
         const batch = newHeartbeatsForImport.slice(i, i + BATCH_SIZE);
+
         await prisma.heartbeats.createMany({
           data: batch.map((h) => ({
             userId: h.userId,
@@ -263,78 +281,99 @@ export async function createOrUpdateSummary(
       }
     }
 
-    const allHeartbeatsForDay = await prisma.heartbeats.findMany({
-      where: {
-        userId,
-        timestamp: {
-          gte: startTimestamp,
-          lte: endTimestamp,
-        },
-      },
-      orderBy: {
-        timestamp: "asc",
-      },
-    });
+    const allHeartbeatsForDay = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        timestamp: bigint;
+        userId: string;
+        project: string | null;
+        language: string | null;
+        editor: string | null;
+        os: string | null;
+        file: string | null;
+        branch: string | null;
+        createdAt: Date;
+        summariesId: string | null;
+      }>
+    >`
+      SELECT id, timestamp, "userId", project, language, editor, os, file, branch, "createdAt", "summariesId"
+      FROM "Heartbeats"
+      WHERE "userId" = ${userId}
+        AND timestamp >= ${startTimestamp.toString()}::bigint
+        AND timestamp <= ${endTimestamp.toString()}::bigint
+      ORDER BY timestamp ASC
+    `;
 
     const totalMinutes = calculateTotalMinutesFromHeartbeats(
       allHeartbeatsForDay,
-      idleThresholdMinutes
+      idleThresholdMinutes,
     );
 
-    const { projectsTime, editorsTime, languagesTime, osTime, filesTime, branchesTime } =
-      calculateCategoryTimes(allHeartbeatsForDay, idleThresholdMinutes);
+    const {
+      projectsTime,
+      editorsTime,
+      languagesTime,
+      osTime,
+      filesTime,
+      branchesTime,
+    } = calculateCategoryTimes(allHeartbeatsForDay, idleThresholdMinutes);
 
-    const summary = await prisma.summaries.upsert({
+    const existingSummary = await prisma.summaries.findFirst({
       where: {
-        userId_date: {
-          userId,
-          date: new Date(dateStr),
-        },
-      },
-      update: {
-        totalMinutes,
-        projects: projectsTime,
-        editors: editorsTime,
-        languages: languagesTime,
-        os: osTime,
-        files: filesTime,
-        branches: branchesTime,
-      },
-      create: {
         userId,
         date: new Date(dateStr),
-        totalMinutes,
-        projects: projectsTime,
-        editors: editorsTime,
-        languages: languagesTime,
-        os: osTime,
-        files: filesTime,
-        branches: branchesTime,
       },
     });
 
+    let summary: Summaries;
+    if (existingSummary) {
+      summary = await prisma.summaries.update({
+        where: {
+          id_date: {
+            id: existingSummary.id,
+            date: existingSummary.date,
+          },
+        },
+        data: {
+          totalMinutes,
+          projects: projectsTime,
+          editors: editorsTime,
+          languages: languagesTime,
+          os: osTime,
+          files: filesTime,
+          branches: branchesTime,
+        },
+      });
+    } else {
+      summary = await prisma.summaries.create({
+        data: {
+          userId,
+          date: new Date(dateStr),
+          totalMinutes,
+          projects: projectsTime,
+          editors: editorsTime,
+          languages: languagesTime,
+          os: osTime,
+          files: filesTime,
+          branches: branchesTime,
+        },
+      });
+    }
+
     if (allHeartbeatsForDay.length > 0) {
       const heartbeatsToUpdate = allHeartbeatsForDay.filter(
-        (h) => h.summariesId !== summary.id
+        (h) => h.summariesId !== summary.id,
       );
 
       if (heartbeatsToUpdate.length > 0) {
-        const BATCH_SIZE = 1000;
-        for (let i = 0; i < heartbeatsToUpdate.length; i += BATCH_SIZE) {
-          const batch = heartbeatsToUpdate.slice(i, i + BATCH_SIZE);
-          
-          for (const heartbeat of batch) {
-            await prisma.heartbeats.updateMany({
-              where: {
-                id: heartbeat.id,
-                timestamp: heartbeat.timestamp,
-              },
-              data: {
-                summariesId: summary.id,
-              },
-            });
-          }
-        }
+        await prisma.$executeRaw`
+          UPDATE "Heartbeats"
+          SET "summariesId" = ${summary.id}
+          WHERE "userId" = ${userId}
+            AND timestamp >= ${startTimestamp.toString()}::bigint
+            AND timestamp <= ${endTimestamp.toString()}::bigint
+            AND "summariesId" IS NULL
+        `;
       }
     }
 
@@ -348,7 +387,7 @@ export async function createOrUpdateSummary(
 export async function createOrUpdateSummaryForCron(
   userId: string,
   dateStr: string,
-  heartbeats: Heartbeats[]
+  heartbeats: Heartbeats[],
 ) {
   if (heartbeats.length === 0) return null;
 
@@ -367,44 +406,63 @@ export async function createOrUpdateSummaryForCron(
 
     const totalMinutes = calculateTotalMinutesFromHeartbeats(
       heartbeats,
-      idleThresholdMinutes
+      idleThresholdMinutes,
     );
 
-    const { projectsTime, editorsTime, languagesTime, osTime, filesTime, branchesTime } =
-      calculateCategoryTimes(heartbeats, idleThresholdMinutes);
+    const {
+      projectsTime,
+      editorsTime,
+      languagesTime,
+      osTime,
+      filesTime,
+      branchesTime,
+    } = calculateCategoryTimes(heartbeats, idleThresholdMinutes);
 
-    const summary = await prisma.summaries.upsert({
+    const existingSummary = await prisma.summaries.findFirst({
       where: {
-        userId_date: {
-          userId,
-          date: new Date(dateStr),
-        },
-      },
-      update: {
-        totalMinutes,
-        projects: projectsTime,
-        editors: editorsTime,
-        languages: languagesTime,
-        os: osTime,
-        files: filesTime,
-        branches: branchesTime,
-      },
-      create: {
         userId,
         date: new Date(dateStr),
-        totalMinutes,
-        projects: projectsTime,
-        editors: editorsTime,
-        languages: languagesTime,
-        os: osTime,
-        files: filesTime,
-        branches: branchesTime,
       },
     });
 
+    let summary: Summaries;
+    if (existingSummary) {
+      summary = await prisma.summaries.update({
+        where: {
+          id_date: {
+            id: existingSummary.id,
+            date: existingSummary.date,
+          },
+        },
+        data: {
+          totalMinutes,
+          projects: projectsTime,
+          editors: editorsTime,
+          languages: languagesTime,
+          os: osTime,
+          files: filesTime,
+          branches: branchesTime,
+        },
+      });
+    } else {
+      summary = await prisma.summaries.create({
+        data: {
+          userId,
+          date: new Date(dateStr),
+          totalMinutes,
+          projects: projectsTime,
+          editors: editorsTime,
+          languages: languagesTime,
+          os: osTime,
+          files: filesTime,
+          branches: branchesTime,
+        },
+      });
+    }
+
     if (heartbeats.length > 0) {
       const heartbeatsToUpdate = heartbeats.filter(
-        (h) => h.summariesId !== summary.id
+        (h) => h.summariesId !== summary.id,
       );
 
       if (heartbeatsToUpdate.length > 0) {
@@ -424,8 +482,8 @@ export async function createOrUpdateSummaryForCron(
                 data: {
                   summariesId: summary.id,
                 },
-              })
-            )
+              }),
+            ),
           );
         }
       }
@@ -440,7 +498,7 @@ export async function createOrUpdateSummaryForCron(
 
 export async function processHeartbeatsByDate(
   userId: string,
-  heartbeats: any[]
+  heartbeats: any[],
 ) {
   if (heartbeats.length === 0) return;
 
@@ -464,7 +522,7 @@ export async function processHeartbeatsByDate(
 
 export async function processSummariesByDate(
   userId: string,
-  heartbeats: Heartbeats[]
+  heartbeats: Heartbeats[],
 ) {
   if (heartbeats.length === 0) return;
 
@@ -488,25 +546,53 @@ export async function processSummariesByDate(
 
 export async function regenerateSummariesForUser(userId: string) {
   try {
-    await prisma.summaries.deleteMany({
-      where: { userId },
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`
+        DELETE FROM "Summaries"
+        WHERE "userId" = ${userId}
+      `;
+
+      await tx.$executeRaw`
+        UPDATE "Heartbeats"
+        SET "summariesId" = NULL
+        WHERE "userId" = ${userId}
+      `;
     });
 
-    await prisma.heartbeats.updateMany({
-      where: { userId },
-      data: { summariesId: null },
-    });
+    const heartbeatsData = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        timestamp: bigint;
+        userId: string;
+        project: string | null;
+        language: string | null;
+        editor: string | null;
+        os: string | null;
+        file: string | null;
+        branch: string | null;
+        createdAt: Date;
+        summariesId: string | null;
+      }>
+    >`
+      SELECT id, timestamp, "userId", project, language, editor, os, file, branch, "createdAt", "summariesId"
+      FROM "Heartbeats"
+      WHERE "userId" = ${userId}
+      ORDER BY timestamp ASC
+    `;
 
-    const heartbeats = await prisma.heartbeats.findMany({
-      where: { userId },
-      orderBy: { timestamp: "asc" },
-    });
+    const heartbeats = heartbeatsData;
 
     await processHeartbeatsByDate(userId, heartbeats);
 
-    const summariesCount = await prisma.summaries.count({
-      where: { userId },
-    });
+    const summariesCountResult = await prisma.$queryRaw<
+      Array<{ count: string }>
+    >`
+      SELECT COUNT(*) as count
+      FROM "Summaries"
+      WHERE "userId" = ${userId}
+    `;
+
+    const summariesCount = parseInt(summariesCountResult[0].count);
 
     return {
       success: true,
@@ -516,7 +602,7 @@ export async function regenerateSummariesForUser(userId: string) {
   } catch (error) {
     console.error(
       "Regenerate summaries error:",
-      error instanceof Error ? error.message : "Unknown error"
+      error instanceof Error ? error.message : "Unknown error",
     );
     throw createError({
       statusCode: 69,

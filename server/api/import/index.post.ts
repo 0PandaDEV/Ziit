@@ -1,18 +1,157 @@
 import { H3Event } from "h3";
 import z from "zod";
 import { handleApiError, handleLog } from "~~/server/utils/logging";
-import { handleWakApiImport } from "~~/server/utils/wakapi";
 import {
-  handleWakatimeImport,
-  handleWakatimeFileImport,
-} from "~~/server/utils/wakatime";
-import { activeJobs, type ImportJob } from "~~/server/utils/import-jobs";
+  activeJobs,
+  type ImportJob,
+  queueWakApiImport,
+  queueWakatimeApiImport,
+  queueWakatimeFileImport,
+  getQueueStatus,
+  getAllJobStatuses,
+} from "~~/server/utils/import-queue";
 import { randomUUID } from "crypto";
 import path from "path";
 import { mkdirSync, writeFileSync, existsSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import fs from "fs";
 import type { WakatimeExportData } from "~~/server/utils/wakatime";
+import busboy from "busboy";
+
+async function safeReadMultipartFormData(event: H3Event): Promise<any[]> {
+  const contentLength = getHeader(event, "content-length");
+  const contentType = getHeader(event, "content-type") || "";
+
+  if (contentLength) {
+    const size = parseInt(contentLength);
+    const MAX_SIZE = 2 * 1024 * 1024 * 1024;
+
+    handleLog(
+      `Parsed content-length: ${size} bytes (max allowed: ${MAX_SIZE})`
+    );
+
+    if (size > MAX_SIZE) {
+      throw handleApiError(
+        413,
+        `File too large: ${size} bytes (max: ${MAX_SIZE} bytes)`,
+        "File size exceeds maximum allowed limit"
+      );
+    }
+    if (size < 0 || !Number.isFinite(size)) {
+      throw handleApiError(
+        400,
+        `Invalid content-length header: ${contentLength}`,
+        "Invalid file size"
+      );
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    const fields: any[] = [];
+    const maxFileSize = 500 * 1024 * 1024;
+    const maxFieldSize = 1024 * 1024;
+
+    try {
+      const bb = busboy({
+        headers: {
+          "content-type": contentType,
+        },
+        limits: {
+          fileSize: maxFileSize,
+          fieldSize: maxFieldSize,
+          files: 10,
+          fields: 100,
+        },
+      });
+
+      bb.on("file", (fieldname: string, file: any, info: any) => {
+        const { filename, encoding, mimeType } = info;
+        const chunks: Buffer[] = [];
+        let totalSize = 0;
+
+        file.on("data", (chunk: Buffer) => {
+          totalSize += chunk.length;
+          chunks.push(chunk);
+        });
+
+        file.on("end", () => {
+          const data = Buffer.concat(chunks);
+          handleLog(`Completed file ${filename}: ${data.length} bytes`);
+
+          fields.push({
+            name: fieldname,
+            filename: filename,
+            data: data,
+            type: "file",
+            encoding: encoding,
+            mimetype: mimeType,
+          });
+        });
+
+        file.on("error", (err: Error) => {
+          handleLog(`File upload error for ${filename}: ${err.message}`);
+          reject(
+            handleApiError(
+              400,
+              `File upload error: ${err.message}`,
+              "File upload failed"
+            )
+          );
+        });
+      });
+
+      bb.on("field", (fieldname: string, value: string) => {
+        fields.push({
+          name: fieldname,
+          data: Buffer.from(value, "utf-8"),
+          type: "field",
+        });
+      });
+
+      bb.on("finish", () => {
+        handleLog(
+          `Successfully parsed multipart data with ${fields.length} fields`
+        );
+        resolve(fields);
+      });
+
+      bb.on("error", (err: Error) => {
+        handleLog(`Busboy parsing error: ${err.message}`);
+        if (err.message.includes("File too large")) {
+          reject(
+            handleApiError(
+              413,
+              `File too large: exceeds ${maxFileSize} bytes`,
+              "File size exceeds limit"
+            )
+          );
+        } else {
+          reject(
+            handleApiError(
+              400,
+              `Multipart parsing error: ${err.message}`,
+              "Failed to parse upload"
+            )
+          );
+        }
+      });
+
+      const nodeReq = event.node.req;
+      nodeReq.pipe(bb);
+    } catch (error) {
+      handleLog(
+        `Error setting up Busboy parser: ${error instanceof Error ? error.message : String(error)}`
+      );
+      reject(
+        handleApiError(
+          400,
+          `Parser setup error: ${error instanceof Error ? error.message : String(error)}`,
+          "Failed to initialize file parser"
+        )
+      );
+    }
+  });
+}
 
 export const requestSchema = z.discriminatedUnion("instanceType", [
   z.object({
@@ -82,6 +221,24 @@ async function handleChunkUpload(formData: any[], userId: string) {
     );
   }
 
+  const MAX_CHUNK_SIZE = 100 * 1024 * 1024;
+  if (chunk.data && chunk.data.length > MAX_CHUNK_SIZE) {
+    throw handleApiError(
+      413,
+      `Chunk too large: ${chunk.data.length} bytes (max: ${MAX_CHUNK_SIZE} bytes)`,
+      "Individual chunk size exceeds maximum allowed limit"
+    );
+  }
+
+  const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024;
+  if (fileSize > MAX_FILE_SIZE) {
+    throw handleApiError(
+      413,
+      `File too large: ${fileSize} bytes (max: ${MAX_FILE_SIZE} bytes)`,
+      "File size exceeds maximum allowed limit"
+    );
+  }
+
   const userTempDir = path.join(tmpdir(), "ziit-chunks", userId);
   const chunksDir = path.join(userTempDir, fileId);
   mkdirSync(chunksDir, { recursive: true });
@@ -101,22 +258,32 @@ async function handleChunkUpload(formData: any[], userId: string) {
       uploadedSize: 0,
       fileId: fileId,
     } as ImportJob;
-    activeJobs.set(userId, job);
+    activeJobs.set(fileId, job);
   }
 
-  job.uploadedSize = (job.uploadedSize || 0) + chunk.data.length;
-  job.progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
-  activeJobs.set(userId, job);
+  const previousUploadedSize = job.uploadedSize || 0;
+  const newUploadedSize = previousUploadedSize + chunk.data.length;
+  job.uploadedSize = newUploadedSize;
+  job.progress = Math.round((newUploadedSize / fileSize) * 100);
+  activeJobs.set(fileId, job);
+
+  const previousMB = Math.floor(previousUploadedSize / (1024 * 1024));
+  const currentMB = Math.floor(newUploadedSize / (1024 * 1024));
+  if (currentMB > previousMB) {
+    handleLog(
+      `Uploaded ${currentMB}MB of ${Math.ceil(fileSize / (1024 * 1024))}MB for file ${fileId}`
+    );
+  }
 
   handleLog(
-    `Received chunk ${chunkIndex + 1}/${totalChunks} for file ${fileId} for user ${userId}`
+    `Received chunk ${chunkIndex + 1}/${totalChunks} for file ${fileId} (${(newUploadedSize / (1024 * 1024)).toFixed(2)}MB/${(fileSize / (1024 * 1024)).toFixed(2)}MB)`
   );
 
   return { success: true, chunkIndex, totalChunks };
 }
 
 async function processFileInBackground(fileId: string, userId: string) {
-  const job = activeJobs.get(userId);
+  const job = activeJobs.get(fileId);
   if (!job || job.fileId !== fileId) {
     throw handleApiError(
       404,
@@ -127,7 +294,7 @@ async function processFileInBackground(fileId: string, userId: string) {
 
   job.status = "Processing";
   job.progress = 0;
-  activeJobs.set(userId, job);
+  activeJobs.set(fileId, job);
 
   const userTempDir = path.join(tmpdir(), "ziit-chunks", userId);
   const chunksDir = path.join(userTempDir, fileId);
@@ -179,21 +346,28 @@ async function processFileInBackground(fileId: string, userId: string) {
     }
 
     const wakaData = validationResult.data;
+    const daysWithData = wakaData.days.filter(
+      (day) => day.heartbeats && day.heartbeats.length > 0
+    );
     handleLog(
-      `Processing WakaTime export with ${wakaData.days.length} days of data`
+      `Processing WakaTime export with ${daysWithData.length} days of data (${wakaData.days.length} total days in file)`
     );
 
-    const result = await handleWakatimeFileImport(
+    const queueJobId = queueWakatimeFileImport(
       wakaData as unknown as WakatimeExportData,
       userId,
-      job
+      fileId
     );
 
-    return result;
+    return {
+      success: true,
+      jobId: queueJobId,
+      message: "File import has been queued for processing",
+    };
   } catch (error) {
     job.status = "Failed";
     job.error = error instanceof Error ? error.message : String(error);
-    activeJobs.set(userId, job);
+    activeJobs.set(fileId, job);
     handleLog(
       `Error processing file ${fileId}: ${error instanceof Error ? error.message : String(error)}`
     );
@@ -216,12 +390,25 @@ async function processFileInBackground(fileId: string, userId: string) {
 
 export default defineEventHandler(async (event: H3Event) => {
   const userId = event.context.user.id;
-  handleLog("Processing for user ID:", userId);
+
+  if (event.method === "GET") {
+    const queueStatus = getQueueStatus();
+    const userJobs = getAllJobStatuses(userId);
+
+    return {
+      success: true,
+      queue: queueStatus,
+      userJobs: userJobs.slice(0, 10),
+      hasActiveJobs: userJobs.some((job) =>
+        ["Processing", "Queued", "Uploading", "Pending"].includes(job.status)
+      ),
+    };
+  }
 
   const contentType = getHeader(event, "content-type") || "";
 
   if (contentType.includes("multipart/form-data")) {
-    const formData = await readMultipartFormData(event);
+    const formData = await safeReadMultipartFormData(event);
 
     if (!formData || formData.length === 0) {
       throw handleApiError(
@@ -261,8 +448,11 @@ export default defineEventHandler(async (event: H3Event) => {
         }
 
         const wakaData = validationResult.data;
+        const daysWithData = wakaData.days.filter(
+          (day) => day.heartbeats && day.heartbeats.length > 0
+        );
         handleLog(
-          `Processing WakaTime export with ${wakaData.days.length} days of data`
+          `Processing WakaTime export with ${daysWithData.length} days of data (${wakaData.days.length} total days in file)`
         );
 
         const jobId = randomUUID();
@@ -274,14 +464,19 @@ export default defineEventHandler(async (event: H3Event) => {
           progress: 0,
           userId,
         };
-        activeJobs.set(userId, job);
+        activeJobs.set(jobId, job);
 
-        const result = await handleWakatimeFileImport(
+        const queueJobId = queueWakatimeFileImport(
           wakaData as unknown as WakatimeExportData,
           userId,
-          job
+          jobId
         );
-        return result;
+
+        return {
+          success: true,
+          jobId: queueJobId,
+          message: "File import has been queued for processing",
+        };
       } catch (error: any) {
         if (error && typeof error === "object" && "__h3_error__" in error) {
           throw error;
@@ -358,7 +553,12 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     handleLog("Received WakAPI import request");
-    return handleWakApiImport(apiKey, instanceUrl, userId);
+    const jobId = queueWakApiImport(apiKey, instanceUrl, userId);
+    return {
+      success: true,
+      jobId,
+      message: "WakAPI import has been queued for processing",
+    };
   }
 
   if (instanceType === "wakatime") {
@@ -371,7 +571,12 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     handleLog("Received WakaTime API import request");
-    return handleWakatimeImport(apiKey, userId);
+    const jobId = queueWakatimeApiImport(apiKey, userId);
+    return {
+      success: true,
+      jobId,
+      message: "WakaTime API import has been queued for processing",
+    };
   }
 
   throw handleApiError(

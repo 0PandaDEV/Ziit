@@ -1,6 +1,6 @@
 import { H3Event } from "h3";
 import { decrypt, encrypt } from "paseto-ts/v4";
-import { handleApiError} from "~~/server/utils/logging";
+import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
   openAPI: {
@@ -109,14 +109,24 @@ export default defineEventHandler(async (event: H3Event) => {
 
   const githubAuthUrl = new URL("https://github.com/login/oauth/authorize");
   githubAuthUrl.searchParams.append("client_id", config.githubClientId);
-  githubAuthUrl.searchParams.append("redirect_uri", config.githubRedirectUri);
+  githubAuthUrl.searchParams.append(
+    "redirect_uri",
+    `${config.baseUrl}/api/auth/github/callback`
+  );
   githubAuthUrl.searchParams.append("state", state);
   githubAuthUrl.searchParams.append("scope", "read:user user:email");
 
   try {
     return { url: githubAuthUrl.toString() };
   } catch (error) {
-    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred while generating GitHub auth URL.";
-    throw handleApiError(69, `Failed to generate GitHub auth URL: ${detailedMessage}`, "Could not initiate GitHub linking. Please try again.");
+    const detailedMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown error occurred while generating GitHub auth URL.";
+    throw handleApiError(
+      69,
+      `Failed to generate GitHub auth URL: ${detailedMessage}`,
+      "Could not initiate GitHub linking. Please try again."
+    );
   }
 });
