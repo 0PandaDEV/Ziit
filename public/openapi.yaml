@@ -19,7 +19,7 @@ tags:
   - name: Public Routes
     description: Public API endpoints that don't require authentication
 paths:
-  /api/external/heartbeats:
+  /api/external/heartbeat:
     post:
       tags:
         - API Routes

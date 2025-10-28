@@ -5,7 +5,7 @@ import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
   openAPI: {
-    tags: ["External", "Heartbeats"],
+    tags: ["External", "Heartbeat"],
     summary: "Create a single heartbeat",
     description:
       "Accepts one heartbeat payload authenticated via Bearer API key.",
