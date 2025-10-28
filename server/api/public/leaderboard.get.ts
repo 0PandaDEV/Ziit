@@ -15,14 +15,15 @@ defineRouteMeta({
   },
 });
 
-export default defineEventHandler(async () => {
-  try {
-    const leaderboardData = await prisma.$queryRaw<
-      Array<{
-        userId: string;
-        totalMinutes: string;
-      }>
-    >`
+export default defineCachedEventHandler(
+  async () => {
+    try {
+      const leaderboardData = await prisma.$queryRaw<
+        Array<{
+          userId: string;
+          totalMinutes: string;
+        }>
+      >`
       SELECT
         "userId",
         SUM("totalMinutes")::text as "totalMinutes"
@@ -38,10 +39,10 @@ export default defineEventHandler(async () => {
       LIMIT 100
     `;
 
-    const leaderboard = await Promise.all(
-      leaderboardData.map(async (item) => {
-        const [topEditor, topOS, topLanguage] = await Promise.all([
-          prisma.$queryRaw<Array<{ editor: string }>>`
+      const leaderboard = await Promise.all(
+        leaderboardData.map(async (item) => {
+          const [topEditor, topOS, topLanguage] = await Promise.all([
+            prisma.$queryRaw<Array<{ editor: string }>>`
             SELECT editor
             FROM "Heartbeats"
             WHERE "userId" = ${item.userId}
@@ -50,7 +51,7 @@ export default defineEventHandler(async () => {
             ORDER BY COUNT(*) DESC
             LIMIT 1
           `,
-          prisma.$queryRaw<Array<{ os: string }>>`
+            prisma.$queryRaw<Array<{ os: string }>>`
             SELECT os
             FROM "Heartbeats"
             WHERE "userId" = ${item.userId}
@@ -59,7 +60,7 @@ export default defineEventHandler(async () => {
             ORDER BY COUNT(*) DESC
             LIMIT 1
           `,
-          prisma.$queryRaw<Array<{ language: string }>>`
+            prisma.$queryRaw<Array<{ language: string }>>`
             SELECT language
             FROM "Heartbeats"
             WHERE "userId" = ${item.userId}
@@ -68,24 +69,26 @@ export default defineEventHandler(async () => {
             ORDER BY COUNT(*) DESC
             LIMIT 1
           `,
-        ]);
+          ]);
 
-        return {
-          userId: item.userId,
-          totalMinutes: parseInt(item.totalMinutes),
-          topEditor: topEditor[0]?.editor || null,
-          topOS: topOS[0]?.os || null,
-          topLanguage: topLanguage[0]?.language || null,
-        };
-      }),
-    );
+          return {
+            userId: item.userId,
+            totalMinutes: parseInt(item.totalMinutes),
+            topEditor: topEditor[0]?.editor || null,
+            topOS: topOS[0]?.os || null,
+            topLanguage: topLanguage[0]?.language || null,
+          };
+        })
+      );
 
-    return leaderboard;
-  } catch (error: any) {
-    throw handleApiError(
-      69,
-      error instanceof Error ? error.message : "Unknown leaderboard error",
-      "Failed to fetch leaderboard",
-    );
-  }
-});
+      return leaderboard;
+    } catch (error: any) {
+      throw handleApiError(
+        69,
+        error instanceof Error ? error.message : "Unknown leaderboard error",
+        "Failed to fetch leaderboard"
+      );
+    }
+  },
+  { maxAge: 1440 * 60 }
+);
