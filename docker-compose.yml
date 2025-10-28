@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/0pandadev/ziit:v1.0.2
+    image: ghcr.io/0pandadev/ziit:v1.1.0
     ports:
       - "3000:3000"
     environment:
