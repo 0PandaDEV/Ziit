@@ -91,7 +91,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       throw handleApiError(
         401,
-        "Batch API error: Missing or invalid API key format in header."
+        "Batch API error: Missing or invalid API key format in header.",
       );
     }
 
@@ -101,7 +101,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!validationResult.success) {
       throw handleApiError(
         401,
-        `Batch API error: Invalid API key format. Key: ${apiKey.substring(0, 4)}...`
+        `Batch API error: Invalid API key format. Key: ${apiKey.substring(0, 4)}...`,
       );
     }
 
@@ -113,7 +113,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!user || user.apiKey !== apiKey) {
       throw handleApiError(
         401,
-        `Batch API error: Invalid API key. Key: ${apiKey.substring(0, 4)}...`
+        `Batch API error: Invalid API key. Key: ${apiKey.substring(0, 4)}...`,
       );
     }
 
@@ -123,8 +123,8 @@ export default defineEventHandler(async (event: H3Event) => {
     const heartbeatsData = heartbeats.map((heartbeat) => {
       const timestamp =
         typeof heartbeat.timestamp === "number"
-          ? BigInt(heartbeat.timestamp)
-          : BigInt(new Date(heartbeat.timestamp).getTime());
+          ? new Date(heartbeat.timestamp)
+          : new Date(heartbeat.timestamp);
 
       return {
         userId: user.id,
@@ -163,7 +163,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (error instanceof z.ZodError) {
       throw handleApiError(
         400,
-        `Batch API error: Validation error. Details: ${error.message}`
+        `Batch API error: Validation error. Details: ${error.message}`,
       );
     }
     const detailedMessage =
@@ -175,7 +175,7 @@ export default defineEventHandler(async (event: H3Event) => {
     throw handleApiError(
       69,
       `Batch API error: Failed to process heartbeats. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`,
-      "Failed to process your request."
+      "Failed to process your request.",
     );
   }
 });

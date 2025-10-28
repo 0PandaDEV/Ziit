@@ -34,7 +34,7 @@ model User {
 
 model Heartbeats {
   id          String   @default(cuid())
-  timestamp   BigInt
+  timestamp   DateTime @db.Timestamptz
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   project     String?
@@ -43,7 +43,7 @@ model Heartbeats {
   os          String?
   file        String?
   branch      String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @db.Timestamptz
   summariesId String?
 
   @@id([id, timestamp])

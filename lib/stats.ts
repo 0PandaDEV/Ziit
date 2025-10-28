@@ -60,7 +60,7 @@ export type Summary = {
 
 export interface Heartbeat {
   id: string;
-  timestamp: number | string;
+  timestamp: number | string | Date;
   project?: string | null;
   language?: string | null;
   editor?: string | null;
@@ -121,9 +121,10 @@ export async function fetchStats(): Promise<void> {
   }
 
   const cacheKey = state.timeRange;
+  const cachedData = state.cache[cacheKey];
 
-  if (state.cache[cacheKey] && state.timeRange !== TimeRangeEnum.TODAY) {
-    state.data = state.cache[cacheKey];
+  if (cachedData && state.timeRange !== TimeRangeEnum.TODAY) {
+    state.data = cachedData;
     state.status = "success";
     statsRef.value = state.data;
     return;
@@ -136,7 +137,7 @@ export async function fetchStats(): Promise<void> {
     const now = new Date();
     const timezoneOffsetMinutes = now.getTimezoneOffset();
     const timezoneOffsetSeconds = timezoneOffsetMinutes * 60;
-    
+
     const baseUrl = window.location.origin;
     const url = new URL("/api/stats", baseUrl);
     url.searchParams.append("timeRange", state.timeRange);
@@ -184,7 +185,10 @@ function processHeartbeats(apiResponse: any): StatsResult {
   const allParsedHeartbeats = (apiResponse.heartbeats || []).map((hb: any) => {
     return {
       ...hb,
-      timestamp: Number(hb.timestamp),
+      timestamp:
+        hb.timestamp instanceof Date
+          ? hb.timestamp.getTime()
+          : Number(hb.timestamp),
     };
   }) as Heartbeat[];
 

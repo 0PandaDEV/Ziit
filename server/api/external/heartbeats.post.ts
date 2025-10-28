@@ -71,7 +71,7 @@ const prisma = new PrismaClient({
 const apiKeySchema = z.uuid();
 
 const heartbeatSchema = z.object({
-  timestamp: z.string().datetime().or(z.number()),
+  timestamp: z.iso.datetime().or(z.number()),
   project: z.string().min(1).max(255),
   language: z.string().min(1).max(50),
   editor: z.string().min(1).max(50),
@@ -86,7 +86,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       throw handleApiError(
         401,
-        "Heartbeat API error: Missing or invalid API key format in header."
+        "Heartbeat API error: Missing or invalid API key format in header.",
       );
     }
 
@@ -96,7 +96,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!validationResult.success) {
       throw handleApiError(
         401,
-        `Heartbeat API error: Invalid API key format. Key: ${apiKey.substring(0, 4)}...`
+        `Heartbeat API error: Invalid API key format. Key: ${apiKey.substring(0, 4)}...`,
       );
     }
 
@@ -108,7 +108,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!user || user.apiKey !== apiKey) {
       throw handleApiError(
         401,
-        `Heartbeat API error: Invalid API key. Key: ${apiKey.substring(0, 4)}...`
+        `Heartbeat API error: Invalid API key. Key: ${apiKey.substring(0, 4)}...`,
       );
     }
 
@@ -117,8 +117,8 @@ export default defineEventHandler(async (event: H3Event) => {
 
     const timestamp =
       typeof validatedData.timestamp === "number"
-        ? BigInt(validatedData.timestamp)
-        : BigInt(new Date(validatedData.timestamp).getTime());
+        ? new Date(validatedData.timestamp)
+        : new Date(validatedData.timestamp);
 
     const heartbeat = await prisma.heartbeats.create({
       data: {
@@ -142,7 +142,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (error instanceof z.ZodError) {
       throw handleApiError(
         400,
-        `Heartbeat API error: Validation error. Details: ${error.message}`
+        `Heartbeat API error: Validation error. Details: ${error.message}`,
       );
     }
     const detailedMessage =
@@ -154,7 +154,7 @@ export default defineEventHandler(async (event: H3Event) => {
     throw handleApiError(
       69,
       `Heartbeat API error: Failed to process heartbeat. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`,
-      "Failed to process your request."
+      "Failed to process your request.",
     );
   }
 });

@@ -13,7 +13,6 @@ export default defineCronHandler(
     try {
       const now = new Date();
       now.setHours(0, 0, 0, 0);
-      const nowTimestamp = BigInt(now.getTime());
 
       const BATCH_SIZE = 5000;
       let processedCount = 0;
@@ -23,7 +22,7 @@ export default defineCronHandler(
         const heartbeatsToSummarize = await prisma.$queryRaw<
           Array<{
             id: string;
-            timestamp: bigint;
+            timestamp: Date;
             userId: string;
             project: string | null;
             editor: string | null;
@@ -51,7 +50,7 @@ export default defineCronHandler(
             u."keystrokeTimeout"
           FROM "Heartbeats" h
           INNER JOIN "User" u ON h."userId" = u.id
-          WHERE h.timestamp < ${nowTimestamp.toString()}::bigint
+          WHERE h.timestamp < ${now}::timestamptz
             AND h."summariesId" IS NULL
           ORDER BY h."userId", h.timestamp ASC, h.id
           LIMIT ${BATCH_SIZE}
@@ -108,13 +107,13 @@ async function generatePublicStats(date: Date) {
     const statsDate = new Date(date);
     statsDate.setHours(0, 0, 0, 0);
 
-    const existingStats = await prisma.$queryRaw<Array<{ count: string }>>`
-      SELECT COUNT(*) as count
-      FROM "Stats"
-      WHERE date = ${statsDate}::date
-    `;
+    const existingStats = await prisma.stats.count({
+      where: {
+        date: statsDate,
+      },
+    });
 
-    if (parseInt(existingStats[0].count) > 0) {
+    if (existingStats > 0) {
       return;
     }
 
@@ -126,51 +125,69 @@ async function generatePublicStats(date: Date) {
       topLanguageResult,
       topOSResult,
     ] = await Promise.all([
-      prisma.$queryRaw<Array<{ count: string }>>`
-        SELECT COUNT(*) as count FROM "User"
-      `,
+      prisma.user.count(),
 
-      prisma.$queryRaw<Array<{ count: string }>>`
-        SELECT COUNT(*) as count FROM "Heartbeats"
-      `,
+      prisma.heartbeats.count(),
 
-      prisma.$queryRaw<Array<{ total_minutes: string }>>`
-        SELECT COALESCE(SUM("totalMinutes"), 0) as total_minutes
-        FROM "Summaries"
-      `,
+      prisma.summaries.aggregate({
+        _sum: {
+          totalMinutes: true,
+        },
+      }),
 
-      prisma.$queryRaw<Array<{ editor: string; count: string }>>`
-        SELECT editor, COUNT(*) as count
-        FROM "Heartbeats"
-        WHERE editor IS NOT NULL
-        GROUP BY editor
-        ORDER BY COUNT(*) DESC
-        LIMIT 1
-      `,
+      prisma.heartbeats.groupBy({
+        by: ["editor"],
+        where: {
+          editor: { not: null },
+        },
+        _count: {
+          _all: true,
+        },
+        orderBy: {
+          _count: {
+            editor: "desc",
+          },
+        },
+        take: 1,
+      }),
 
-      prisma.$queryRaw<Array<{ language: string; count: string }>>`
-        SELECT language, COUNT(*) as count
-        FROM "Heartbeats"
-        WHERE language IS NOT NULL
-        GROUP BY language
-        ORDER BY COUNT(*) DESC
-        LIMIT 1
-      `,
+      prisma.heartbeats.groupBy({
+        by: ["language"],
+        where: {
+          language: { not: null },
+        },
+        _count: {
+          _all: true,
+        },
+        orderBy: {
+          _count: {
+            language: "desc",
+          },
+        },
+        take: 1,
+      }),
 
-      prisma.$queryRaw<Array<{ os: string; count: string }>>`
-        SELECT os, COUNT(*) as count
-        FROM "Heartbeats"
-        WHERE os IS NOT NULL
-        GROUP BY os
-        ORDER BY COUNT(*) DESC
-        LIMIT 1
-      `,
+      prisma.heartbeats.groupBy({
+        by: ["os"],
+        where: {
+          os: { not: null },
+        },
+        _count: {
+          _all: true,
+        },
+        orderBy: {
+          _count: {
+            os: "desc",
+          },
+        },
+        take: 1,
+      }),
     ]);
 
-    const totalUsers = parseInt(userCountResult[0].count);
-    const totalHeartbeats = parseInt(heartbeatCountResult[0].count);
+    const totalUsers = userCountResult;
+    const totalHeartbeats = heartbeatCountResult;
     const totalHours = Math.floor(
-      parseInt(summariesAggregateResult[0].total_minutes) / 60,
+      (summariesAggregateResult._sum.totalMinutes || 0) / 60,
     );
 
     const topEditor = topEditorResult[0]?.editor || "Unknown";
