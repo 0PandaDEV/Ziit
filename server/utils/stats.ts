@@ -7,7 +7,7 @@ export async function calculateStats(
   userId: string,
   timeRange: TimeRange,
   midnightOffsetSeconds?: number,
-  projectFilter?: string
+  projectFilter?: string,
 ) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -40,47 +40,47 @@ export async function calculateStats(
     Date.UTC(userTodayYear, userTodayMonth, userTodayDay, 23, 59, 59, 999) +
     offsetMs;
 
-  const todayStartTimestamp: bigint = BigInt(userTodayStartMs);
-  const todayEndTimestamp: bigint = BigInt(userTodayEndMs);
+  const todayStartDate = new Date(userTodayStartMs);
+  const todayEndDate = new Date(userTodayEndMs);
 
   const oneDayMsNum = 24 * 60 * 60 * 1000;
   const yesterdayStartMs = userTodayStartMs - oneDayMsNum;
   const yesterdayEndMs = userTodayEndMs - oneDayMsNum;
-  const yesterdayStartTimestamp: bigint = BigInt(yesterdayStartMs);
-  const yesterdayEndTimestamp: bigint = BigInt(yesterdayEndMs);
+  const yesterdayStartDate = new Date(yesterdayStartMs);
+  const yesterdayEndDate = new Date(yesterdayEndMs);
 
-  let fetchStartTimestamp: bigint;
-  let fetchEndTimestamp: bigint;
+  let fetchStartDate: Date;
+  let fetchEndDate: Date;
   let isSingleDayView = false;
 
   if (timeRange === TimeRangeEnum.TODAY) {
-    fetchStartTimestamp = todayStartTimestamp;
-    fetchEndTimestamp = BigInt(now);
+    fetchStartDate = todayStartDate;
+    fetchEndDate = new Date(now);
     isSingleDayView = true;
   } else if (timeRange === TimeRangeEnum.YESTERDAY) {
-    fetchStartTimestamp = yesterdayStartTimestamp;
-    fetchEndTimestamp = yesterdayEndTimestamp;
+    fetchStartDate = yesterdayStartDate;
+    fetchEndDate = yesterdayEndDate;
     isSingleDayView = true;
   } else if (timeRange === TimeRangeEnum.WEEK) {
-    const weekStart = new Date(Number(todayStartTimestamp));
+    const weekStart = new Date(todayStartDate);
     weekStart.setUTCDate(weekStart.getUTCDate() - 6);
-    fetchStartTimestamp = BigInt(weekStart.getTime());
-    fetchEndTimestamp = todayEndTimestamp;
+    fetchStartDate = weekStart;
+    fetchEndDate = todayEndDate;
   } else if (timeRange === TimeRangeEnum.MONTH) {
-    const monthStart = new Date(Number(todayStartTimestamp));
+    const monthStart = new Date(todayStartDate);
     monthStart.setUTCDate(monthStart.getUTCDate() - 29);
-    fetchStartTimestamp = BigInt(monthStart.getTime());
-    fetchEndTimestamp = todayEndTimestamp;
+    fetchStartDate = monthStart;
+    fetchEndDate = todayEndDate;
   } else if (timeRange === TimeRangeEnum.MONTH_TO_DATE) {
     const userLocalFirstDayOfMonth = new Date(now - offsetMs);
     userLocalFirstDayOfMonth.setUTCDate(1);
     const userMonthStartYear = userLocalFirstDayOfMonth.getUTCFullYear();
     const userMonthStartMonth = userLocalFirstDayOfMonth.getUTCMonth();
-    fetchStartTimestamp = BigInt(
+    fetchStartDate = new Date(
       Date.UTC(userMonthStartYear, userMonthStartMonth, 1, 0, 0, 0, 0) +
-        offsetMs
+        offsetMs,
     );
-    fetchEndTimestamp = todayEndTimestamp;
+    fetchEndDate = todayEndDate;
   } else if (timeRange === TimeRangeEnum.LAST_MONTH) {
     const userLocalLastDayOfPrevMonth = new Date(now - offsetMs);
     userLocalLastDayOfPrevMonth.setUTCDate(0);
@@ -88,7 +88,7 @@ export async function calculateStats(
     const userPrevMonthMonth = userLocalLastDayOfPrevMonth.getUTCMonth();
     const userPrevMonthDay = userLocalLastDayOfPrevMonth.getUTCDate();
 
-    fetchEndTimestamp = BigInt(
+    fetchEndDate = new Date(
       Date.UTC(
         userPrevMonthYear,
         userPrevMonthMonth,
@@ -96,35 +96,35 @@ export async function calculateStats(
         23,
         59,
         59,
-        999
-      ) + offsetMs
+        999,
+      ) + offsetMs,
     );
 
     const userLocalFirstDayOfPrevMonth = new Date(
-      Number(fetchEndTimestamp) - offsetMs
+      fetchEndDate.getTime() - offsetMs,
     );
     userLocalFirstDayOfPrevMonth.setUTCDate(1);
     const userPrevMonthStartYear =
       userLocalFirstDayOfPrevMonth.getUTCFullYear();
     const userPrevMonthStartMonth = userLocalFirstDayOfPrevMonth.getUTCMonth();
-    fetchStartTimestamp = BigInt(
+    fetchStartDate = new Date(
       Date.UTC(userPrevMonthStartYear, userPrevMonthStartMonth, 1, 0, 0, 0, 0) +
-        offsetMs
+        offsetMs,
     );
   } else if (timeRange === TimeRangeEnum.LAST_90_DAYS) {
-    const ninetyDaysAgo = new Date(Number(todayStartTimestamp));
+    const ninetyDaysAgo = new Date(todayStartDate);
     ninetyDaysAgo.setUTCDate(ninetyDaysAgo.getUTCDate() - 89);
-    fetchStartTimestamp = BigInt(ninetyDaysAgo.getTime());
-    fetchEndTimestamp = todayEndTimestamp;
+    fetchStartDate = ninetyDaysAgo;
+    fetchEndDate = todayEndDate;
   } else if (timeRange === TimeRangeEnum.YEAR_TO_DATE) {
     const userLocalFirstDayOfYear = new Date(now - offsetMs);
     const userYearStartYear = userLocalFirstDayOfYear.getUTCFullYear();
-    fetchStartTimestamp = BigInt(
-      Date.UTC(userYearStartYear, 0, 1, 0, 0, 0, 0) + offsetMs
+    fetchStartDate = new Date(
+      Date.UTC(userYearStartYear, 0, 1, 0, 0, 0, 0) + offsetMs,
     );
-    fetchEndTimestamp = todayEndTimestamp;
+    fetchEndDate = todayEndDate;
   } else if (timeRange === TimeRangeEnum.LAST_12_MONTHS) {
-    const twelveMonthsAgo = new Date(Number(todayStartTimestamp));
+    const twelveMonthsAgo = new Date(todayStartDate);
     twelveMonthsAgo.setUTCFullYear(twelveMonthsAgo.getUTCFullYear() - 1);
 
     const targetDate = new Date(now - offsetMs);
@@ -132,16 +132,16 @@ export async function calculateStats(
     const targetYear = targetDate.getUTCFullYear();
     const targetMonth = targetDate.getUTCMonth();
     const targetDay = targetDate.getUTCDate();
-    fetchStartTimestamp = BigInt(
-      Date.UTC(targetYear, targetMonth, targetDay, 0, 0, 0, 0) + offsetMs
+    fetchStartDate = new Date(
+      Date.UTC(targetYear, targetMonth, targetDay, 0, 0, 0, 0) + offsetMs,
     );
-    fetchEndTimestamp = todayEndTimestamp;
+    fetchEndDate = todayEndDate;
   } else if (timeRange === TimeRangeEnum.ALL_TIME) {
-    fetchStartTimestamp = BigInt(0);
-    fetchEndTimestamp = todayEndTimestamp;
+    fetchStartDate = new Date(0);
+    fetchEndDate = todayEndDate;
   } else {
-    fetchStartTimestamp = todayStartTimestamp;
-    fetchEndTimestamp = todayEndTimestamp;
+    fetchStartDate = todayStartDate;
+    fetchEndDate = todayEndDate;
     isSingleDayView = true;
   }
 
@@ -149,8 +149,8 @@ export async function calculateStats(
   let heartbeats: any[] = [];
 
   if (!isSingleDayView) {
-    const startDate = new Date(Number(fetchStartTimestamp));
-    const endDate = new Date(Number(fetchEndTimestamp));
+    const startDate = new Date(fetchStartDate);
+    const endDate = new Date(fetchEndDate);
 
     const summariesData = await prisma.$queryRaw<
       Array<{
@@ -201,42 +201,35 @@ export async function calculateStats(
     }
   } else {
     try {
-      const heartbeatsData = await prisma.$queryRaw<
-        Array<{
-          id: string;
-          timestamp: bigint;
-          project: string | null;
-          language: string | null;
-          editor: string | null;
-          os: string | null;
-          file: string | null;
-          branch: string | null;
-        }>
-      >`
-        SELECT
-          id,
-          timestamp,
-          project,
-          language,
-          editor,
-          os,
-          file,
-          branch
-        FROM "Heartbeats"
-        WHERE "userId" = ${userId}
-          AND timestamp >= ${fetchStartTimestamp.toString()}::bigint
-          AND timestamp <= ${fetchEndTimestamp.toString()}::bigint
-        ORDER BY timestamp ASC
-      `;
+      const heartbeatsData = await prisma.heartbeats.findMany({
+        where: {
+          userId,
+          timestamp: {
+            gte: fetchStartDate,
+            lte: fetchEndDate,
+          },
+        },
+        select: {
+          id: true,
+          timestamp: true,
+          project: true,
+          language: true,
+          editor: true,
+          os: true,
+          file: true,
+          branch: true,
+        },
+        orderBy: { timestamp: "asc" },
+      });
 
       heartbeats = heartbeatsData;
 
-      const viewDateReferenceTimestamp = Number(fetchStartTimestamp);
+      const viewDateReferenceTimestamp = fetchStartDate.getTime();
       const viewDateSimulated = new Date(viewDateReferenceTimestamp - offsetMs);
       const year = viewDateSimulated.getUTCFullYear();
       const month = String(viewDateSimulated.getUTCMonth() + 1).padStart(
         2,
-        "0"
+        "0",
       );
       const day = String(viewDateSimulated.getUTCDate()).padStart(2, "0");
       const dateStr = `${year}-${month}-${day}`;
@@ -261,10 +254,10 @@ export async function calculateStats(
 
         for (let i = 0; i < dateHeartbeats.length; i++) {
           const heartbeat = dateHeartbeats[i];
-          const currentTimestamp = Number(heartbeat.timestamp);
+          const currentTimestamp = heartbeat.timestamp.getTime();
 
           const heartbeatLocalSimulatedDate = new Date(
-            currentTimestamp - offsetMs
+            currentTimestamp - offsetMs,
           );
           const hour = heartbeatLocalSimulatedDate.getUTCHours();
 
@@ -272,22 +265,22 @@ export async function calculateStats(
 
           if (i > 0) {
             const prevHeartbeat = dateHeartbeats[i - 1];
-            const previousTimestamp = Number(prevHeartbeat.timestamp);
+            const previousTimestamp = prevHeartbeat.timestamp.getTime();
             const diffSeconds = Math.floor(
-              (currentTimestamp - previousTimestamp) / 1000
+              (currentTimestamp - previousTimestamp) / 1000,
             );
 
             if (diffSeconds < keystrokeTimeoutSeconds) {
               secondsToAdd = Math.floor(diffSeconds);
 
               const prevHeartbeatLocalSimulatedDate = new Date(
-                previousTimestamp - offsetMs
+                previousTimestamp - offsetMs,
               );
               const prevHour = prevHeartbeatLocalSimulatedDate.getUTCHours();
 
               if (hour !== prevHour) {
                 const hourBoundarySimulated = new Date(
-                  currentTimestamp - offsetMs
+                  currentTimestamp - offsetMs,
                 );
                 hourBoundarySimulated.setUTCMinutes(0, 0, 0);
 
@@ -295,10 +288,10 @@ export async function calculateStats(
                   hourBoundarySimulated.getTime() + offsetMs;
 
                 const secondsBeforeBoundary = Math.floor(
-                  (hourBoundaryUTC - previousTimestamp) / 1000
+                  (hourBoundaryUTC - previousTimestamp) / 1000,
                 );
                 const secondsAfterBoundary = Math.floor(
-                  (currentTimestamp - hourBoundaryUTC) / 1000
+                  (currentTimestamp - hourBoundaryUTC) / 1000,
                 );
 
                 if (
@@ -308,12 +301,12 @@ export async function calculateStats(
                   if (prevHour >= 0 && prevHour < 24) {
                     summaryData.hourlyData[prevHour].seconds = Math.floor(
                       summaryData.hourlyData[prevHour].seconds +
-                        secondsBeforeBoundary
+                        secondsBeforeBoundary,
                     );
                   }
 
                   secondsToAdd = Math.floor(
-                    secondsAfterBoundary > 0 ? secondsAfterBoundary : 0
+                    secondsAfterBoundary > 0 ? secondsAfterBoundary : 0,
                   );
                 } else {
                   secondsToAdd = Math.floor(diffSeconds);
@@ -330,40 +323,40 @@ export async function calculateStats(
 
           if (hour >= 0 && hour < 24) {
             summaryData.totalSeconds = Math.floor(
-              summaryData.totalSeconds + secondsToAdd
+              summaryData.totalSeconds + secondsToAdd,
             );
             summaryData.hourlyData[hour].seconds = Math.floor(
-              summaryData.hourlyData[hour].seconds + secondsToAdd
+              summaryData.hourlyData[hour].seconds + secondsToAdd,
             );
 
             if (heartbeat.project) {
               summaryData.projects[heartbeat.project] = Math.floor(
-                (summaryData.projects[heartbeat.project] || 0) + secondsToAdd
+                (summaryData.projects[heartbeat.project] || 0) + secondsToAdd,
               );
             }
             if (heartbeat.language) {
               summaryData.languages[heartbeat.language] = Math.floor(
-                (summaryData.languages[heartbeat.language] || 0) + secondsToAdd
+                (summaryData.languages[heartbeat.language] || 0) + secondsToAdd,
               );
             }
             if (heartbeat.editor) {
               summaryData.editors[heartbeat.editor] = Math.floor(
-                (summaryData.editors[heartbeat.editor] || 0) + secondsToAdd
+                (summaryData.editors[heartbeat.editor] || 0) + secondsToAdd,
               );
             }
             if (heartbeat.os) {
               summaryData.os[heartbeat.os] = Math.floor(
-                (summaryData.os[heartbeat.os] || 0) + secondsToAdd
+                (summaryData.os[heartbeat.os] || 0) + secondsToAdd,
               );
             }
             if (heartbeat.file) {
               summaryData.files[heartbeat.file] = Math.floor(
-                (summaryData.files[heartbeat.file] || 0) + secondsToAdd
+                (summaryData.files[heartbeat.file] || 0) + secondsToAdd,
               );
             }
             if (heartbeat.branch) {
               summaryData.branches[heartbeat.branch] = Math.floor(
-                (summaryData.branches[heartbeat.branch] || 0) + secondsToAdd
+                (summaryData.branches[heartbeat.branch] || 0) + secondsToAdd,
               );
             }
           }
@@ -379,7 +372,7 @@ export async function calculateStats(
   }
 
   const summaries = Array.from(summaryMap.values()).sort((a, b) =>
-    a.date.localeCompare(b.date)
+    a.date.localeCompare(b.date),
   );
 
   let totalProjectSeconds = 0;
@@ -412,9 +405,9 @@ export async function calculateStats(
         projectFilter === "all"
           ? summaries.reduce(
               (total, summary) => total + summary.totalSeconds,
-              0
+              0,
             )
-          : totalProjectSeconds
+          : totalProjectSeconds,
       ),
       projectFilter,
     };
