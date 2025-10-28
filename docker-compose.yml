@@ -27,8 +27,12 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: CHANGEME # change this for production use
       POSTGRES_DB: ziit
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - postgres:/var/lib/postgresql/data
+    post_start:
+      - command: chown -R 1000:1000 /var/lib/postgresql/data
+        user: root
     networks:
       ziit-network:
         aliases:
