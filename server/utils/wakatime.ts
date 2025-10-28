@@ -1,8 +1,9 @@
 import { processHeartbeatsByDate } from "~~/server/utils/summarize";
 import { handleApiError, handleLog } from "~~/server/utils/logging";
-import { activeJobs, type ImportJob } from "~~/server/utils/import-queue";
-import path from "path";
+import { activeJobs, updateJob } from "~~/server/utils/import-queue";
 import { randomUUID } from "crypto";
+import path from "path";
+import { ImportJob, ImportStatus } from "~~/types/import";
 
 const enum Endpoints {
   WakatimeApiUrl = "https://api.wakatime.com/api/v1",
@@ -75,76 +76,44 @@ async function createDataDumpRequest(apiKey: string): Promise<void> {
         email_when_finished: false,
       }),
     });
-
-    handleLog("Data dump request created successfully");
   } catch (error: any) {
     if (
       error.statusCode === 400 &&
       error.data?.error ===
         "Wait for your current export to expire before creating another."
     ) {
-      handleLog("Using existing data dump request");
       return;
     }
     throw error;
   }
 }
 
-async function pollForDataDump(
-  apiKey: string,
-  job?: ImportJob,
-): Promise<WakatimeDataDump> {
+async function pollForDataDump(apiKey: string): Promise<WakatimeDataDump> {
   const url = `${Endpoints.WakatimeApiUrl}${Endpoints.WakatimeApiDataDumpUrl}`;
   const maxAttempts = 180;
   let attempts = 0;
 
   while (attempts < maxAttempts) {
-    try {
-      const response = await $fetch<{ data: WakatimeDataDump[] }>(url, {
-        headers: {
-          Authorization: `Basic ${Buffer.from(apiKey).toString("base64")}`,
-        },
-      });
+    const response = await $fetch<{ data: WakatimeDataDump[] }>(url, {
+      headers: {
+        Authorization: `Basic ${Buffer.from(apiKey).toString("base64")}`,
+      },
+    });
 
-      const heartbeatsDump = response.data.find(
-        (dump) => dump.type === "heartbeats",
-      );
+    const heartbeatsDump = response.data.find(
+      (dump) => dump.type === "heartbeats",
+    );
 
-      if (!heartbeatsDump) {
-        throw new Error("No heartbeats dump found");
-      }
-
-      if (job) {
-        job.status = "Processing";
-        job.progress = Math.min(99, heartbeatsDump.percent_complete);
-        activeJobs.set(job.id, job);
-      }
-
-      if (
-        heartbeatsDump.status === "Completed" &&
-        heartbeatsDump.download_url
-      ) {
-        handleLog(
-          `Data dump ready for download: ${heartbeatsDump.percent_complete}% complete`,
-        );
-        if (job) {
-          job.status = "Downloading";
-          job.progress = 100;
-          activeJobs.set(job.id, job);
-        }
-        return heartbeatsDump;
-      }
-
-      handleLog(
-        `Data dump progress: ${heartbeatsDump.percent_complete}% complete`,
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 10000));
-      attempts++;
-    } catch (error) {
-      handleLog(`Error polling for data dump: ${error}`);
-      throw error;
+    if (!heartbeatsDump) {
+      throw new Error("No heartbeats dump found");
     }
+
+    if (heartbeatsDump.status === "Completed" && heartbeatsDump.download_url) {
+      return heartbeatsDump;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    attempts++;
   }
 
   throw new Error("Data dump polling timed out after 10 minutes");
@@ -152,88 +121,44 @@ async function pollForDataDump(
 
 async function downloadDataDump(
   downloadUrl: string,
-  job?: ImportJob,
 ): Promise<WakatimeExportData> {
-  if (!job) throw new Error("Job is required for progress tracking");
+  const response = await fetch(downloadUrl);
 
-  job.status = "Downloading";
-  job.progress = 0;
-  activeJobs.set(job.id, job);
+  if (!response.body) {
+    throw new Error("No response body found for download");
+  }
 
-  try {
-    const response = await fetch(downloadUrl);
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let receivedBytes = 0;
+  const PROGRESS_UPDATE_SIZE = 1024 * 1024;
+  let nextProgressUpdate = PROGRESS_UPDATE_SIZE;
 
-    if (!response.body) {
-      throw new Error("No response body found for download");
-    }
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
 
-    const contentLengthHeader = response.headers.get("Content-Length");
-    const totalBytes = contentLengthHeader
-      ? parseInt(contentLengthHeader, 10)
-      : NaN;
+    if (value) {
+      chunks.push(value);
+      receivedBytes += value.length;
 
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let receivedBytes = 0;
-    const PROGRESS_UPDATE_SIZE = 1024 * 1024;
-    let nextProgressUpdate = PROGRESS_UPDATE_SIZE;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      if (value) {
-        chunks.push(value);
-        receivedBytes += value.length;
-
-        if (receivedBytes >= nextProgressUpdate) {
-          const megabytes = Math.floor(receivedBytes / (1024 * 1024));
-          handleLog(`Downloaded ${megabytes}MB...`);
-          nextProgressUpdate += PROGRESS_UPDATE_SIZE;
-        }
-
-        if (!isNaN(totalBytes)) {
-          job.progress = Math.min(
-            99,
-            Math.round((receivedBytes / totalBytes) * 100),
-          );
-          activeJobs.set(job.id, job);
-        }
+      if (receivedBytes >= nextProgressUpdate) {
+        nextProgressUpdate += PROGRESS_UPDATE_SIZE;
       }
     }
-
-    const combined = new Uint8Array(receivedBytes);
-    let offset = 0;
-    for (const chunk of chunks) {
-      combined.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    const text = new TextDecoder().decode(combined);
-    const exportData: WakatimeExportData = JSON.parse(text);
-
-    const daysWithData = Array.isArray(exportData.days)
-      ? exportData.days.filter(
-          (day) => day.heartbeats && day.heartbeats.length > 0,
-        )
-      : [];
-
-    handleLog(
-      `Downloaded data dump with ${daysWithData.length} days of data (${Array.isArray(exportData.days) ? exportData.days.length : 0} total days in file)`,
-    );
-
-    job.progress = 100;
-    activeJobs.set(job.id, job);
-
-    return exportData;
-  } catch (error) {
-    job.status = "Failed";
-    job.error = error instanceof Error ? error.message : String(error);
-    activeJobs.set(job.id, job);
-
-    handleLog(`Error downloading data dump: ${error}`);
-    throw error;
   }
+
+  const combined = new Uint8Array(receivedBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  const text = new TextDecoder().decode(combined);
+  const exportData: WakatimeExportData = JSON.parse(text);
+
+  return exportData;
 }
 
 async function fetchUserAgents(
@@ -244,30 +169,24 @@ async function fetchUserAgents(
   let totalPages = 1;
 
   do {
-    try {
-      const url = `${Endpoints.WakatimeApiUrl}${Endpoints.WakatimeApiUserAgentsUrl}?page=${page}`;
-      const response = await $fetch<{
-        data: WakatimeUserAgent[];
-        total_pages: number;
-      }>(url, {
-        headers: {
-          Authorization: `Basic ${Buffer.from(apiKey).toString("base64")}`,
-        },
-      });
+    const url = `${Endpoints.WakatimeApiUrl}${Endpoints.WakatimeApiUserAgentsUrl}?page=${page}`;
+    const response = await $fetch<{
+      data: WakatimeUserAgent[];
+      total_pages: number;
+    }>(url, {
+      headers: {
+        Authorization: `Basic ${Buffer.from(apiKey).toString("base64")}`,
+      },
+    });
 
-      response.data.forEach((ua) => {
-        userAgents.set(ua.id, ua);
-      });
+    response.data.forEach((ua) => {
+      userAgents.set(ua.id, ua);
+    });
 
-      totalPages = response.total_pages;
-      page++;
-    } catch (error) {
-      handleLog(`Error fetching user agents page ${page}: ${error}`);
-      break;
-    }
+    totalPages = response.total_pages;
+    page++;
   } while (page <= totalPages);
 
-  handleLog(`Fetched ${userAgents.size} user agents`);
   return userAgents;
 }
 
@@ -296,7 +215,7 @@ export function mapHeartbeat(
 
   return {
     userId,
-    timestamp: BigInt(Math.round(heartbeat.time * 1000)),
+    timestamp: new Date(Math.round(heartbeat.time * 1000)),
     project: heartbeat.project || null,
     editor,
     language: heartbeat.language || null,
@@ -308,6 +227,44 @@ export function mapHeartbeat(
   };
 }
 
+export async function prepareWakatimeApiData(
+  apiKey: string,
+  job?: ImportJob,
+): Promise<{
+  exportData: WakatimeExportData;
+  userAgents: Map<string, WakatimeUserAgent>;
+}> {
+  if (job) {
+    updateJob(job, {
+      status: ImportStatus.CreatingDataDumpRequest,
+    });
+  }
+  await createDataDumpRequest(apiKey);
+
+  if (job) {
+    updateJob(job, {
+      status: ImportStatus.WaitingForDataDump,
+    });
+  }
+  const dataDump = await pollForDataDump(apiKey);
+
+  if (job) {
+    updateJob(job, {
+      status: ImportStatus.Downloading,
+    });
+  }
+  const exportData = await downloadDataDump(dataDump.download_url!);
+
+  if (job) {
+    updateJob(job, {
+      status: ImportStatus.FetchingMetadata,
+    });
+  }
+  const userAgents = await fetchUserAgents(apiKey);
+
+  return { exportData, userAgents };
+}
+
 export async function handleWakatimeImport(
   apiKey: string,
   userId: string,
@@ -316,96 +273,60 @@ export async function handleWakatimeImport(
   const job: ImportJob = existingJob || {
     id: randomUUID(),
     fileName: `WakaTime Import ${new Date().toISOString()}`,
-    status: "Pending",
+    status: ImportStatus.Processing,
     progress: 0,
     userId,
+    type: "wakatime-api",
   };
 
   if (!existingJob) {
     activeJobs.set(job.id, job);
+    updateJob(job, { status: ImportStatus.Processing });
   }
 
   try {
-    handleLog(`Starting WakaTime API import for user ${userId}`);
+    handleLog(`[wakatime] Starting WakaTime API import for user ${userId}`);
 
-    handleLog("Creating data dump request...");
-    job.status = "Creating data dump request";
-    job.progress = 5;
-    activeJobs.set(job.id, job);
+    const { exportData, userAgents } = await prepareWakatimeApiData(
+      apiKey,
+      job,
+    );
+    const { daysWithHeartbeats } = prepareWakatimeFileData(exportData);
 
-    await createDataDumpRequest(apiKey);
-
-    job.status = "Waiting for data dump";
-    job.progress = 10;
-    activeJobs.set(job.id, job);
-
-    handleLog("Waiting for data dump to be ready...");
-    const dataDump = await pollForDataDump(apiKey, job);
-
-    handleLog("Downloading data dump...");
-    const exportData = await downloadDataDump(dataDump.download_url!, job);
-
-    job.status = "Fetching metadata";
-    job.progress = 0;
-    activeJobs.set(job.id, job);
-
-    handleLog("Fetching user agents and machine names...");
-    const userAgents = await fetchUserAgents(apiKey);
-
-    if (!Array.isArray(exportData.days)) exportData.days = [];
-
-    const daysWithHeartbeats = exportData.days.filter(
-      (day) => day.heartbeats && day.heartbeats.length > 0,
+    handleLog(
+      `[wakatime] Processing ${daysWithHeartbeats.length} days of data`,
     );
 
-    job.totalToProcess = daysWithHeartbeats.length;
-    job.status = "Processing heartbeats";
-    job.processedCount = 0;
-    job.progress = 0;
-    activeJobs.set(job.id, job);
+    updateJob(job, {
+      status: ImportStatus.ProcessingHeartbeats,
+      current: 0,
+      total: daysWithHeartbeats.length,
+    });
 
-    const importResults: number[] = [];
-    for (const day of daysWithHeartbeats) {
-      handleLog(
-        `Processing ${day.heartbeats.length} heartbeats for ${day.date}`,
-      );
-
-      const processedHeartbeats = day.heartbeats.map((h) =>
+    let totalHeartbeats = 0;
+    for (let i = 0; i < daysWithHeartbeats.length; i++) {
+      const day = daysWithHeartbeats[i];
+      const processedHeartbeats = day.heartbeats.map((h: any) =>
         mapHeartbeat(h, userAgents, userId, exportData.user.last_plugin),
       );
 
-      try {
-        await processHeartbeatsByDate(userId, processedHeartbeats);
+      await processHeartbeatsByDate(userId, processedHeartbeats);
+      totalHeartbeats += processedHeartbeats.length;
 
-        job.processedCount! += 1;
-        job.progress = Math.round(
-          (job.processedCount! / daysWithHeartbeats.length) * 100,
-        );
-        activeJobs.set(job.id, job);
-
-        importResults.push(processedHeartbeats.length);
-      } catch (error) {
-        handleLog(`Error processing heartbeats for ${day.date}: ${error}`);
-
-        job.processedCount! += 1;
-        job.progress = Math.round(
-          (job.processedCount! / daysWithHeartbeats.length) * 100,
-        );
-        activeJobs.set(job.id, job);
-
-        importResults.push(0);
-      }
+      updateJob(job, {
+        status: ImportStatus.ProcessingHeartbeats,
+        current: i + 1,
+        total: daysWithHeartbeats.length,
+      });
     }
 
-    const totalHeartbeats = importResults.reduce((acc, val) => acc + val, 0);
-
-    job.status = "Completed";
-    job.importedCount = totalHeartbeats;
-    job.progress = 100;
-    activeJobs.set(job.id, job);
+    updateJob(job, {
+      status: ImportStatus.Completed,
+      importedCount: totalHeartbeats,
+    });
 
     handleLog(
-      `Successfully imported ${totalHeartbeats} heartbeats from WakaTime`,
+      `[wakatime] Successfully imported ${totalHeartbeats} heartbeats from WakaTime API`,
     );
 
     return {
@@ -414,12 +335,15 @@ export async function handleWakatimeImport(
       message: `Successfully imported ${totalHeartbeats} heartbeats`,
     };
   } catch (error: any) {
-    job.status = "Failed";
     const errorMessage = error instanceof Error ? error.message : String(error);
-    job.error = errorMessage;
-    activeJobs.set(job.id, job);
+    updateJob(job, {
+      status: ImportStatus.Failed,
+      error: errorMessage,
+    });
 
-    handleLog(`WakaTime API import failed for user ${userId}: ${errorMessage}`);
+    handleLog(
+      `[wakatime] WakaTime API import failed for user ${userId}: ${errorMessage}`,
+    );
 
     throw handleApiError(
       69,
@@ -429,88 +353,96 @@ export async function handleWakatimeImport(
   }
 }
 
+export function prepareWakatimeFileData(exportData: WakatimeExportData): {
+  daysWithHeartbeats: any[];
+  useParallelProcessing: boolean;
+} {
+  if (!Array.isArray(exportData.days)) exportData.days = [];
+
+  const daysWithHeartbeats = exportData.days.filter(
+    (day) => day.heartbeats && day.heartbeats.length > 0,
+  );
+
+  const useParallelProcessing = daysWithHeartbeats.length > 10;
+
+  return { daysWithHeartbeats, useParallelProcessing };
+}
+
 export async function handleWakatimeFileImport(
   exportData: WakatimeExportData,
   userId: string,
   job: ImportJob,
 ): Promise<{ success: boolean; imported: number; message?: string }> {
   try {
-    handleLog(`Starting WakaTime file import for user ${userId}`);
+    handleLog(`[wakatime] Starting WakaTime file import for user ${userId}`);
 
-    job.status = "Processing";
-    activeJobs.set(job.id, job);
+    const { daysWithHeartbeats, useParallelProcessing } =
+      prepareWakatimeFileData(exportData);
 
-    if (!Array.isArray(exportData.days)) exportData.days = [];
-
-    const daysWithHeartbeats = exportData.days.filter(
-      (day) => day.heartbeats && day.heartbeats.length > 0,
-    );
-
-    job.totalToProcess = daysWithHeartbeats.length;
-    job.status = "Processing heartbeats";
-    job.processedCount = 0;
-    job.progress = 0;
-    activeJobs.set(job.id, job);
-
-    const importResults: number[] = [];
-    for (const day of daysWithHeartbeats) {
+    if (useParallelProcessing) {
       handleLog(
-        `Processing ${day.heartbeats.length} heartbeats for ${day.date}`,
+        `[wakatime] Using parallel processing for ${daysWithHeartbeats.length} days`,
       );
+
+      return {
+        success: true,
+        imported: job.importedCount || 0,
+        message: `Parallel processing initiated for ${daysWithHeartbeats.length} days`,
+      };
+    } else {
+      handleLog(
+        `[wakatime] Using sequential processing for ${daysWithHeartbeats.length} days`,
+      );
+
+      updateJob(job, {
+        status: ImportStatus.ProcessingHeartbeats,
+        current: 0,
+        total: daysWithHeartbeats.length,
+      });
 
       const userAgents = new Map<string, WakatimeUserAgent>();
+      let totalHeartbeats = 0;
 
-      const processedHeartbeats = day.heartbeats.map((h) =>
-        mapHeartbeat(h, userAgents, userId, exportData.user.last_plugin),
+      for (let i = 0; i < daysWithHeartbeats.length; i++) {
+        const day = daysWithHeartbeats[i];
+        const processedHeartbeats = day.heartbeats.map((h: any) =>
+          mapHeartbeat(h, userAgents, userId, exportData.user.last_plugin),
+        );
+
+        await processHeartbeatsByDate(userId, processedHeartbeats);
+        totalHeartbeats += processedHeartbeats.length;
+
+        updateJob(job, {
+          status: ImportStatus.ProcessingHeartbeats,
+          current: i + 1,
+          total: daysWithHeartbeats.length,
+        });
+      }
+
+      updateJob(job, {
+        status: ImportStatus.Completed,
+        importedCount: daysWithHeartbeats.length,
+      });
+
+      handleLog(
+        `[wakatime] Successfully imported ${totalHeartbeats} heartbeats from WakaTime file`,
       );
 
-      try {
-        await processHeartbeatsByDate(userId, processedHeartbeats);
-
-        job.processedCount! += 1;
-        job.progress = Math.round(
-          (job.processedCount! / daysWithHeartbeats.length) * 100,
-        );
-        activeJobs.set(job.id, job);
-
-        importResults.push(processedHeartbeats.length);
-      } catch (error) {
-        handleLog(`Error processing heartbeats for ${day.date}: ${error}`);
-
-        job.processedCount! += 1;
-        job.progress = Math.round(
-          (job.processedCount! / daysWithHeartbeats.length) * 100,
-        );
-        activeJobs.set(job.id, job);
-
-        importResults.push(0);
-      }
+      return {
+        success: true,
+        imported: totalHeartbeats,
+        message: `Successfully imported ${totalHeartbeats} heartbeats`,
+      };
     }
-
-    const totalHeartbeats = importResults.reduce((acc, val) => acc + val, 0);
-
-    job.status = "Completed";
-    job.importedCount = totalHeartbeats;
-    job.progress = 100;
-    activeJobs.set(job.id, job);
-
-    handleLog(
-      `Successfully imported ${totalHeartbeats} heartbeats from WakaTime file`,
-    );
-
-    return {
-      success: true,
-      imported: totalHeartbeats,
-      message: `Successfully imported ${totalHeartbeats} heartbeats`,
-    };
   } catch (error: any) {
-    job.status = "Failed";
     const errorMessage = error instanceof Error ? error.message : String(error);
-    job.error = errorMessage;
-    activeJobs.set(job.id, job);
+    updateJob(job, {
+      status: ImportStatus.Failed,
+      error: errorMessage,
+    });
 
     handleLog(
-      `WakaTime file import failed for user ${userId}: ${errorMessage}`,
+      `[wakatime] WakaTime file import failed for user ${userId}: ${errorMessage}`,
     );
 
     throw handleApiError(

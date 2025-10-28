@@ -222,16 +222,14 @@
 
         <div v-if="importJob" class="import-status">
           <p>
-            <span class="spinner">{{ spinnerText }}</span>
+            <span class="spinner" v-if="showSpinner">{{ spinnerText }}</span>
             {{ importStatusText }}
           </p>
           <div class="bar-container">
             <div
               class="bar"
               :style="{
-                width:
-                  (uploadProgress > 0 ? uploadProgress : importJob.progress) +
-                  '%',
+                width: importJob.progress + '%',
               }"></div>
           </div>
         </div>
@@ -243,25 +241,25 @@
           <UiButton
             v-if="purgeTimer == 0"
             text="Purge all data"
-            keyName="Ctrl+C"
+            keyName="Alt+C"
             @click="countDown('purge')"
             :red="true" />
           <UiButton
             v-if="purgeTimer != 0"
             :text="`Click to confirm purge... ` + purgeTimer"
-            keyName="Ctrl+C"
+            keyName="Alt+C"
             @click="purgeData"
             :red="true" />
           <UiButton
             v-if="deleteTimer == 0"
             text="Delete account"
-            keyName="Ctrl+D"
+            keyName="Alt+D"
             @click="countDown('delete')"
             :red="true" />
           <UiButton
             v-if="deleteTimer != 0"
             :text="`Click to confirm delete... ` + deleteTimer"
-            keyName="Ctrl+D"
+            keyName="Alt+D"
             @click="deleteAccount"
             :red="true" />
         </div>
@@ -273,22 +271,17 @@
 <script setup lang="ts">
 import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
-
 import * as statsLib from "~~/lib/stats";
-import type { ImportJob } from "~~/server/utils/import-queue";
+import { ImportStatus, type ImportJob } from "~~/types/import";
 
 const { data: fetchedUser } = await useFetch("/api/user");
-const userState = useState<User | null>(
-  "user",
-  () => fetchedUser.value as User
-);
+const user = useState<User | null>("user", () => fetchedUser.value as User);
 
-const user = computed(() => userState.value);
 const showApiKey = ref(false);
 const toast = useToast();
 const route = useRoute();
-const keystrokeTimeout = ref(fetchedUser.value?.keystrokeTimeout || 15);
-const originalKeystrokeTimeout = ref(fetchedUser.value?.keystrokeTimeout || 15);
+const keystrokeTimeout = ref(user.value?.keystrokeTimeout || 15);
+const originalKeystrokeTimeout = ref(user.value?.keystrokeTimeout || 15);
 const timeoutChanged = ref(false);
 const hasGithubAccount = computed(() => !!user.value?.githubId);
 const hasEpilogueAccount = computed(() => !!user.value?.epilogueId);
@@ -303,9 +296,6 @@ const wakapiInstanceUrl = ref("");
 const wakaTimeFileInput = ref<HTMLInputElement | null>(null);
 const selectedFile = ref<File | null>(null);
 const selectedFileName = ref<string | null>(null);
-const uploadProgress = ref(0);
-const uploadedBytes = ref(0);
-const uploadStatus = ref("");
 const isUploading = ref(false);
 const importJob = ref<ImportJob | null>(null);
 let eventSource: EventSource | null = null;
@@ -351,54 +341,12 @@ const apiKeyPlaceholder = computed(() => {
 
 const importStatusText = computed(() => {
   if (!importJob.value) return "";
-  const job = importJob.value;
-  let status = job.status;
+  return importJob.value.message;
+});
 
-  if (job.status === "Uploading" && job.totalSize) {
-    const currentProgress =
-      uploadProgress.value > 0 ? uploadProgress.value : job.progress;
-    const currentUploaded =
-      uploadedBytes.value > 0 ? uploadedBytes.value : job.uploadedSize || 0;
-    const uploadedMB = (currentUploaded / (1024 * 1024)).toFixed(2);
-    const totalMB = (job.totalSize / (1024 * 1024)).toFixed(2);
-    return `${uploadStatus.value || "Uploading"}: ${uploadedMB}MB / ${totalMB}MB (${currentProgress}%)`;
-  }
-
-  if (job.status === "Creating data dump request") {
-    return `Creating data dump request... (${job.progress}%)`;
-  }
-
-  if (job.status === "Waiting for data dump") {
-    return `Waiting for data dump to be created... (${job.progress}%)`;
-  }
-
-  if (job.status === "Downloading") {
-    return `Downloading data dump... (${job.progress}%)`;
-  }
-
-  if (job.status === "Fetching metadata") {
-    return `Fetching user agents and metadata... (${job.progress}%)`;
-  }
-
-  if (job.status === "Processing heartbeats") {
-    const processed = job.processedCount || 0;
-    if (job.totalToProcess) {
-      return `Processing heartbeats: ${processed}/${job.totalToProcess} days (${job.progress}%)`;
-    } else {
-      return `Processing heartbeats... (${job.progress}%)`;
-    }
-  }
-
-  if (job.status === "Processing") {
-    const processed = job.processedCount || 0;
-    if (job.totalToProcess) {
-      return `Processing: ${processed} days processed (${job.progress}%)`;
-    } else {
-      return `Processing data... (${job.progress}%)`;
-    }
-  }
-
-  return status;
+const showSpinner = computed(() => {
+  const status = importJob.value?.status || "";
+  return !(status === ImportStatus.Completed || status === ImportStatus.Failed);
 });
 
 function startSpinner() {
@@ -416,22 +364,20 @@ function stopSpinner() {
 }
 
 watch(importJob, (newJob) => {
-  if (newJob && (newJob.status === "Completed" || newJob.status === "Failed")) {
+  if (
+    newJob &&
+    (newJob.status === ImportStatus.Completed ||
+      newJob.status === ImportStatus.Failed)
+  ) {
     stopSpinner();
-    if (eventSource) {
-      eventSource.close();
-      eventSource = null;
+    if (newJob.status === ImportStatus.Failed) {
+      toast.error(`Import failed: ${newJob.error || "Unknown error"}`);
+      setTimeout(() => {
+        if (importJob.value && importJob.value.status === ImportStatus.Failed) {
+          importJob.value = null;
+        }
+      }, 8000);
     }
-    if (newJob.status === "Completed") {
-      toast.success(
-        `Successfully imported ${newJob.importedCount} heartbeats.`
-      );
-    } else if (newJob.status === "Failed") {
-      toast.error(`Import failed: ${newJob.error}`);
-    }
-    uploadProgress.value = 0;
-    uploadedBytes.value = 0;
-    uploadStatus.value = "";
   } else if (newJob) {
     startSpinner();
   } else {
@@ -460,25 +406,15 @@ function connectEventSource() {
 
         if (response.activeJob) {
           const serverJob = response.activeJob as ImportJob;
-
+          importJob.value = serverJob;
+        } else if (!response.hasActiveJobs && !isUploading.value) {
           if (
             importJob.value &&
-            importJob.value.status === "Uploading" &&
-            isUploading.value &&
-            (serverJob.status === "Pending" || !serverJob.uploadedSize)
+            !importJob.value.status.includes("Completed") &&
+            !importJob.value.status.includes("Failed")
           ) {
-            importJob.value = {
-              ...serverJob,
-              status: "Uploading",
-              progress: uploadProgress.value,
-              uploadedSize: uploadedBytes.value,
-              totalSize: importJob.value.totalSize,
-            };
-          } else {
-            importJob.value = serverJob;
+            importJob.value = null;
           }
-        } else if (!response.hasActiveJobs && !isUploading.value) {
-          importJob.value = null;
         }
       } catch (error) {
         console.error("Error parsing EventSource message:", error);
@@ -721,7 +657,7 @@ useKeybind({
 });
 
 useKeybind({
-  keys: ["control_c"],
+  keys: ["alt_c"],
   run() {
     countDown("purge");
   },
@@ -729,7 +665,7 @@ useKeybind({
 });
 
 useKeybind({
-  keys: ["control_d"],
+  keys: ["alt_d"],
   run() {
     countDown("delete");
   },
@@ -747,8 +683,8 @@ async function updateKeystrokeTimeout() {
       },
     });
 
-    if (userState.value) {
-      userState.value.keystrokeTimeout = keystrokeTimeout.value;
+    if (user.value) {
+      user.value.keystrokeTimeout = keystrokeTimeout.value;
     }
 
     statsLib.setKeystrokeTimeout(keystrokeTimeout.value);
@@ -782,8 +718,8 @@ async function changeEmail() {
       },
     });
 
-    if (userState.value) {
-      userState.value.email = newEmail.value;
+    if (user.value) {
+      user.value.email = newEmail.value;
     }
 
     toast.success("Email updated successfully");
@@ -868,9 +804,9 @@ async function regenerateApiKey() {
   try {
     const data = await $fetch("/api/user/apikey");
 
-    if (userState.value) {
-      userState.value = {
-        ...userState.value,
+    if (user.value) {
+      user.value = {
+        ...user.value,
         apiKey: data.apiKey,
       };
       showApiKey.value = true;
@@ -916,8 +852,8 @@ async function toggleLeaderboard() {
       },
     });
 
-    if (userState.value) {
-      userState.value.leaderboardEnabled = newState;
+    if (user.value) {
+      user.value.leaderboardEnabled = newState;
     }
 
     toast.success(
@@ -968,25 +904,10 @@ async function importTrackingData() {
 
     try {
       isUploading.value = true;
-      uploadProgress.value = 0;
+
       const file = selectedFile.value;
       const fileSize = file.size;
-
-      const fileId = Date.now().toString();
-      importJob.value = {
-        id: fileId,
-        fileName: file.name,
-        status: "Uploading",
-        progress: 0,
-        userId: user.value?.id || "",
-        totalSize: fileSize,
-        uploadedSize: 0,
-        fileId: fileId,
-      };
-
-      uploadProgress.value = 0;
-      uploadedBytes.value = 0;
-      uploadStatus.value = "Uploading";
+      const fileId = String(file.lastModified || Date.now());
 
       if (fileSize <= CHUNK_SIZE) {
         const formData = new FormData();
@@ -996,26 +917,8 @@ async function importTrackingData() {
           method: "POST",
           body: formData,
         });
-
-        uploadProgress.value = 0;
-        uploadedBytes.value = 0;
-        uploadStatus.value = "";
-        isUploading.value = false;
-
-        if (importJob.value) {
-          importJob.value.status = "Processing";
-          importJob.value.progress = 0;
-        }
-
-        toast.success("WakaTime data import started");
       } else {
         const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
-        toast.success(
-          `Processing large file (${(fileSize / (1024 * 1024)).toFixed(2)}MB) in ${totalChunks} chunks`
-        );
-
-        let totalUploadedBytes = 0;
-        uploadStatus.value = "Uploading chunks";
 
         for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
           const start = chunkIndex * CHUNK_SIZE;
@@ -1030,43 +933,10 @@ async function importTrackingData() {
           formData.append("fileSize", fileSize.toString());
           formData.append("chunk", chunk);
 
-          await new Promise<void>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-
-            xhr.upload.addEventListener("progress", (progressEvent) => {
-              if (progressEvent.lengthComputable && importJob.value) {
-                const chunkProgress = progressEvent.loaded;
-                const totalUploaded = totalUploadedBytes + chunkProgress;
-
-                uploadedBytes.value = totalUploaded;
-                uploadProgress.value = Math.round(
-                  (totalUploaded / fileSize) * 100
-                );
-
-                importJob.value.uploadedSize = totalUploaded;
-                importJob.value.progress = uploadProgress.value;
-              }
-            });
-
-            xhr.addEventListener("load", () => {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                resolve();
-              } else {
-                reject(
-                  new Error(`Chunk upload failed with status ${xhr.status}`)
-                );
-              }
-            });
-
-            xhr.addEventListener("error", () => {
-              reject(new Error("Chunk upload failed"));
-            });
-
-            xhr.open("POST", "/api/import");
-            xhr.send(formData);
+          await $fetch("/api/import", {
+            method: "POST",
+            body: formData,
           });
-
-          totalUploadedBytes += chunk.size;
         }
 
         await $fetch("/api/import", {
@@ -1075,15 +945,7 @@ async function importTrackingData() {
         });
       }
 
-      uploadProgress.value = 0;
-      uploadedBytes.value = 0;
-      uploadStatus.value = "";
-      isUploading.value = false;
-
-      if (importJob.value) {
-        importJob.value.status = "Processing";
-        importJob.value.progress = 0;
-      }
+      toast.success("WakaTime data import started");
 
       selectedFile.value = null;
       selectedFileName.value = null;
@@ -1093,11 +955,6 @@ async function importTrackingData() {
     } catch (error: any) {
       console.error("Error importing WakaTime data:", error);
       toast.error(error?.data?.message || "Failed to import WakaTime data");
-
-      uploadProgress.value = 0;
-      uploadedBytes.value = 0;
-      uploadStatus.value = "";
-      importJob.value = null;
     } finally {
       isUploading.value = false;
     }

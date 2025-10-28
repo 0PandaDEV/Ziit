@@ -274,7 +274,7 @@ type ItemWithTime = {
 };
 
 const toast = useToast();
-const userState = useState<User | null>("user");
+const { data: userState } = useAsyncData("user", () => $fetch("/api/user"));
 const chartContainer = ref<HTMLElement | null>(null);
 const projectSort = ref<"time" | "name">("time");
 const uniqueLanguages = ref(0);
@@ -873,7 +873,7 @@ function getSingleDayChartData(result: number[]): number[] {
   if (!relevantHeartbeats?.length) return result;
 
   const now = new Date();
-  let startDate, endDate;
+  let startDate: Date, endDate: Date;
 
   if (timeRange.value === statsLib.TimeRangeEnum.TODAY) {
     startDate = new Date(now);
@@ -984,7 +984,7 @@ function groupHeartbeatsByProject(
     if (!result[projectKey]) {
       result[projectKey] = [];
     }
-    result[projectKey].push(hb);
+    result[projectKey]?.push(hb);
   }
 
   return result;

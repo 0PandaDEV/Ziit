@@ -1,14 +1,39 @@
 import { createEventStream, getRequestHeader } from "h3";
 import type { User } from "@prisma/client";
+
+import { handleLog } from "~~/server/utils/logging";
 import {
   getAllJobStatuses,
   getQueueStatus,
 } from "~~/server/utils/import-queue";
-import { handleLog } from "~~/server/utils/logging";
+
+function safeJSONStringify(obj: any): string {
+  return JSON.stringify(obj, (key, value) => {
+    if (typeof value === "bigint") {
+      return value.toString();
+    }
+    return value;
+  });
+}
 
 function isActiveJobStatus(status: string): boolean {
-  const activeStatuses = ["Processing", "Queued", "Uploading", "Pending"];
-  return activeStatuses.some((activeStatus) => status.startsWith(activeStatus));
+  if (!status || typeof status !== "string") return false;
+  const inactiveKeywords = ["Completed", "Failed"];
+  return !inactiveKeywords.some((keyword) => status.includes(keyword));
+}
+
+const recentlyCompletedJobs = new Map<
+  string,
+  { timestamp: number; sentFinalUpdate: boolean }
+>();
+
+function cleanupOldCompletedJobs() {
+  const now = Date.now();
+  for (const [jobId, data] of recentlyCompletedJobs.entries()) {
+    if (now - data.timestamp > 5000) {
+      recentlyCompletedJobs.delete(jobId);
+    }
+  }
 }
 
 export default defineEventHandler((event) => {
@@ -24,9 +49,32 @@ export default defineEventHandler((event) => {
   const userJobs = getAllJobStatuses(userId);
   const queueStatus = getQueueStatus();
 
-  const activeJob =
-    userJobs.find((j) => isActiveJobStatus(j.status)) ||
-    userJobs.sort((a, b) => b.id.localeCompare(a.id))[0];
+  let activeJob = userJobs.find((j) => isActiveJobStatus(j.status));
+
+  if (!activeJob) {
+    const completedJob = userJobs.find(
+      (j) =>
+        (j.status.includes("Completed") || j.status.includes("Failed")) &&
+        (!recentlyCompletedJobs.has(j.id) ||
+          !recentlyCompletedJobs.get(j.id)?.sentFinalUpdate),
+    );
+
+    if (completedJob) {
+      if (!recentlyCompletedJobs.has(completedJob.id)) {
+        recentlyCompletedJobs.set(completedJob.id, {
+          timestamp: Date.now(),
+          sentFinalUpdate: false,
+        });
+      }
+      activeJob = completedJob;
+    }
+  }
+
+  if (!activeJob) {
+    activeJob = userJobs.sort((a, b) => b.id.localeCompare(a.id))[0];
+  }
+
+  cleanupOldCompletedJobs();
 
   const acceptHeader = getRequestHeader(event, "accept");
   if (!acceptHeader?.includes("text/event-stream")) {
@@ -69,12 +117,31 @@ export default defineEventHandler((event) => {
       const currentUserJobs = getAllJobStatuses(userId);
       const currentQueueStatus = getQueueStatus();
 
-      const currentActiveJob = currentUserJobs.find((j) =>
-        isActiveJobStatus(j.status)
+      let currentActiveJob = currentUserJobs.find((j) =>
+        isActiveJobStatus(j.status),
       );
 
+      if (!currentActiveJob) {
+        const completedJob = currentUserJobs.find(
+          (j) =>
+            (j.status.includes("Completed") || j.status.includes("Failed")) &&
+            (!recentlyCompletedJobs.has(j.id) ||
+              !recentlyCompletedJobs.get(j.id)?.sentFinalUpdate),
+        );
+
+        if (completedJob) {
+          currentActiveJob = completedJob;
+          if (!recentlyCompletedJobs.has(completedJob.id)) {
+            recentlyCompletedJobs.set(completedJob.id, {
+              timestamp: Date.now(),
+              sentFinalUpdate: false,
+            });
+          }
+        }
+      }
+
       const hasActiveJobs = currentUserJobs.some((j) =>
-        isActiveJobStatus(j.status)
+        isActiveJobStatus(j.status),
       );
 
       const currentJobState = JSON.stringify(currentActiveJob);
@@ -97,8 +164,20 @@ export default defineEventHandler((event) => {
           heartbeat: ++heartbeatsSent,
         };
 
-        eventStream.push(JSON.stringify(response));
+        eventStream.push(safeJSONStringify(response));
         lastActiveJobState = currentJobState;
+
+        if (
+          currentActiveJob &&
+          (currentActiveJob.status.includes("Completed") ||
+            currentActiveJob.status.includes("Failed")) &&
+          recentlyCompletedJobs.has(currentActiveJob.id)
+        ) {
+          const jobData = recentlyCompletedJobs.get(currentActiveJob.id);
+          if (jobData) {
+            jobData.sentFinalUpdate = true;
+          }
+        }
       }
 
       const newInterval = hasActiveJobs ? ACTIVE_INTERVAL : INACTIVE_INTERVAL;
