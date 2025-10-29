@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
-import { TimeRangeEnum } from "~~/lib/stats";
-import type { TimeRange } from "~~/lib/stats";
+import { TimeRangeEnum } from "~/lib/stats";
+import type { TimeRange } from "~/lib/stats";
 import { z } from "zod";
 import { calculateStats } from "~~/server/utils/stats";
 import { handleApiError } from "~~/server/utils/logging";
