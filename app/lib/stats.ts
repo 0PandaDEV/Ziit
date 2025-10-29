@@ -1,3 +1,4 @@
+import type { User } from "@prisma/client";
 import { ref } from "vue";
 
 export const TimeRangeEnum = {
@@ -22,19 +23,14 @@ export function setKeystrokeTimeout(minutes: number): void {
   keystrokeTimeout = minutes;
 }
 
-export function getKeystrokeTimeout(): number {
-  if (typeof window !== "undefined") {
-    try {
-      const userState = useState<any>("user");
-      if (
-        userState.value &&
-        typeof userState.value.keystrokeTimeout === "number"
-      ) {
-        return userState.value.keystrokeTimeout;
-      }
-    } catch {
-      return keystrokeTimeout;
+export async function getKeystrokeTimeout(): Promise<number> {
+  try {
+    const user = await $fetch<User>("/api/user");
+    if (user && typeof user.keystrokeTimeout === "number") {
+      return user.keystrokeTimeout;
     }
+  } catch {
+    return keystrokeTimeout;
   }
 
   return keystrokeTimeout;
@@ -76,7 +72,6 @@ type StatsResult = {
   files: StatRecord;
   branches: StatRecord;
   summaries: Summary[];
-  heartbeats: Heartbeat[];
   offsetSeconds: number;
 };
 
@@ -98,7 +93,6 @@ const initialStats: StatsResult = {
   files: {},
   branches: {},
   summaries: [],
-  heartbeats: [],
   offsetSeconds: 0,
 };
 
@@ -115,11 +109,6 @@ const statsRef = ref<StatsResult>(initialStats);
 const timeRangeRef = ref<TimeRange>(TimeRangeEnum.TODAY);
 
 export async function fetchStats(): Promise<void> {
-  if (typeof window === "undefined") {
-    state.status = "idle";
-    return;
-  }
-
   const cacheKey = state.timeRange;
   const cachedData = state.cache[cacheKey];
 
@@ -160,7 +149,7 @@ export async function fetchStats(): Promise<void> {
 
     state.isAuthenticated = true;
 
-    const processedData = processHeartbeats(apiResponse);
+    const processedData = processStatsResponse(apiResponse);
 
     state.cache[cacheKey] = processedData;
     state.data = processedData;
@@ -181,17 +170,7 @@ export async function fetchStats(): Promise<void> {
   }
 }
 
-function processHeartbeats(apiResponse: any): StatsResult {
-  const allParsedHeartbeats = (apiResponse.heartbeats || []).map((hb: any) => {
-    return {
-      ...hb,
-      timestamp:
-        hb.timestamp instanceof Date
-          ? hb.timestamp.getTime()
-          : Number(hb.timestamp),
-    };
-  }) as Heartbeat[];
-
+function processStatsResponse(apiResponse: any): StatsResult {
   let calculatedTotalSeconds = 0;
   const calculatedProjects: StatRecord = {};
   const calculatedLanguages: StatRecord = {};
@@ -200,35 +179,34 @@ function processHeartbeats(apiResponse: any): StatsResult {
   const calculatedFiles: StatRecord = {};
   const calculatedBranches: StatRecord = {};
 
-  const dailyData = apiResponse.summaries || [];
   const summaries = apiResponse.summaries || [];
 
-  dailyData.forEach((day: Summary) => {
+  summaries.forEach((day: Summary) => {
     calculatedTotalSeconds += day.totalSeconds;
 
-    Object.entries(day.projects).forEach(([project, seconds]) => {
+    Object.entries(day.projects || {}).forEach(([project, seconds]) => {
       calculatedProjects[project] =
         (calculatedProjects[project] || 0) + seconds;
     });
 
-    Object.entries(day.languages).forEach(([language, seconds]) => {
+    Object.entries(day.languages || {}).forEach(([language, seconds]) => {
       calculatedLanguages[language] =
         (calculatedLanguages[language] || 0) + seconds;
     });
 
-    Object.entries(day.editors).forEach(([editor, seconds]) => {
+    Object.entries(day.editors || {}).forEach(([editor, seconds]) => {
       calculatedEditors[editor] = (calculatedEditors[editor] || 0) + seconds;
     });
 
-    Object.entries(day.os).forEach(([os, seconds]) => {
+    Object.entries(day.os || {}).forEach(([os, seconds]) => {
       calculatedOs[os] = (calculatedOs[os] || 0) + seconds;
     });
 
-    Object.entries(day.files).forEach(([file, seconds]) => {
+    Object.entries(day.files || {}).forEach(([file, seconds]) => {
       calculatedFiles[file] = (calculatedFiles[file] || 0) + seconds;
     });
 
-    Object.entries(day.branches).forEach(([branch, seconds]) => {
+    Object.entries(day.branches || {}).forEach(([branch, seconds]) => {
       calculatedBranches[branch] = (calculatedBranches[branch] || 0) + seconds;
     });
   });
@@ -242,7 +220,6 @@ function processHeartbeats(apiResponse: any): StatsResult {
     files: calculatedFiles,
     branches: calculatedBranches,
     summaries,
-    heartbeats: allParsedHeartbeats,
     offsetSeconds: apiResponse.offsetSeconds || 0,
   };
 }
