@@ -35,8 +35,8 @@
   position: absolute;
   top: 42px;
   height: 24px;
-  width: calc(100vw - 48px);
-  left: 24px;
+  width: calc(100vw - 24px);
+  left: 0;
   background: linear-gradient(
     to bottom,
     var(--background) 20%,
@@ -49,9 +49,9 @@
 .fade-bottom {
   position: absolute;
   bottom: 0;
+  left: 0;
   height: 24px;
-  left: 24px;
-  width: calc(100vw - 48px);
+  width: calc(100vw - 24px);
   background: linear-gradient(to top, var(--background) 20%, transparent 100%);
   z-index: 5;
   pointer-events: none;

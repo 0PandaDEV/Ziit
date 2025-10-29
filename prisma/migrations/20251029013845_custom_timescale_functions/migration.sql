@@ -1,4 +1,4 @@
--- Leaderboard aggragation function
+-- Leaderboard aggregation function
 CREATE OR REPLACE FUNCTION get_leaderboard_stats()
 RETURNS TABLE (
   user_id TEXT,
@@ -63,7 +63,7 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 
 
--- Specific user specific time aggragation function 
+-- Specific user specific time aggregation function 
 CREATE OR REPLACE FUNCTION get_user_stats(
   p_user_id TEXT,
   p_time_range TEXT,
@@ -346,7 +346,7 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 
 
--- Specific Time Range User total aggragation function
+-- Specific Time Range User total aggregation function
 CREATE OR REPLACE FUNCTION get_user_time_range_total(
   p_user_id TEXT,
   p_time_range TEXT
@@ -406,3 +406,81 @@ BEGIN
     AND s.date <= v_end_date;
 END;
 $$ LANGUAGE plpgsql STABLE;
+
+-- Admin Dashboard aggregation function
+CREATE EXTENSION IF NOT EXISTS dblink;
+
+DROP MATERIALIZED VIEW IF EXISTS admin_dashboard_stats_mv CASCADE;
+DROP FUNCTION IF EXISTS refresh_admin_dashboard_stats() CASCADE;
+
+CREATE MATERIALIZED VIEW admin_dashboard_stats_mv AS
+SELECT
+  u.id,
+  u.email,
+  u."githubUsername" as github_username,
+  u."createdAt" as created_at,
+  u.lastlogin as last_login,
+  COALESCE(h.heartbeats_count, 0) as heartbeats_count,
+  COALESCE(s.summaries_count, 0) as summaries_count,
+  COALESCE(s.total_minutes, 0) as total_minutes
+FROM "User" u
+LEFT JOIN (
+  SELECT "userId", COUNT(*) as heartbeats_count
+  FROM "Heartbeats"
+  GROUP BY "userId"
+) h ON u.id = h."userId"
+LEFT JOIN (
+  SELECT "userId", COUNT(*) as summaries_count, SUM("totalMinutes") as total_minutes
+  FROM "Summaries"
+  GROUP BY "userId"
+) s ON u.id = s."userId";
+
+CREATE UNIQUE INDEX IF NOT EXISTS admin_dashboard_stats_mv_id_idx 
+  ON admin_dashboard_stats_mv(id);
+CREATE INDEX IF NOT EXISTS admin_dashboard_stats_mv_created_at_idx 
+  ON admin_dashboard_stats_mv(created_at DESC);
+
+CREATE OR REPLACE PROCEDURE refresh_admin_dashboard_stats(job_id int, config jsonb)
+LANGUAGE PLPGSQL
+AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW CONCURRENTLY admin_dashboard_stats_mv;
+END;
+$$;
+
+SELECT add_job('refresh_admin_dashboard_stats', '5 minutes');
+
+CREATE OR REPLACE FUNCTION get_admin_dashboard_stats()
+RETURNS TABLE (
+  id TEXT,
+  email TEXT,
+  github_username TEXT,
+  created_at TIMESTAMP,
+  last_login TIMESTAMP,
+  heartbeats_count BIGINT,
+  summaries_count BIGINT,
+  total_minutes BIGINT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    mv.id::TEXT,
+    mv.email::TEXT,
+    mv.github_username::TEXT,
+    mv.created_at,
+    mv.last_login,
+    mv.heartbeats_count,
+    mv.summaries_count,
+    mv.total_minutes
+  FROM admin_dashboard_stats_mv mv
+  ORDER BY mv.created_at DESC;
+  
+  PERFORM dblink_connect('refresh_conn', 'dbname=' || current_database());
+  PERFORM dblink_send_query('refresh_conn', 'REFRESH MATERIALIZED VIEW CONCURRENTLY admin_dashboard_stats_mv');
+  PERFORM dblink_disconnect('refresh_conn');
+  
+EXCEPTION
+  WHEN OTHERS THEN
+    NULL;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
