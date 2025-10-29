@@ -8,7 +8,7 @@ defineRouteMeta({
     tags: ["External", "Heartbeats"],
     summary: "Create multiple heartbeats",
     description:
-      "Accepts up to 2000 heartbeats in a single request authenticated via Bearer API key.",
+      "Accepts up to 100000 heartbeats in a single request authenticated via Bearer API key.",
     security: [{ bearerAuth: [] }],
     requestBody: {
       required: true,
@@ -83,7 +83,7 @@ const heartbeatSchema = z.object({
   file: z.string().max(255),
 });
 
-const batchSchema = z.array(heartbeatSchema).min(1).max(2000);
+const batchSchema = z.array(heartbeatSchema).min(1).max(100000);
 
 export default defineEventHandler(async (event: H3Event) => {
   try {
