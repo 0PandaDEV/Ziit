@@ -21,12 +21,12 @@
         </div>
         <div class="buttons">
           <UiButton
-            v-if="!hasGithubAccount && !hasEpilogueAccount"
+            v-if="!hasGithubAccount"
             text="Link Github"
             keyName="L"
             @click="linkGithub" />
           <UiButton
-            v-if="!hasEpilogueAccount && !hasGithubAccount"
+            v-if="!hasEpilogueAccount"
             text="Link Epilogue"
             keyName="M"
             @click="linkEpilogue" />
@@ -827,19 +827,13 @@ async function logout() {
 }
 
 async function linkGithub() {
-  window.location.href = "/api/auth/github/link";
+  const response = await $fetch("/api/auth/github/link");
+  await navigateTo(response.url, { external: true });
 }
 
 async function linkEpilogue() {
-  try {
-    const response = await $fetch("/api/auth/epilogue/link");
-    if (response?.url) {
-      window.location.href = response.url;
-    }
-  } catch (error: any) {
-    console.error("Error initiating Epilogue link:", error);
-    toast.error("Failed to initiate Epilogue linking");
-  }
+  const response = await $fetch("/api/auth/epilogue/link");
+  await navigateTo(response.url, { external: true });
 }
 
 async function toggleLeaderboard() {
