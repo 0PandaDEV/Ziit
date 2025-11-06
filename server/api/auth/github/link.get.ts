@@ -37,15 +37,7 @@ export default defineEventHandler(async (event: H3Event) => {
     });
   }
 
-  if (!event.context.user) {
-    console.error("GitHub Link error: Unauthorized access attempt");
-    throw createError({
-      statusCode: 401,
-      message: "Unauthorized",
-    });
-  }
-
-  const sessionCookie = getCookie(event, "session");
+  const sessionCookie = getCookie(event, "ziit_session");
 
   if (!sessionCookie) {
     throw createError({
