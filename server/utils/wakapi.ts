@@ -50,7 +50,7 @@ async function fetchWakApiHeartbeats(
   headers: any,
   startDate: Date,
   endDate: Date,
-  userId: string,
+  userId: string
 ) {
   const today = new Date();
   const adjustedEndDate = new Date();
@@ -81,12 +81,12 @@ async function fetchWakApiHeartbeats(
       {
         params: { date: dateStr },
         headers,
-      },
+      }
     );
 
     if (heartbeatsResponse?.data && heartbeatsResponse.data.length > 0) {
       const heartbeats = heartbeatsResponse.data.map((h) =>
-        processWakaApiHeartbeat(h, userId),
+        processWakaApiHeartbeat(h, userId)
       );
 
       heartbeatsByDate.set(dateStr, heartbeats);
@@ -100,7 +100,7 @@ export async function prepareWakApiData(
   apiKey: string,
   instanceUrl: string,
   userId: string,
-  job?: ImportJob,
+  job?: ImportJob
 ): Promise<Map<string, any[]>> {
   if (job) {
     updateJob(job, {
@@ -126,7 +126,7 @@ export async function prepareWakApiData(
 
   if (!allTimeResponse?.data?.range) {
     throw new Error(
-      `Failed to fetch activity date range from WakAPI for user ${userId}`,
+      `Failed to fetch activity date range from WakAPI for user ${userId}`
     );
   }
 
@@ -145,7 +145,7 @@ export async function prepareWakApiData(
     headers,
     startDate,
     endDate,
-    userId,
+    userId
   );
 
   return heartbeatsByDate;
@@ -154,14 +154,14 @@ export async function prepareWakApiData(
 export async function handleWakApiSequentialImport(
   heartbeatsByDate: Map<string, any[]>,
   userId: string,
-  job: ImportJob,
+  job: ImportJob
 ): Promise<{ success: boolean; imported?: number; message?: string }> {
   try {
     handleLog(`[wakapi] Starting WakAPI sequential import for user ${userId}`);
 
     const datesWithData = Array.from(heartbeatsByDate.keys());
     handleLog(
-      `[wakapi] Processing ${datesWithData.length} days of data sequentially`,
+      `[wakapi] Processing ${datesWithData.length} days of data sequentially`
     );
 
     updateJob(job, {
@@ -170,14 +170,12 @@ export async function handleWakApiSequentialImport(
       total: datesWithData.length,
     });
 
-    let totalHeartbeats = 0;
     for (let i = 0; i < datesWithData.length; i++) {
       const dateStr = datesWithData[i];
       const heartbeats = heartbeatsByDate.get(dateStr);
 
       if (heartbeats && heartbeats.length > 0) {
         await processHeartbeatsByDate(userId, heartbeats);
-        totalHeartbeats += heartbeats.length;
       }
 
       updateJob(job, {
@@ -193,13 +191,13 @@ export async function handleWakApiSequentialImport(
     });
 
     handleLog(
-      `[wakapi] Successfully imported ${totalHeartbeats} heartbeats from WakAPI`,
+      `[wakapi] Successfully imported ${datesWithData.length} days from WakAPI`
     );
 
     return {
       success: true,
-      imported: totalHeartbeats,
-      message: `Successfully imported ${totalHeartbeats} heartbeats`,
+      imported: datesWithData.length,
+      message: `Successfully imported ${datesWithData.length} days`,
     };
   } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -209,13 +207,13 @@ export async function handleWakApiSequentialImport(
     });
 
     handleLog(
-      `[wakapi] WakAPI import failed for user ${userId}: ${errorMessage}`,
+      `[wakapi] WakAPI import failed for user ${userId}: ${errorMessage}`
     );
 
     throw handleApiError(
       69,
       `WakAPI import failed for user ${userId}: ${errorMessage}`,
-      "Failed to import data from WakAPI. Please check your API key and try again.",
+      "Failed to import data from WakAPI. Please check your API key and try again."
     );
   }
 }
@@ -223,7 +221,7 @@ export async function handleWakApiSequentialImport(
 export async function handleWakApiDateChunk(
   dates: string[],
   userId: string,
-  heartbeatsByDate: Record<string, any[]>,
+  heartbeatsByDate: Record<string, any[]>
 ): Promise<{ success: boolean; processed: number }> {
   try {
     let totalProcessed = 0;
@@ -242,7 +240,7 @@ export async function handleWakApiDateChunk(
     };
   } catch (error) {
     handleLog(
-      `[wakapi] Failed to process date chunk for user ${userId}: ${error}`,
+      `[wakapi] Failed to process date chunk for user ${userId}: ${error}`
     );
     throw error;
   }
@@ -252,7 +250,7 @@ export async function handleWakApiImport(
   apiKey: string,
   instanceUrl: string,
   userId: string,
-  existingJob?: ImportJob,
+  existingJob?: ImportJob
 ): Promise<{ success: boolean; imported?: number; message?: string }> {
   const job: ImportJob = existingJob || {
     id: randomUUID(),
@@ -279,7 +277,7 @@ export async function handleWakApiImport(
     const heartbeatsByDate = await prepareWakApiData(
       apiKey,
       instanceUrl,
-      userId,
+      userId
     );
 
     return await handleWakApiSequentialImport(heartbeatsByDate, userId, job);
@@ -291,13 +289,13 @@ export async function handleWakApiImport(
     });
 
     handleLog(
-      `[wakapi] WakAPI import failed for user ${userId}: ${errorMessage}`,
+      `[wakapi] WakAPI import failed for user ${userId}: ${errorMessage}`
     );
 
     throw handleApiError(
       69,
       `WakAPI import failed for user ${userId}: ${errorMessage}`,
-      "Failed to import data from WakAPI. Please check your API key and try again.",
+      "Failed to import data from WakAPI. Please check your API key and try again."
     );
   }
 }

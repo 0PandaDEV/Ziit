@@ -113,11 +113,11 @@ paths:
               - yesterday
               - week
               - month
-              - month_to_date
-              - last_month
-              - year_to_date
-              - last_12_months
-              - all_time
+              - month-to-date
+              - last-month
+              - year-to-date
+              - last-12-months
+              - all-time
             default: today
         - in: query
           name: midnightOffsetSeconds

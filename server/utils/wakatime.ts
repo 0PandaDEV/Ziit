@@ -88,7 +88,7 @@ async function createDataDumpRequest(apiKey: string): Promise<void> {
   }
 }
 
-async function pollForDataDump(apiKey: string): Promise<WakatimeDataDump> {
+async function pollForDataDump(job: ImportJob | undefined, apiKey: string): Promise<WakatimeDataDump> {
   const url = `${Endpoints.WakatimeApiUrl}${Endpoints.WakatimeApiDataDumpUrl}`;
   const maxAttempts = 180;
   let attempts = 0;
@@ -110,6 +110,14 @@ async function pollForDataDump(apiKey: string): Promise<WakatimeDataDump> {
 
     if (heartbeatsDump.status === "Completed" && heartbeatsDump.download_url) {
       return heartbeatsDump;
+    }
+
+    if (job) {
+      updateJob(job, {
+        status: ImportStatus.WaitingForDataDump,
+        current: heartbeatsDump.percent_complete,
+        total: 100
+      })
     }
 
     await new Promise((resolve) => setTimeout(resolve, 10000));
@@ -246,7 +254,7 @@ export async function prepareWakatimeApiData(
       status: ImportStatus.WaitingForDataDump,
     });
   }
-  const dataDump = await pollForDataDump(apiKey);
+  const dataDump = await pollForDataDump(job, apiKey);
 
   if (job) {
     updateJob(job, {
@@ -303,7 +311,6 @@ export async function handleWakatimeImport(
       total: daysWithHeartbeats.length,
     });
 
-    let totalHeartbeats = 0;
     for (let i = 0; i < daysWithHeartbeats.length; i++) {
       const day = daysWithHeartbeats[i];
       const processedHeartbeats = day.heartbeats.map((h: any) =>
@@ -311,7 +318,6 @@ export async function handleWakatimeImport(
       );
 
       await processHeartbeatsByDate(userId, processedHeartbeats);
-      totalHeartbeats += processedHeartbeats.length;
 
       updateJob(job, {
         status: ImportStatus.ProcessingHeartbeats,
@@ -322,17 +328,17 @@ export async function handleWakatimeImport(
 
     updateJob(job, {
       status: ImportStatus.Completed,
-      importedCount: totalHeartbeats,
+      importedCount: daysWithHeartbeats.length,
     });
 
     handleLog(
-      `[wakatime] Successfully imported ${totalHeartbeats} heartbeats from WakaTime API`,
+      `[wakatime] Successfully imported ${daysWithHeartbeats.length} days from WakaTime API`,
     );
 
     return {
       success: true,
-      imported: totalHeartbeats,
-      message: `Successfully imported ${totalHeartbeats} heartbeats`,
+      imported: daysWithHeartbeats.length,
+      message: `Successfully imported ${daysWithHeartbeats.length} days`,
     };
   } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -401,7 +407,6 @@ export async function handleWakatimeFileImport(
       });
 
       const userAgents = new Map<string, WakatimeUserAgent>();
-      let totalHeartbeats = 0;
 
       for (let i = 0; i < daysWithHeartbeats.length; i++) {
         const day = daysWithHeartbeats[i];
@@ -410,7 +415,6 @@ export async function handleWakatimeFileImport(
         );
 
         await processHeartbeatsByDate(userId, processedHeartbeats);
-        totalHeartbeats += processedHeartbeats.length;
 
         updateJob(job, {
           status: ImportStatus.ProcessingHeartbeats,
@@ -425,13 +429,13 @@ export async function handleWakatimeFileImport(
       });
 
       handleLog(
-        `[wakatime] Successfully imported ${totalHeartbeats} heartbeats from WakaTime file`,
+        `[wakatime] Successfully imported ${daysWithHeartbeats.length} days from WakaTime file`,
       );
 
       return {
         success: true,
-        imported: totalHeartbeats,
-        message: `Successfully imported ${totalHeartbeats} heartbeats`,
+        imported: daysWithHeartbeats.length,
+        message: `Successfully imported ${daysWithHeartbeats.length} days`,
       };
     }
   } catch (error: any) {
