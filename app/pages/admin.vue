@@ -24,13 +24,13 @@
             Email
           </td>
           <td
-            :class="getHeaderClass('githubUsername')"
-            @click="setSort('githubUsername')">
+            :class="getHeaderClass('github_username')"
+            @click="setSort('github_username')">
             GitHub
           </td>
           <td
-            :class="getHeaderClass('totalMinutes')"
-            @click="setSort('totalMinutes')">
+            :class="getHeaderClass('total_minutes')"
+            @click="setSort('total_minutes')">
             Total Hours
           </td>
           <td
@@ -44,13 +44,13 @@
             Summaries
           </td>
           <td
-            :class="getHeaderClass('createdAt')"
-            @click="setSort('createdAt')">
+            :class="getHeaderClass('created_at')"
+            @click="setSort('created_at')">
             Created At
           </td>
           <td
-            :class="getHeaderClass('lastlogin')"
-            @click="setSort('lastlogin')">
+            :class="getHeaderClass('last_login')"
+            @click="setSort('last_login')">
             Last Login
           </td>
         </tr>
@@ -63,26 +63,29 @@
               user.email
             }}</a>
           </td>
-          <td :class="getCellClass('githubUsername')">
-            <span v-if="!user.githubUsername">N/A</span>
-            <a v-else :href="`https://github.com/` + user.githubUsername" target="_blank">{{
-              user.githubUsername
-            }}</a>
+          <td :class="getCellClass('github_username')">
+            <span v-if="!user.github_username">N/A</span>
+            <a
+              v-else
+              :href="`https://github.com/` + user.github_username"
+              target="_blank"
+              >{{ user.github_username }}</a
+            >
           </td>
-          <td :class="getCellClass('totalMinutes')">
-            {{ formatMinutes(user.totalMinutes) }}
+          <td :class="getCellClass('total_minutes')">
+            {{ formatMinutes(user.total_minutes) }}
           </td>
           <td :class="getCellClass('heartbeats')">
-            {{ user._count.heartbeats }}
+            {{ user.heartbeats_count }}
           </td>
           <td :class="getCellClass('summaries')">
-            {{ user._count.summaries }}
+            {{ user.summaries_count }}
           </td>
-          <td :class="getCellClass('createdAt')">
-            {{ formatDate(user.createdAt) }}
+          <td :class="getCellClass('created_at')">
+            {{ formatDate(user.created_at) }}
           </td>
-          <td :class="getCellClass('lastlogin')">
-            {{ formatDate(user.lastlogin) }}
+          <td :class="getCellClass('last_login')">
+            {{ formatDate(user.last_login) }}
           </td>
         </tr>
       </tbody>
@@ -91,26 +94,8 @@
 </template>
 
 <script setup lang="ts">
-
 import { LucideKeyRound } from "lucide-vue-next";
 import { ref, onMounted, onUnmounted } from "vue";
-
-interface AdminUser {
-  id: string;
-  email: string;
-  githubUsername: string | null;
-  totalMinutes: number;
-  createdAt: string;
-  lastlogin: string;
-  _count: {
-    heartbeats: number;
-    summaries: number;
-  };
-}
-
-const isAuthenticated = ref(false);
-const adminKey = ref("");
-const adminUsers = ref<AdminUser[]>([]);
 
 const cookie = useCookie("adminKey", {
   maxAge: 3600,
@@ -118,38 +103,78 @@ const cookie = useCookie("adminKey", {
   sameSite: true,
 });
 
+const adminKey = ref("");
+const isMobile = ref(false);
+const isAuthenticated = ref(!!cookie.value);
+const userLocale = ref("en-US");
+
+interface AdminUser {
+  id: string;
+  email: string;
+  github_username: string | null;
+  created_at: Date;
+  last_login: Date;
+  heartbeats_count: number;
+  summaries_count: number;
+  total_minutes: number;
+}
+
+if (cookie.value) {
+  adminKey.value = cookie.value;
+}
+
+const { data: adminUsers, refresh } = await useFetch<AdminUser[]>(
+  "/api/admin",
+  {
+    key: "admin-users",
+    headers: {
+      Authorization: `Bearer ${cookie.value || adminKey.value}`,
+    },
+    getCachedData: (key) => {
+      const cachedData = useNuxtData(key);
+      return cachedData.data.value;
+    },
+    server: !!cookie.value,
+    immediate: !!cookie.value,
+    onResponseError: () => {
+      isAuthenticated.value = false;
+      cookie.value = null;
+    },
+  }
+);
+
 async function authenticate() {
   try {
-    const data  = await $fetch("/api/admin", {
+    const data = await $fetch<AdminUser[]>("/api/admin", {
       headers: {
         Authorization: `Bearer ${adminKey.value}`,
       },
     });
 
     if (data) {
-      adminUsers.value = data as AdminUser[];
+      adminUsers.value = data;
       isAuthenticated.value = true;
       cookie.value = adminKey.value;
     }
   } catch (error) {
     alert("Invalid admin key");
+    isAuthenticated.value = false;
+    cookie.value = null;
   }
 }
 
 onMounted(async () => {
-  if (cookie.value) {
-    adminKey.value = cookie.value;
-    await authenticate();
+  if (isAuthenticated.value && adminUsers.value) {
+    await refresh();
   }
 });
-
-const isMobile = ref(false);
 
 function checkScreenSize() {
   isMobile.value = window.innerWidth < 768;
 }
 
 onMounted(() => {
+  userLocale.value = navigator.language;
   checkScreenSize();
   window.addEventListener("resize", checkScreenSize);
 });
@@ -159,7 +184,7 @@ onUnmounted(() => {
 });
 
 type SortableKeys = keyof AdminUser | "heartbeats" | "summaries";
-const sortKey = ref<SortableKeys>("createdAt");
+const sortKey = ref<SortableKeys>("created_at");
 const sortOrder = ref<"asc" | "desc">("desc");
 
 function setSort(key: SortableKeys) {
@@ -192,11 +217,11 @@ const sortedAdminUsers = computed(() => {
     let bVal: any = b[sortKey.value as keyof AdminUser];
 
     if (sortKey.value === "heartbeats") {
-      aVal = a._count.heartbeats;
-      bVal = b._count.heartbeats;
+      aVal = a.heartbeats_count;
+      bVal = b.heartbeats_count;
     } else if (sortKey.value === "summaries") {
-      aVal = a._count.summaries;
-      bVal = b._count.summaries;
+      aVal = a.summaries_count;
+      bVal = b.summaries_count;
     }
 
     if (typeof aVal === "number" && typeof bVal === "number") {
@@ -208,9 +233,14 @@ const sortedAdminUsers = computed(() => {
   });
 });
 
-function formatDate(date: string): string {
-  const userLocale: string = navigator.language || "en-US";
-  return new Date(date).toLocaleDateString(userLocale, {
+function formatMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h}h ${m}m`;
+}
+
+function formatDate(date: Date): string {
+  return new Date(date).toLocaleDateString(userLocale.value, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -240,22 +270,17 @@ useKeybind({
   config: { prevent: true, ignoreIfEditable: true },
 });
 
-function formatMinutes(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}h ${m}m`;
-}
-
 useSeoMeta({
-  title: "Ziit - Leaderboard",
-  description: "See who has the most coding hours.",
-  ogTitle: "Ziit - Leaderboard",
-  ogDescription: "See who has the most coding hours.",
+  title: "Ziit - Admin",
+  description: "A list of all users on this instance with their information.",
+  ogTitle: "Ziit - Admin",
+  ogDescription: "A list of all users on this instance with their information.",
   ogImage: "https://ziit.app/logo.webp",
-  ogUrl: "https://ziit.app/leaderboard",
+  ogUrl: "https://ziit.app/admin",
   ogSiteName: "Ziit",
-  twitterTitle: "Ziit - Leaderboard",
-  twitterDescription: "See who has the most coding hours.",
+  twitterTitle: "Ziit - Admin",
+  twitterDescription:
+    "A list of all users on this instance with their information.",
   twitterImage: "https://ziit.app/logo.webp",
   twitterCard: "summary",
   twitterCreator: "@pandadev_",
@@ -268,7 +293,7 @@ useHead({
   link: [
     {
       rel: "canonical",
-      href: "https://ziit.app/leaderboard",
+      href: "https://ziit.app/admin",
     },
     {
       rel: "icon",
@@ -282,9 +307,10 @@ useHead({
       innerHTML: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebPage",
-        name: "Ziit - Leaderboard",
-        url: "https://ziit.app/leaderboard",
-        description: "See who has the most coding hours.",
+        name: "Ziit - Admin",
+        url: "https://ziit.app/admin",
+        description:
+          "A list of all users on this instance with their information.",
       }),
     },
   ],

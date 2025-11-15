@@ -20,75 +20,33 @@ export default defineCachedEventHandler(
     try {
       const leaderboardData = await prisma.$queryRaw<
         Array<{
-          userId: string;
-          totalMinutes: string;
+          user_id: string;
+          total_minutes: number;
+          top_editor: string | null;
+          top_os: string | null;
+          top_language: string | null;
         }>
       >`
-      SELECT
-        "userId",
-        SUM("totalMinutes")::text as "totalMinutes"
-      FROM "Summaries" s
-      WHERE EXISTS (
-        SELECT 1 FROM "User" u
-        WHERE u.id = s."userId"
-        AND u."leaderboardEnabled" = true
-      )
-      GROUP BY "userId"
-      HAVING SUM("totalMinutes") > 0
-      ORDER BY SUM("totalMinutes") DESC
-      LIMIT 100
-    `;
+        SELECT * FROM get_leaderboard_stats()
+      `;
 
-      const leaderboard = await Promise.all(
-        leaderboardData.map(async (item) => {
-          const [topEditor, topOS, topLanguage] = await Promise.all([
-            prisma.$queryRaw<Array<{ editor: string }>>`
-            SELECT editor
-            FROM "Heartbeats"
-            WHERE "userId" = ${item.userId}
-              AND editor IS NOT NULL
-            GROUP BY editor
-            ORDER BY COUNT(*) DESC
-            LIMIT 1
-          `,
-            prisma.$queryRaw<Array<{ os: string }>>`
-            SELECT os
-            FROM "Heartbeats"
-            WHERE "userId" = ${item.userId}
-              AND os IS NOT NULL
-            GROUP BY os
-            ORDER BY COUNT(*) DESC
-            LIMIT 1
-          `,
-            prisma.$queryRaw<Array<{ language: string }>>`
-            SELECT language
-            FROM "Heartbeats"
-            WHERE "userId" = ${item.userId}
-              AND language IS NOT NULL
-            GROUP BY language
-            ORDER BY COUNT(*) DESC
-            LIMIT 1
-          `,
-          ]);
-
-          return {
-            userId: item.userId,
-            totalMinutes: parseInt(item.totalMinutes),
-            topEditor: topEditor[0]?.editor || null,
-            topOS: topOS[0]?.os || null,
-            topLanguage: topLanguage[0]?.language || null,
-          };
-        })
-      );
-
-      return leaderboard;
-    } catch (error: any) {
+      return leaderboardData.map((row) => ({
+        userId: row.user_id,
+        totalMinutes: row.total_minutes,
+        topEditor: row.top_editor,
+        topOS: row.top_os,
+        topLanguage: row.top_language,
+      }));
+    } catch (fallbackError) {
+      console.error("Even basic query failed:", fallbackError);
       throw handleApiError(
         69,
-        error instanceof Error ? error.message : "Unknown leaderboard error",
+        "Database query failed. Please try again later.",
         "Failed to fetch leaderboard"
       );
     }
   },
-  { maxAge: 1440 * 60 }
+  {
+    maxAge: 5 * 60,
+  }
 );

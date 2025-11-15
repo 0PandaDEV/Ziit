@@ -44,7 +44,7 @@ export default defineNuxtConfig({
     "/api/**": {
       cors: true,
     },
-    "/leaderboard": { cache: { maxAge: 1440 * 60 } },
+    "/leaderboard": { cache: { maxAge: 5 * 60 } },
     "/stats": { cache: { maxAge: 5 * 60 } },
   },
   sitemap: {

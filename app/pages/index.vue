@@ -242,8 +242,8 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { LucideMaximize } from "lucide-vue-next";
 import type { User } from "@prisma/client";
 
-import * as statsLib from "~~/lib/stats";
-import type { Heartbeat } from "~~/lib/stats";
+import * as statsLib from "~/lib/stats";
+import type { Heartbeat } from "~/lib/stats";
 import {
   Chart,
   CategoryScale,

@@ -13,19 +13,12 @@ table {
   }
 
   .header {
+    border: 1px solid var(--border);
+    background-color: var(--background);
+    user-select: none;
+
     td {
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
       cursor: pointer;
-      user-select: none;
-    }
-
-    td:first-child {
-      border-left: 1px solid var(--border);
-    }
-
-    td:last-child {
-      border-right: 1px solid var(--border);
     }
 
     td::after {

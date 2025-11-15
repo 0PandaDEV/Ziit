@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import * as statsLib from "~~/lib/stats";
+import * as statsLib from "~/lib/stats";
 import { watch } from "vue";
 import { useTimeRangeOptions } from "~/composables/useTimeRangeOptions";
 
@@ -65,8 +65,8 @@ watch([() => statsLib.getStats(), () => statsLib.getTimeRange()], () => {
   position: absolute;
   top: 42px;
   height: 24px;
-  width: calc(100vw - 48px);
-  left: 24px;
+  width: calc(100vw - 24px);
+  left: 0;
   background: linear-gradient(
     to bottom,
     var(--background) 20%,
@@ -80,8 +80,8 @@ watch([() => statsLib.getStats(), () => statsLib.getTimeRange()], () => {
   position: absolute;
   bottom: 18px;
   height: 24px;
-  left: 24px;
-  width: calc(100vw - 48px);
+  left: 0;
+  width: calc(100vw - 24px);
   background: linear-gradient(to top, var(--background) 20%, transparent 100%);
   z-index: 5;
   pointer-events: none;
