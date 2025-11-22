@@ -1,10 +1,9 @@
-import path from "path";
-import { parseUserAgent } from "./wakatime";
 import { processHeartbeatsByDate } from "~~/server/utils/summarize";
-import { handleApiError, handleLog } from "~~/server/utils/logging";
-import { activeJobs, updateJob } from "~~/server/utils/import-queue";
-import { randomUUID } from "crypto";
-import { ImportJob, ImportStatus } from "~~/types/import";
+import { handleLog } from "~~/server/utils/logging";
+import { updateJob } from "~~/server/utils/import-queue";
+import { ImportJob, ImportStatus, QueueJob, ImportMethod } from "~~/types/import";
+import { ImportProvider, ImportResult, ProcessedHeartbeat, ProcessJobHelpers, ChunkData } from "./types";
+import { parseUserAgent, extractFileName } from "./helpers";
 
 interface WakApiHeartbeat {
   id: string;
@@ -27,7 +26,7 @@ interface WakApiHeartbeat {
   created_at: string;
 }
 
-function processWakaApiHeartbeat(heartbeat: WakApiHeartbeat, userId: string) {
+function processWakaApiHeartbeat(heartbeat: WakApiHeartbeat, userId: string): ProcessedHeartbeat {
   return {
     userId: userId,
     timestamp: heartbeat.time
@@ -37,7 +36,7 @@ function processWakaApiHeartbeat(heartbeat: WakApiHeartbeat, userId: string) {
     editor: parseUserAgent(heartbeat.user_agent_id).editor,
     language: heartbeat.language || null,
     os: parseUserAgent(heartbeat.user_agent_id).os,
-    file: heartbeat.entity ? path.basename(heartbeat.entity) : null,
+    file: extractFileName(heartbeat.entity),
     branch: heartbeat.branch || null,
     createdAt: new Date(),
     summariesId: null,
@@ -96,7 +95,7 @@ async function fetchWakApiHeartbeats(
   return heartbeatsByDate;
 }
 
-export async function prepareWakApiData(
+async function prepareWakApiData(
   apiKey: string,
   instanceUrl: string,
   userId: string,
@@ -151,73 +150,6 @@ export async function prepareWakApiData(
   return heartbeatsByDate;
 }
 
-export async function handleWakApiSequentialImport(
-  heartbeatsByDate: Map<string, any[]>,
-  userId: string,
-  job: ImportJob
-): Promise<{ success: boolean; imported?: number; message?: string }> {
-  try {
-    handleLog(`[wakapi] Starting WakAPI sequential import for user ${userId}`);
-
-    const datesWithData = Array.from(heartbeatsByDate.keys());
-    handleLog(
-      `[wakapi] Processing ${datesWithData.length} days of data sequentially`
-    );
-
-    updateJob(job, {
-      status: ImportStatus.ProcessingHeartbeats,
-      current: 0,
-      total: datesWithData.length,
-    });
-
-    for (let i = 0; i < datesWithData.length; i++) {
-      const dateStr = datesWithData[i];
-      const heartbeats = heartbeatsByDate.get(dateStr);
-
-      if (heartbeats && heartbeats.length > 0) {
-        await processHeartbeatsByDate(userId, heartbeats);
-      }
-
-      updateJob(job, {
-        status: ImportStatus.ProcessingHeartbeats,
-        current: i + 1,
-        total: datesWithData.length,
-      });
-    }
-
-    updateJob(job, {
-      status: ImportStatus.Completed,
-      importedCount: datesWithData.length,
-    });
-
-    handleLog(
-      `[wakapi] Successfully imported ${datesWithData.length} days from WakAPI`
-    );
-
-    return {
-      success: true,
-      imported: datesWithData.length,
-      message: `Successfully imported ${datesWithData.length} days`,
-    };
-  } catch (error: any) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    updateJob(job, {
-      status: ImportStatus.Failed,
-      error: errorMessage,
-    });
-
-    handleLog(
-      `[wakapi] WakAPI import failed for user ${userId}: ${errorMessage}`
-    );
-
-    throw handleApiError(
-      69,
-      `WakAPI import failed for user ${userId}: ${errorMessage}`,
-      "Failed to import data from WakAPI. Please check your API key and try again."
-    );
-  }
-}
-
 export async function handleWakApiDateChunk(
   dates: string[],
   userId: string,
@@ -246,56 +178,65 @@ export async function handleWakApiDateChunk(
   }
 }
 
-export async function handleWakApiImport(
-  apiKey: string,
-  instanceUrl: string,
-  userId: string,
-  existingJob?: ImportJob
-): Promise<{ success: boolean; imported?: number; message?: string }> {
-  const job: ImportJob = existingJob || {
-    id: randomUUID(),
-    fileName: `WakAPI Import ${new Date().toISOString()}`,
-    status: ImportStatus.Processing,
-    progress: 0,
-    userId,
-  };
+export const wakapiProvider: ImportProvider = {
+  name: ImportMethod.WAKAPI,
+  config: {
+    displayName: "WakAPI",
+    logPrefix: "wakapi",
+  },
 
-  if (!existingJob) {
-    activeJobs.set(job.id, job);
-    updateJob(job, { status: ImportStatus.Processing });
-  }
+  validateJob(data: QueueJob["data"]): void {
+    if (!data.apiKey || !data.instanceUrl) {
+      throw new Error("API key and instance URL are required for WakAPI import");
+    }
+  },
 
-  try {
-    handleLog(`[wakapi] Starting WakAPI import for user ${userId}`);
-
-    updateJob(job, {
-      status: ImportStatus.ProcessingHeartbeats,
-      additionalInfo: "Authenticating with WakAPI instance",
-    });
-
-    handleLog("[wakapi] Fetching activity date range");
+  async processJob(
+    job: QueueJob,
+    importJob: ImportJob,
+    helpers: ProcessJobHelpers
+  ): Promise<ImportResult> {
     const heartbeatsByDate = await prepareWakApiData(
-      apiKey,
-      instanceUrl,
-      userId
+      job.data.apiKey!,
+      job.data.instanceUrl!,
+      job.userId,
+      importJob,
     );
 
-    return await handleWakApiSequentialImport(heartbeatsByDate, userId, job);
-  } catch (error: any) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    updateJob(job, {
-      status: ImportStatus.Failed,
-      error: errorMessage,
-    });
+    const datesWithData = Array.from(heartbeatsByDate.keys());
 
-    handleLog(
-      `[wakapi] WakAPI import failed for user ${userId}: ${errorMessage}`
-    );
+    handleLog(`[${this.config.logPrefix}] Using parallel processing for ${datesWithData.length} days`);
 
-    throw handleApiError(
-      69,
-      `WakAPI import failed for user ${userId}: ${errorMessage}`,
-      "Failed to import data from WakAPI. Please check your API key and try again."
-    );
-  }
-}
+    importJob.totalToProcess = datesWithData.length;
+    importJob.data = {
+      heartbeatsByDate: Object.fromEntries(heartbeatsByDate),
+      apiKey: job.data.apiKey,
+      instanceUrl: job.data.instanceUrl,
+    };
+    helpers.activeJobs.set(job.id, importJob);
+
+    helpers.createWorkChunks(job, datesWithData, ImportMethod.WAKAPI);
+
+    return {
+      success: true,
+      imported: 0,
+      message: `Parallel processing initiated for ${datesWithData.length} days`,
+    };
+  },
+
+  async processChunk(chunkData: ChunkData, userId: string): Promise<{ processed: number }> {
+    const { dates, heartbeatsByDate } = chunkData;
+
+    let totalProcessed = 0;
+
+    for (const dateStr of dates || []) {
+      const heartbeats = heartbeatsByDate?.[dateStr];
+      if (heartbeats && heartbeats.length > 0) {
+        await processHeartbeatsByDate(userId, heartbeats);
+        totalProcessed += heartbeats.length;
+      }
+    }
+
+    return { processed: totalProcessed };
+  },
+};

@@ -1,32 +1,14 @@
 import { randomUUID } from "crypto";
 import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
 import { handleLog } from "./logging";
-import {
-  handleWakatimeImport,
-  handleWakatimeFileImport,
-  type WakatimeExportData,
-  mapHeartbeat,
-} from "./wakatime";
-
-import { processHeartbeatsByDate } from "./summarize";
-import {
-  handleWakApiDateChunk,
-  handleWakApiSequentialImport,
-  prepareWakApiData,
-} from "./wakapi";
-import { ImportJob, ImportStatus, JobUpdateOptions, QueueJob, WorkChunk } from "~~/types/import";
+import { ImportJob, ImportStatus, JobUpdateOptions, QueueJob, WorkChunk, ImportMethod, WorkChunkStatus, WorkChunkType } from "~~/types/import";
+import { getProvider } from "../import/types";
 
 export const activeJobs = new Map<string, ImportJob>();
 
-function getMethodName(
-  jobType?: "wakatime-api" | "wakatime-file" | "wakapi",
-): string {
-  return jobType === "wakapi" ? "WakAPI" : "WakaTime";
-}
-
 function formatStatus(
   baseStatus: ImportStatus,
-  jobType?: "wakatime-api" | "wakatime-file" | "wakapi",
+  jobType: ImportMethod,
   current?: number,
   total?: number,
   progress?: number,
@@ -34,7 +16,8 @@ function formatStatus(
   importedCount?: number,
   error?: string,
 ): string {
-  const methodPrefix = getMethodName(jobType);
+  const provider = getProvider(jobType);
+  const methodPrefix = provider?.config.displayName || "Import";
   const hasProgress = current !== undefined && total !== undefined && total > 0;
   const progressStr = progress !== undefined ? ` (${progress}%)` : "";
 
@@ -97,16 +80,6 @@ function formatStatus(
   }
 }
 
-function getLogPrefix(
-  jobType?: "wakatime-api" | "wakatime-file" | "wakapi",
-): string {
-  if (jobType === "wakatime-api" || jobType === "wakatime-file") {
-    return "wakatime";
-  } else if (jobType === "wakapi") {
-    return "wakapi";
-  }
-  return "queue";
-}
 
 export function updateJob(job: ImportJob, options: JobUpdateOptions): void {
   const oldProgress = job.progress;
@@ -142,7 +115,7 @@ export function updateJob(job: ImportJob, options: JobUpdateOptions): void {
     job.status = options.status as ImportStatus;
     job.message = formatStatus(
       options.status as ImportStatus,
-      job.type,
+      job.type!,
       options.current,
       options.total,
       job.progress,
@@ -162,7 +135,7 @@ export function updateJob(job: ImportJob, options: JobUpdateOptions): void {
     (oldProgress !== job.progress || oldProcessedCount !== job.processedCount)
   ) {
     handleLog(
-      `[${getLogPrefix(job.type)}] Job ${job.id} progress: ${job.processedCount}/${job.totalToProcess} days (${job.progress}%)`,
+      `[${getProvider(job.type!)!.config.logPrefix}] Job ${job.id} progress: ${job.processedCount}/${job.totalToProcess} days (${job.progress}%)`,
     );
   }
 }
@@ -192,7 +165,7 @@ class ImportQueue {
   private getOrCreateJob(
     jobId: string,
     userId: string,
-    type: "wakatime-api" | "wakatime-file" | "wakapi",
+    type: ImportMethod,
     fileName: string,
     totalToProcess?: number,
   ): ImportJob {
@@ -352,11 +325,11 @@ class ImportQueue {
     workerId: number,
   ): Promise<{ job?: QueueJob; chunk?: WorkChunk }> {
     const pendingChunk = Array.from(this.workChunks.values()).find(
-      (chunk) => chunk.status === "pending",
+      (chunk) => chunk.status === WorkChunkStatus.PENDING,
     );
 
     if (pendingChunk) {
-      pendingChunk.status = "processing";
+      pendingChunk.status = WorkChunkStatus.PROCESSING;
       pendingChunk.workerId = workerId;
       this.workerJobAssignment.set(workerId, pendingChunk.jobId);
       return { chunk: pendingChunk };
@@ -386,16 +359,16 @@ class ImportQueue {
     if (workersForJob > 1 && this.canParallelize(job)) {
       const daysWithData =
         job.data.exportData?.days?.filter(
-          (day) => day.heartbeats && day.heartbeats.length > 0,
+          (day: { heartbeats?: any[] }) => day.heartbeats && day.heartbeats.length > 0,
         ) || [];
-      this.createWorkChunks(job, daysWithData, "wakatime");
+      this.createWorkChunks(job, daysWithData, ImportMethod.WAKATIME_FILE);
 
       const firstChunk = Array.from(this.workChunks.values()).find(
-        (chunk) => chunk.jobId === job.id && chunk.status === "pending",
+        (chunk) => chunk.jobId === job.id && chunk.status === WorkChunkStatus.PENDING,
       );
 
       if (firstChunk) {
-        firstChunk.status = "processing";
+        firstChunk.status = WorkChunkStatus.PROCESSING;
         firstChunk.workerId = workerId;
         this.workerJobAssignment.set(workerId, job.id);
         return { chunk: firstChunk };
@@ -408,7 +381,7 @@ class ImportQueue {
 
   private canParallelize(job: QueueJob): boolean {
     return !!(
-      job.type === "wakatime-file" &&
+      job.type === ImportMethod.WAKATIME_FILE &&
       job.data.exportData?.days &&
       job.data.exportData.days.length > 10
     );
@@ -417,7 +390,7 @@ class ImportQueue {
   private createWorkChunks(
     job: QueueJob,
     items: any[],
-    dataType: string,
+    dataType: ImportMethod,
   ): void {
     if (!job.allocatedWorkers || !items.length) return;
 
@@ -442,9 +415,9 @@ class ImportQueue {
         const chunk: WorkChunk = {
           id: `${job.id}-chunk-${i}`,
           jobId: job.id,
-          type: "date-range",
+          type: WorkChunkType.DATE_RANGE,
           data:
-            dataType === "wakapi"
+            dataType === ImportMethod.WAKAPI || dataType === ImportMethod.CODETIME
               ? {
                   dates: items.slice(start, end),
                   heartbeatsByDate: job.data.heartbeatsByDate,
@@ -460,7 +433,7 @@ class ImportQueue {
                   originalJob: job,
                   processedDays: 0,
                 },
-          status: "pending",
+          status: WorkChunkStatus.PENDING,
           progress: 0,
         };
 
@@ -480,11 +453,18 @@ class ImportQueue {
         handleLog(`Job ${jobId} not found for chunk ${chunk.id}`);
         return;
       }
-      if (chunk.type === "date-range" && chunk.data.days) {
-        await this.processDateRangeChunk(chunk, job, workerId);
+
+      const jobType = chunk.data.originalJob?.type;
+      const provider = jobType ? getProvider(jobType) : null;
+
+      if (!provider) {
+        throw new Error(`Unknown job type: ${jobType}`);
       }
 
-      chunk.status = "completed";
+      await provider.processChunk(chunk.data, job.userId);
+      chunk.data.processedDays = (chunk.data.dates?.length || chunk.data.days?.length || 0);
+
+      chunk.status = WorkChunkStatus.COMPLETED;
       chunk.progress = 100;
 
       const completedSet = this.completedChunks.get(chunk.jobId);
@@ -495,60 +475,10 @@ class ImportQueue {
       this.updateJobProgress(chunk.jobId);
       await this.checkJobCompletion(chunk.jobId);
     } catch (error) {
-      chunk.status = "failed";
+      chunk.status = WorkChunkStatus.FAILED;
       handleLog(`Worker ${workerId} failed chunk ${chunk.id}: ${error}`);
     } finally {
       this.cleanupWorkerAssignment(workerId);
-    }
-  }
-
-  private async processDateRangeChunk(
-    chunk: WorkChunk,
-    job: ImportJob,
-    workerId: number,
-  ): Promise<void> {
-    const { days } = chunk.data;
-    let processedInChunk = 0;
-    let processedDaysWithData = 0;
-    const totalInChunk = days?.length || 0;
-
-    for (const day of days || []) {
-      if (!day.heartbeats || day.heartbeats.length === 0) {
-        processedInChunk++;
-
-        if (processedInChunk % 5 === 0 || processedInChunk === totalInChunk) {
-          chunk.progress = Math.round((processedInChunk / totalInChunk) * 100);
-          this.updateJobProgress(job.id);
-        }
-        continue;
-      }
-
-      try {
-        const userAgents = new Map();
-        const processedHeartbeats = day.heartbeats.map((h: any) =>
-          mapHeartbeat(
-            h,
-            userAgents,
-            job.userId,
-            chunk.data.originalJob.data.exportData?.user.last_plugin,
-          ),
-        );
-
-        await processHeartbeatsByDate(job.userId, processedHeartbeats);
-        processedInChunk++;
-        processedDaysWithData++;
-        chunk.data.processedDays = processedDaysWithData;
-
-        if (processedInChunk % 5 === 0 || processedInChunk === totalInChunk) {
-          chunk.progress = Math.round((processedInChunk / totalInChunk) * 100);
-          this.updateJobProgress(job.id);
-        }
-      } catch (error) {
-        handleLog(
-          `[worker] Worker ${workerId} error processing day ${day.date}: ${error}`,
-        );
-        processedInChunk++;
-      }
     }
   }
 
@@ -564,7 +494,7 @@ class ImportQueue {
     );
 
     if (jobChunks.length === 0) {
-      handleLog(`[${getLogPrefix(job.type)}] No chunks found for job ${jobId}`);
+      handleLog(`[${getProvider(job.type!)!.config.logPrefix}] No chunks found for job ${jobId}`);
       return;
     }
 
@@ -593,7 +523,7 @@ class ImportQueue {
     job.status = ImportStatus.ProcessingHeartbeats;
     job.message = formatStatus(
       ImportStatus.ProcessingHeartbeats,
-      job.type,
+      job.type!,
       job.processedCount,
       job.totalToProcess,
       job.progress,
@@ -609,7 +539,7 @@ class ImportQueue {
       oldProcessedCount !== job.processedCount
     ) {
       handleLog(
-        `[${getLogPrefix(job.type)}] Job ${jobId} progress: ${job.processedCount}/${job.totalToProcess} days (${job.progress}%)`,
+        `[${getProvider(job.type!)!.config.logPrefix}] Job ${jobId} progress: ${job.processedCount}/${job.totalToProcess} days (${job.progress}%)`,
       );
     }
   }
@@ -618,7 +548,7 @@ class ImportQueue {
     const jobChunks = Array.from(this.workChunks.values()).filter(
       (c) => c.jobId === jobId,
     );
-    const completedChunks = jobChunks.filter((c) => c.status === "completed");
+    const completedChunks = jobChunks.filter((c) => c.status === WorkChunkStatus.COMPLETED);
 
     if (completedChunks.length === jobChunks.length && jobChunks.length > 0) {
       const job = activeJobs.get(jobId);
@@ -633,7 +563,7 @@ class ImportQueue {
           importedCount: totalDaysWithData,
         });
         handleLog(
-          `[${getLogPrefix(job.type)}] Job ${jobId} completed - processed ${totalDaysWithData} days across ${jobChunks.length} chunks`,
+          `[${getProvider(job.type!)!.config.logPrefix}] Job ${jobId} completed - processed ${totalDaysWithData} days across ${jobChunks.length} chunks`,
         );
       }
 
@@ -644,153 +574,34 @@ class ImportQueue {
   }
 
   private async processJob(job: QueueJob, workerId: number): Promise<void> {
+    const provider = getProvider(job.type);
+
+    if (!provider) {
+      throw new Error(`Unknown job type: ${job.type}`);
+    }
+
+    const { displayName } = provider.config;
+
     try {
-      let result: any;
+      provider.validateJob(job.data);
 
-      switch (job.type) {
-        case "wakatime-api":
-          if (!job.data.apiKey) {
-            throw new Error("API key is required for WakaTime import");
-          }
+      const importJob = activeJobs.get(job.id) || this.getOrCreateJob(
+        job.id,
+        job.userId,
+        job.type,
+        `${displayName} Import ${new Date().toISOString()}`,
+      );
 
-          let wakatimeJob = this.getOrCreateJob(
-            job.id,
-            job.userId,
-            "wakatime-api",
-            `WakaTime API Import ${new Date().toISOString()}`,
-          );
-
-          result = await handleWakatimeImport(
-            job.data.apiKey,
-            job.userId,
-            wakatimeJob,
-          );
-          break;
-
-        case "wakatime-file":
-          if (!job.data.exportData || !job.data.jobId) {
-            throw new Error(
-              "Export data and job ID are required for WakaTime file import",
-            );
-          }
-
-          const existingJob = activeJobs.get(job.id);
-          if (existingJob) {
-            const daysWithData =
-              job.data.exportData.days?.filter(
-                (day) => day.heartbeats && day.heartbeats.length > 0,
-              ) || [];
-            updateJob(existingJob, {
-              status: ImportStatus.Processing,
-              current: 0,
-              total: daysWithData.length,
-            });
-            result = await handleWakatimeFileImport(
-              job.data.exportData,
-              job.userId,
-              existingJob,
-            );
-          } else {
-            const daysWithData =
-              job.data.exportData.days?.filter(
-                (day) => day.heartbeats && day.heartbeats.length > 0,
-              ) || [];
-            const fileJob = this.getOrCreateJob(
-              job.id,
-              job.userId,
-              "wakatime-file",
-              `WakaTime File Import ${new Date().toISOString()}`,
-              daysWithData.length,
-            );
-            result = await handleWakatimeFileImport(
-              job.data.exportData,
-              job.userId,
-              fileJob,
-            );
-          }
-          break;
-
-        case "wakapi":
-          if (!job.data.apiKey || !job.data.instanceUrl) {
-            throw new Error(
-              "API key and instance URL are required for WakAPI import",
-            );
-          }
-
-          let tempWakapiJob = this.getOrCreateJob(
-            job.id,
-            job.userId,
-            "wakapi",
-            `WakAPI Import ${new Date().toISOString()}`,
-          );
-
-          const heartbeatsByDate = await prepareWakApiData(
-            job.data.apiKey,
-            job.data.instanceUrl,
-            job.userId,
-            tempWakapiJob,
-          );
-
-          const datesWithData = Array.from(heartbeatsByDate.keys());
-          const useParallelProcessing = datesWithData.length > 10;
-
-          if (useParallelProcessing && this.canParallelize(job)) {
-            handleLog(
-              `[wakapi] Using parallel processing for ${datesWithData.length} days`,
-            );
-
-            const existingJob = this.getOrCreateJob(
-              job.id,
-              job.userId,
-              "wakatime-file",
-              `WakAPI Import ${new Date().toISOString()}`,
-              datesWithData.length,
-            );
-            existingJob.data = {
-              heartbeatsByDate: Object.fromEntries(heartbeatsByDate),
-              apiKey: job.data.apiKey,
-              instanceUrl: job.data.instanceUrl,
-            };
-            activeJobs.set(job.id, existingJob);
-
-            this.createWorkChunks(job, datesWithData, "wakapi");
-
-            result = {
-              success: true,
-              imported: 0,
-              message: `Parallel processing initiated for ${datesWithData.length} days`,
-            };
-          } else {
-            handleLog(
-              `[wakapi] Using sequential processing for ${datesWithData.length} days`,
-            );
-
-            const wakapiJob = this.getOrCreateJob(
-              job.id,
-              job.userId,
-              "wakapi",
-              `WakAPI Import ${new Date().toISOString()}`,
-              datesWithData.length,
-            );
-            wakapiJob.data = {
-              heartbeatsByDate: Object.fromEntries(heartbeatsByDate),
-            };
-            activeJobs.set(job.id, wakapiJob);
-
-            result = await handleWakApiSequentialImport(
-              heartbeatsByDate,
-              job.userId,
-              wakapiJob,
-            );
-          }
-          break;
-
-        default:
-          throw new Error(`Unknown job type: ${(job as any).type}`);
-      }
+      const result = await provider.processJob(job, importJob, {
+        getOrCreateJob: this.getOrCreateJob.bind(this),
+        updateJob,
+        activeJobs,
+        canParallelize: this.canParallelize.bind(this),
+        createWorkChunks: this.createWorkChunks.bind(this),
+      });
 
       const completedJob = activeJobs.get(job.id);
-      if (completedJob && completedJob.status !== "Failed") {
+      if (completedJob && completedJob.status !== ImportStatus.Failed) {
         updateJob(completedJob, {
           status: ImportStatus.Completed,
           importedCount: result?.imported,
@@ -831,7 +642,7 @@ class ImportQueue {
   private handleChunkCompletion(chunkId: string, success: boolean): void {
     const chunk = this.workChunks.get(chunkId);
     if (chunk) {
-      chunk.status = success ? "completed" : "failed";
+      chunk.status = success ? WorkChunkStatus.COMPLETED : WorkChunkStatus.FAILED;
       chunk.progress = success ? 100 : 0;
 
       if (success) {
@@ -848,7 +659,7 @@ class ImportQueue {
   addJob(job: QueueJob): string {
     this.queue.push(job);
     handleLog(
-      `[${getLogPrefix(job.type)}] Added job ${job.id} (${job.type}) to queue. Queue length: ${this.queue.length}`,
+      `[${getProvider(job.type!)!.config.logPrefix}] Added job ${job.id} (${job.type}) to queue. Queue length: ${this.queue.length}`,
     );
     return job.id;
   }
@@ -857,9 +668,7 @@ class ImportQueue {
     const busyWorkerCount = this.workerJobAssignment.size;
     const activeJobsCount = Array.from(activeJobs.values()).filter(
       (job) =>
-        job.status.includes("Processing") &&
-        !job.status.includes("Completed") &&
-        !job.status.includes("Failed"),
+        job.status === ImportStatus.Processing || job.status === ImportStatus.ProcessingHeartbeats,
     ).length;
 
     return {
@@ -914,21 +723,30 @@ async function processJobInThread(job: QueueJob): Promise<void> {
   let success = false;
 
   try {
-    switch (job.type) {
-      case "wakatime-api":
-        result = await handleWakatimeImport(job.data.apiKey!, job.userId);
-        break;
-      case "wakapi":
-        result = await handleWakApiImport(
-          job.data.apiKey!,
-          job.data.instanceUrl!,
-          job.userId,
-        );
-        break;
-
-      default:
-        throw new Error(`Job type ${job.type} not supported in worker threads`);
+    const provider = getProvider(job.type);
+    if (!provider) {
+      throw new Error(`Job type ${job.type} not supported in worker threads`);
     }
+
+    provider.validateJob(job.data);
+
+    const importJob: ImportJob = {
+      id: job.id,
+      fileName: `${provider.config.displayName} Import`,
+      status: ImportStatus.Processing,
+      progress: 0,
+      userId: job.userId,
+      type: job.type,
+    };
+
+    result = await provider.processJob(job, importJob, {
+      getOrCreateJob: () => importJob,
+      updateJob: () => {},
+      activeJobs: new Map(),
+      canParallelize: () => false,
+      createWorkChunks: () => {},
+    });
+
     success = true;
   } catch (error) {
     parentPort?.postMessage({
@@ -944,65 +762,37 @@ async function processJobInThread(job: QueueJob): Promise<void> {
 }
 
 async function processChunkInThread(chunk: WorkChunk): Promise<void> {
-  const isWakapi = chunk.data.originalJob?.type === "wakapi";
-  const itemCount = isWakapi
-    ? chunk.data.dates?.length || 0
-    : chunk.data.days?.length || 0;
+  const jobType = chunk.data.originalJob?.type;
+  const provider = jobType ? getProvider(jobType) : null;
+
+  if (!provider) {
+    parentPort?.postMessage({
+      type: "error",
+      error: `Unknown job type: ${jobType}`,
+    });
+    parentPort?.postMessage({
+      type: "workComplete",
+      data: { type: "chunk", chunkId: chunk.id, success: false },
+    });
+    return;
+  }
+
+  const itemCount = chunk.data.dates?.length || chunk.data.days?.length || 0;
 
   parentPort?.postMessage({
     type: "log",
-    message: `Processing ${isWakapi ? "WakAPI" : "WakaTime"} chunk ${chunk.id} with ${itemCount} ${isWakapi ? "dates" : "days"}`,
+    message: `Processing ${provider.config.displayName} chunk ${chunk.id} with ${itemCount} items`,
   });
 
-  let processedInChunk = 0;
-  const totalInChunk = itemCount;
   let success = false;
 
   try {
-    if (isWakapi) {
-      const { dates, heartbeatsByDate } = chunk.data;
+    await provider.processChunk(chunk.data, chunk.data.originalJob.userId);
 
-      await handleWakApiDateChunk(
-        dates || [],
-        chunk.data.originalJob.userId,
-        heartbeatsByDate || {},
-      );
-
-      processedInChunk = dates?.length || 0;
-    } else {
-      const { days } = chunk.data;
-
-      for (const day of days || []) {
-        if (!day.heartbeats || day.heartbeats.length === 0) {
-          processedInChunk++;
-          continue;
-        }
-
-        const userAgents = new Map();
-        const processedHeartbeats = day.heartbeats.map((h: any) =>
-          mapHeartbeat(
-            h,
-            userAgents,
-            chunk.data.originalJob.userId,
-            chunk.data.originalJob.data.exportData?.user.last_plugin,
-          ),
-        );
-
-        await processHeartbeatsByDate(
-          chunk.data.originalJob.userId,
-          processedHeartbeats,
-        );
-        processedInChunk++;
-
-        if (processedInChunk % 10 === 0 || processedInChunk === totalInChunk) {
-          const progress = Math.round((processedInChunk / totalInChunk) * 100);
-          parentPort?.postMessage({
-            type: "progress",
-            data: { chunkId: chunk.id, progress },
-          });
-        }
-      }
-    }
+    parentPort?.postMessage({
+      type: "progress",
+      data: { chunkId: chunk.id, progress: 100 },
+    });
 
     success = true;
   } catch (error) {
@@ -1023,88 +813,56 @@ const importQueue = ImportQueue.getInstance();
 function createInitialImportJob(
   jobId: string,
   userId: string,
-  type: "wakatime-api" | "wakatime-file" | "wakapi",
+  type: ImportMethod,
   fileName: string,
 ): ImportJob {
-  const methodPrefix = type === "wakapi" ? "WakAPI" : "WakaTime";
+  const { displayName } = getProvider(type)!.config;
   return {
     id: jobId,
     fileName,
     status: ImportStatus.Processing,
-    message: `[${methodPrefix}] Queued`,
+    message: `[${displayName}] Queued`,
     progress: 0,
     userId,
     type,
   };
 }
 
-export const queueWakatimeApiImport = (
-  apiKey: string,
+export function queueImport(
+  type: ImportMethod,
   userId: string,
-): string => {
-  const jobId = randomUUID();
-  const importJob = createInitialImportJob(
-    jobId,
-    userId,
-    "wakatime-api",
-    `WakaTime API Import ${new Date().toISOString()}`,
-  );
-  activeJobs.set(jobId, importJob);
+  data: QueueJob["data"],
+  existingJobId?: string,
+): string {
+  const jobId = existingJobId || randomUUID();
+  const { displayName } = getProvider(type)!.config;
+
+  if (!existingJobId) {
+    const importJob = createInitialImportJob(
+      jobId,
+      userId,
+      type,
+      `${displayName} Import ${new Date().toISOString()}`,
+    );
+    activeJobs.set(jobId, importJob);
+  }
 
   const job: QueueJob = {
     id: jobId,
-    type: "wakatime-api",
+    type,
     userId,
-    data: { apiKey },
+    data,
     createdAt: new Date(),
   };
-  return importQueue.addJob(job);
-};
 
-export const queueWakatimeFileImport = (
-  exportData: WakatimeExportData,
-  userId: string,
-  jobId: string,
-): string => {
-  const job: QueueJob = {
-    id: jobId,
-    type: "wakatime-file",
-    userId,
-    data: { exportData, jobId },
-    createdAt: new Date(),
-  };
   return importQueue.addJob(job);
-};
-
-export const queueWakApiImport = (
-  apiKey: string,
-  instanceUrl: string,
-  userId: string,
-): string => {
-  const jobId = randomUUID();
-  const importJob = createInitialImportJob(
-    jobId,
-    userId,
-    "wakapi",
-    `WakAPI Import ${new Date().toISOString()}`,
-  );
-  activeJobs.set(jobId, importJob);
-
-  const job: QueueJob = {
-    id: jobId,
-    type: "wakapi",
-    userId,
-    data: { apiKey, instanceUrl },
-    createdAt: new Date(),
-  };
-  return importQueue.addJob(job);
-};
+}
 
 export const getQueueStatus = () => importQueue.getStatus();
 
 function sanitizeJobData(job: ImportJob): ImportJob {
   const sanitized = JSON.parse(
-    JSON.stringify(job, (key, value) => {
+    JSON.stringify(job, (_key, value) => {
       if (typeof value === "bigint") {
         return value.toString();
       }

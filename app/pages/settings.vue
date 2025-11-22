@@ -142,19 +142,24 @@
           <div class="radio-group">
             <UiRadioButton
               :text="'WakaTime (API Key)'"
-              :selected="importType === 'wakatime-api'"
-              :value="'wakatime-api'"
-              @update="(val: ImportType) => (importType = val)" />
+              :selected="importType === ImportMethod.WAKATIME_API"
+              :value="ImportMethod.WAKATIME_API"
+              @update="(val: ImportMethod) => (importType = val)" />
             <UiRadioButton
               :text="'WakaTime (File)'"
-              :selected="importType === 'wakatime-file'"
-              :value="'wakatime-file'"
-              @update="(val: ImportType) => (importType = val)" />
+              :selected="importType === ImportMethod.WAKATIME_FILE"
+              :value="ImportMethod.WAKATIME_FILE"
+              @update="(val: ImportMethod) => (importType = val)" />
             <UiRadioButton
               :text="'WakAPI'"
-              :selected="importType === 'wakapi'"
-              :value="'wakapi'"
-              @update="(val: ImportType) => (importType = val)" />
+              :selected="importType === ImportMethod.WAKAPI"
+              :value="ImportMethod.WAKAPI"
+              @update="(val: ImportMethod) => (importType = val)" />
+            <UiRadioButton
+              :text="'CodeTime'"
+              :selected="importType === ImportMethod.CODETIME"
+              :value="ImportMethod.CODETIME"
+              @update="(val: ImportMethod) => (importType = val)" />
           </div>
 
           <UiInput
@@ -162,16 +167,16 @@
             type="password"
             v-model="importApiKey"
             :placeholder="apiKeyPlaceholder"
-            v-if="importType === 'wakapi' || importType === 'wakatime-api'" />
+            v-if="importType === ImportMethod.WAKAPI || importType === ImportMethod.WAKATIME_API" />
 
           <UiInput
             id="wakapiInstanceUrl"
             type="text"
             v-model="wakapiInstanceUrl"
             placeholder="Enter your WakAPI instance URL (e.g. https://wakapi.dev)"
-            v-if="importType === 'wakapi'" />
+            v-if="importType === ImportMethod.WAKAPI" />
 
-          <div v-if="importType === 'wakatime-api'" class="steps">
+          <div v-if="importType === ImportMethod.WAKATIME_API" class="steps">
             <p>
               1. Go to
               <a href="https://wakatime.com/settings/api-key" target="_blank"
@@ -185,7 +190,7 @@
             <p>3. Paste it above and click Import Data</p>
           </div>
 
-          <div v-if="importType === 'wakatime-file'" class="steps">
+          <div v-if="importType === ImportMethod.WAKATIME_FILE" class="steps">
             <p>
               1. Go to
               <a href="https://wakatime.com/settings/account" target="_blank"
@@ -200,13 +205,27 @@
             <p>4. Upload the downloaded JSON file below</p>
           </div>
 
+          <div v-if="importType === ImportMethod.CODETIME" class="steps">
+            <p>1. Open CodeTime extension settings</p>
+            <p>2. Export your data as CSV</p>
+            <p>3. Upload the CSV file below</p>
+          </div>
+
           <input
             type="file"
             id="wakaTimeFileUpload"
             ref="wakaTimeFileInput"
             accept=".json"
             @change="handleFileChange"
-            v-if="importType === 'wakatime-file'" />
+            v-if="importType === ImportMethod.WAKATIME_FILE" />
+
+          <input
+            type="file"
+            id="codetimeFileUpload"
+            ref="wakaTimeFileInput"
+            accept=".csv"
+            @change="handleFileChange"
+            v-if="importType === ImportMethod.CODETIME" />
         </div>
 
         <p class="setting-description">
@@ -272,7 +291,7 @@
 import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
 import * as statsLib from "~/lib/stats";
-import { ImportStatus, type ImportJob } from "~~/types/import";
+import { ImportStatus, ImportMethod, type ImportJob } from "~~/types/import";
 
 const { data: fetchedUser } = await useFetch("/api/user");
 const user = useState<User | null>("user", () => fetchedUser.value as User);
@@ -285,11 +304,7 @@ const originalKeystrokeTimeout = ref(user.value?.keystrokeTimeout || 15);
 const timeoutChanged = ref(false);
 const hasGithubAccount = computed(() => !!user.value?.githubId);
 const hasEpilogueAccount = computed(() => !!user.value?.epilogueId);
-const WAKATIME_API = "wakatime-api" as const;
-const WAKATIME_FILE = "wakatime-file" as const;
-const WAKAPI = "wakapi" as const;
-type ImportType = typeof WAKATIME_API | typeof WAKATIME_FILE | typeof WAKAPI;
-const importType = ref<ImportType>(WAKATIME_API);
+const importType = ref<ImportMethod>(ImportMethod.WAKATIME_API);
 const importApiKey = ref("");
 const wakapiInstanceUrl = ref("");
 
@@ -333,7 +348,7 @@ const purgeTimer = useClampedRef(0, 0, 5);
 const deleteTimer = useClampedRef(0, 0, 5);
 
 const apiKeyPlaceholder = computed(() => {
-  if (importType.value === "wakatime-api") {
+  if (importType.value === ImportMethod.WAKATIME_API) {
     return "Enter your WakaTime API Key (waka_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)";
   }
   return "Enter your WakAPI API Key";
@@ -890,9 +905,12 @@ onBeforeUnmount(() => {
 });
 
 async function importTrackingData() {
-  if (importType.value === "wakatime-file") {
+  if (importType.value === ImportMethod.WAKATIME_FILE || importType.value === ImportMethod.CODETIME) {
+    const isCodeTime = importType.value === ImportMethod.CODETIME;
+    const providerName = isCodeTime ? "CodeTime" : "WakaTime";
+
     if (!selectedFile.value) {
-      toast.error("Please select a WakaTime export file");
+      toast.error(`Please select a ${providerName} export file`);
       return;
     }
 
@@ -939,7 +957,7 @@ async function importTrackingData() {
         });
       }
 
-      toast.success("WakaTime data import started");
+      toast.success(`${providerName} data import started`);
 
       selectedFile.value = null;
       selectedFileName.value = null;
@@ -947,32 +965,32 @@ async function importTrackingData() {
         wakaTimeFileInput.value.value = "";
       }
     } catch (error: any) {
-      console.error("Error importing WakaTime data:", error);
-      toast.error(error?.data?.message || "Failed to import WakaTime data");
+      console.error(`Error importing ${providerName} data:`, error);
+      toast.error(error?.data?.message || `Failed to import ${providerName} data`);
     } finally {
       isUploading.value = false;
     }
   } else {
-    if (importType.value === "wakapi" && !importApiKey.value) {
+    if (importType.value === ImportMethod.WAKAPI && !importApiKey.value) {
       toast.error("Please enter your WakAPI API Key");
       return;
     }
 
-    if (importType.value === "wakatime-api" && !importApiKey.value) {
+    if (importType.value === ImportMethod.WAKATIME_API && !importApiKey.value) {
       toast.error("Please enter your WakaTime API Key");
       return;
     }
 
     const payload: any = {
       instanceType:
-        importType.value === "wakatime-api" ? "wakatime" : importType.value,
+        importType.value === ImportMethod.WAKATIME_API ? "wakatime" : "wakapi",
     };
 
     if (importApiKey.value) {
       payload.apiKey = importApiKey.value;
     }
 
-    if (importType.value === "wakapi") {
+    if (importType.value === ImportMethod.WAKAPI) {
       if (!wakapiInstanceUrl.value) {
         toast.error("Please enter your WakAPI instance URL");
         return;
@@ -982,11 +1000,9 @@ async function importTrackingData() {
 
     try {
       const displayName =
-        importType.value === "wakatime-api"
+        importType.value === ImportMethod.WAKATIME_API
           ? "WakaTime"
-          : importType.value === "wakapi"
-            ? "WakAPI"
-            : importType.value;
+          : "WakAPI";
 
       await $fetch("/api/import", {
         method: "POST",
@@ -999,11 +1015,9 @@ async function importTrackingData() {
       wakapiInstanceUrl.value = "";
     } catch (error: any) {
       const displayName =
-        importType.value === "wakatime-api"
+        importType.value === ImportMethod.WAKATIME_API
           ? "WakaTime"
-          : importType.value === "wakapi"
-            ? "WakAPI"
-            : importType.value;
+          : "WakAPI";
       console.error(`Error importing ${displayName} data:`, error);
       toast.error(
         error?.data?.message || `Failed to import ${displayName} data`

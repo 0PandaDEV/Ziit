@@ -10,7 +10,24 @@ export enum ImportStatus {
   Failed = "Failed",
 }
 
-export type ImportMethod = "wakatime-api" | "wakatime-file" | "wakapi";
+export enum ImportMethod {
+  WAKATIME_API,
+  WAKATIME_FILE,
+  WAKAPI,
+  CODETIME,
+}
+
+export enum WorkChunkStatus {
+  PENDING,
+  PROCESSING,
+  COMPLETED,
+  FAILED,
+}
+
+export enum WorkChunkType {
+  DATE_RANGE,
+  HEARTBEAT_BATCH,
+}
 
 export interface ImportJob {
   id: string;
@@ -32,16 +49,31 @@ export interface ImportJob {
     apiKey?: string;
     instanceUrl?: string;
     jobId?: string;
+    exportData?: any;
   };
 }
 
 export interface QueueJob {
   id: string;
-  type: "wakatime-api" | "wakatime-file" | "wakapi";
+  type: ImportMethod;
   userId: string;
   data: {
     apiKey?: string;
-    exportData?: WakatimeExportData;
+    exportData?: {
+      user: {
+        username?: string | null;
+        display_name?: string | null;
+        last_plugin?: string;
+      };
+      range: {
+        start: number;
+        end: number;
+      };
+      days: Array<{
+        date: string;
+        heartbeats: any[];
+      }>;
+    };
     instanceUrl?: string;
     jobId?: string;
     heartbeatsByDate?: Record<string, any[]>;
@@ -53,7 +85,7 @@ export interface QueueJob {
 export interface WorkChunk {
   id: string;
   jobId: string;
-  type: "date-range" | "heartbeat-batch";
+  type: WorkChunkType;
   data: {
     days?: any[];
     dates?: string[];
@@ -63,7 +95,7 @@ export interface WorkChunk {
     originalJob: QueueJob;
     processedDays?: number;
   };
-  status: "pending" | "processing" | "completed" | "failed";
+  status: WorkChunkStatus;
   progress: number;
   workerId?: number;
 }

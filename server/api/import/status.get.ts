@@ -6,9 +6,10 @@ import {
   getAllJobStatuses,
   getQueueStatus,
 } from "~~/server/utils/import-queue";
+import { ImportStatus } from "~~/types/import";
 
 function safeJSONStringify(obj: any): string {
-  return JSON.stringify(obj, (key, value) => {
+  return JSON.stringify(obj, (_key, value) => {
     if (typeof value === "bigint") {
       return value.toString();
     }
@@ -16,10 +17,8 @@ function safeJSONStringify(obj: any): string {
   });
 }
 
-function isActiveJobStatus(status: string): boolean {
-  if (!status || typeof status !== "string") return false;
-  const inactiveKeywords = ["Completed", "Failed"];
-  return !inactiveKeywords.some((keyword) => status.includes(keyword));
+function isActiveJobStatus(status: ImportStatus): boolean {
+  return status !== ImportStatus.Completed && status !== ImportStatus.Failed;
 }
 
 const recentlyCompletedJobs = new Map<
@@ -54,7 +53,7 @@ export default defineEventHandler((event) => {
   if (!activeJob) {
     const completedJob = userJobs.find(
       (j) =>
-        (j.status.includes("Completed") || j.status.includes("Failed")) &&
+        (j.status === ImportStatus.Completed || j.status === ImportStatus.Failed) &&
         (!recentlyCompletedJobs.has(j.id) ||
           !recentlyCompletedJobs.get(j.id)?.sentFinalUpdate),
     );
@@ -124,7 +123,7 @@ export default defineEventHandler((event) => {
       if (!currentActiveJob) {
         const completedJob = currentUserJobs.find(
           (j) =>
-            (j.status.includes("Completed") || j.status.includes("Failed")) &&
+            (j.status === ImportStatus.Completed || j.status === ImportStatus.Failed) &&
             (!recentlyCompletedJobs.has(j.id) ||
               !recentlyCompletedJobs.get(j.id)?.sentFinalUpdate),
         );
@@ -169,8 +168,8 @@ export default defineEventHandler((event) => {
 
         if (
           currentActiveJob &&
-          (currentActiveJob.status.includes("Completed") ||
-            currentActiveJob.status.includes("Failed")) &&
+          (currentActiveJob.status === ImportStatus.Completed ||
+            currentActiveJob.status === ImportStatus.Failed) &&
           recentlyCompletedJobs.has(currentActiveJob.id)
         ) {
           const jobData = recentlyCompletedJobs.get(currentActiveJob.id);
