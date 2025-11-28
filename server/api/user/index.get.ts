@@ -1,6 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
-import { handleApiError} from "~~/server/utils/logging";
+import { prisma } from "~~/prisma/prisma";
+import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
   openAPI: {
@@ -16,8 +16,6 @@ defineRouteMeta({
   },
 });
 
-const prisma = new PrismaClient();
-
 export default defineEventHandler(async (event: H3Event) => {
   try {
     const user = await prisma.user.findUnique({
@@ -32,17 +30,28 @@ export default defineEventHandler(async (event: H3Event) => {
         apiKey: true,
         keystrokeTimeout: true,
         leaderboardEnabled: true,
-        leaderboardFirstSet: true
+        leaderboardFirstSet: true,
       },
     });
 
     if (!user) {
-      throw handleApiError(404, `User not found for ID ${event.context.user.id}`, "User not found.");
+      throw handleApiError(
+        404,
+        `User not found for ID ${event.context.user.id}`,
+        "User not found."
+      );
     }
 
     return user;
   } catch (error: any) {
-    const detailedMessage = error instanceof Error ? error.message : "An unknown error occurred while fetching user data.";
-    throw handleApiError(69, `Failed to fetch user data for user ${event.context.user.id}: ${detailedMessage}`, "Failed to fetch user data. Please try again.");
+    const detailedMessage =
+      error instanceof Error
+        ? error.message
+        : "An unknown error occurred while fetching user data.";
+    throw handleApiError(
+      69,
+      `Failed to fetch user data for user ${event.context.user.id}: ${detailedMessage}`,
+      "Failed to fetch user data. Please try again."
+    );
   }
 });

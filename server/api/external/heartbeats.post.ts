@@ -1,6 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+
 import { H3Event } from "h3";
 import { z } from "zod";
+import { prisma } from "~~/prisma/prisma";
 import { handleApiError } from "~~/server/utils/logging";
 
 // This endpoint is depracated
@@ -66,9 +67,7 @@ defineRouteMeta({
   },
 });
 
-const prisma = new PrismaClient({
-  log: ["warn", "error"],
-});
+
 
 const apiKeySchema = z.uuid();
 

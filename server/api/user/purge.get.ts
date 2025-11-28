@@ -1,5 +1,5 @@
-import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
+import { prisma } from "~~/prisma/prisma";
 import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
@@ -16,8 +16,6 @@ defineRouteMeta({
     operationId: "purgeUserData",
   },
 });
-
-const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event: H3Event) => {
   try {
@@ -53,7 +51,7 @@ export default defineEventHandler(async (event: H3Event) => {
     throw handleApiError(
       69,
       `Failed to purge user data ${event.context.user.id}: ${detailedMessage}`,
-      "Failed to purge user data. Please try again.",
+      "Failed to purge user data. Please try again."
     );
   }
 });

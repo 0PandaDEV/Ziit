@@ -1,6 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
+import { prisma } from "~~/prisma/prisma";
 import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
@@ -64,10 +64,6 @@ defineRouteMeta({
   },
 });
 
-const prisma = new PrismaClient({
-  log: ["warn", "error"],
-});
-
 const apiKeySchema = z.uuid();
 
 const heartbeatSchema = z.object({
@@ -86,7 +82,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       throw handleApiError(
         401,
-        "Heartbeat API error: Missing or invalid API key format in header.",
+        "Heartbeat API error: Missing or invalid API key format in header."
       );
     }
 
@@ -96,7 +92,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!validationResult.success) {
       throw handleApiError(
         401,
-        `Heartbeat API error: Invalid API key format. Key: ${apiKey.substring(0, 4)}...`,
+        `Heartbeat API error: Invalid API key format. Key: ${apiKey.substring(0, 4)}...`
       );
     }
 
@@ -108,7 +104,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!user || user.apiKey !== apiKey) {
       throw handleApiError(
         401,
-        `Heartbeat API error: Invalid API key. Key: ${apiKey.substring(0, 4)}...`,
+        `Heartbeat API error: Invalid API key. Key: ${apiKey.substring(0, 4)}...`
       );
     }
 
@@ -142,7 +138,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (error instanceof z.ZodError) {
       throw handleApiError(
         400,
-        `Heartbeat API error: Validation error. Details: ${error.message}`,
+        `Heartbeat API error: Validation error. Details: ${error.message}`
       );
     }
     const detailedMessage =
@@ -154,7 +150,7 @@ export default defineEventHandler(async (event: H3Event) => {
     throw handleApiError(
       69,
       `Heartbeat API error: Failed to process heartbeat. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`,
-      "Failed to process your request.",
+      "Failed to process your request."
     );
   }
 });

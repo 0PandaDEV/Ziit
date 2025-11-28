@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
 import { TimeRange } from "~/lib/stats";
-
-const prisma = new PrismaClient();
+import { prisma } from "~~/prisma/prisma";
 
 export async function calculateStats(
   userId: string,

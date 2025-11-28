@@ -1,6 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
 import { z } from "zod";
+import { prisma } from "~~/prisma/prisma";
 import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
@@ -20,7 +20,6 @@ defineRouteMeta({
   },
 });
 
-const prisma = new PrismaClient();
 const apiKeySchema = z.uuid();
 
 export default defineEventHandler(async (event: H3Event) => {

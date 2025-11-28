@@ -1,18 +1,14 @@
-import { PrismaClient } from "@prisma/client";
-import type { Heartbeats, Summaries } from "@prisma/client";
-
-const prisma = new PrismaClient({
-  log: ["warn", "error"],
-});
+import { Heartbeats, Summaries } from "~~/prisma/client/client";
+import { prisma } from "~~/prisma/prisma";
 
 export function calculateTotalMinutesFromHeartbeats(
   heartbeats: Heartbeats[],
-  idleThresholdMinutes: number,
+  idleThresholdMinutes: number
 ): number {
   if (heartbeats.length === 0) return 0;
 
   const sortedHeartbeats = [...heartbeats].sort(
-    (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+    (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
   );
 
   let totalMinutes = 0;
@@ -38,7 +34,7 @@ export function calculateTotalMinutesFromHeartbeats(
 
 export function calculateCategoryTimes(
   heartbeats: Heartbeats[],
-  idleThresholdMinutes: number,
+  idleThresholdMinutes: number
 ) {
   const projectsTime: Record<string, number> = {};
   const editorsTime: Record<string, number> = {};
@@ -59,7 +55,7 @@ export function calculateCategoryTimes(
   }
 
   const sortedHeartbeats = [...heartbeats].sort(
-    (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+    (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
   );
 
   let lastTimestamp: number | null = null;
@@ -163,7 +159,7 @@ export function calculateCategoryTimes(
 export async function createOrUpdateSummary(
   userId: string,
   dateStr: string,
-  heartbeats: any[],
+  heartbeats: any[]
 ) {
   if (heartbeats.length === 0) return null;
 
@@ -203,7 +199,7 @@ export async function createOrUpdateSummary(
       });
 
       const newHeartbeats = heartbeats.filter(
-        (h) => !existingMap.has(`${h.timestamp}-${h.file || ""}`),
+        (h) => !existingMap.has(`${h.timestamp}-${h.file || ""}`)
       );
 
       if (newHeartbeats.length === 0) {
@@ -250,12 +246,12 @@ export async function createOrUpdateSummary(
     existingHeartbeatsForImport.forEach((h) => {
       existingMapForImport.set(
         `${h.timestamp.getTime()}-${h.file || ""}`,
-        true,
+        true
       );
     });
 
     const newHeartbeatsForImport = heartbeats.filter(
-      (h) => !existingMapForImport.has(`${h.timestamp}-${h.file || ""}`),
+      (h) => !existingMapForImport.has(`${h.timestamp}-${h.file || ""}`)
     );
 
     if (newHeartbeatsForImport.length > 0) {
@@ -292,7 +288,7 @@ export async function createOrUpdateSummary(
 
     const totalMinutes = calculateTotalMinutesFromHeartbeats(
       allHeartbeatsForDay,
-      idleThresholdMinutes,
+      idleThresholdMinutes
     );
 
     const {
@@ -348,7 +344,7 @@ export async function createOrUpdateSummary(
 
     if (allHeartbeatsForDay.length > 0) {
       const heartbeatsToUpdate = allHeartbeatsForDay.filter(
-        (h) => h.summariesId !== summary.id,
+        (h) => h.summariesId !== summary.id
       );
 
       if (heartbeatsToUpdate.length > 0) {
@@ -378,7 +374,7 @@ export async function createOrUpdateSummary(
 export async function createOrUpdateSummaryForCron(
   userId: string,
   dateStr: string,
-  heartbeats: Heartbeats[],
+  heartbeats: Heartbeats[]
 ) {
   if (heartbeats.length === 0) return null;
 
@@ -392,7 +388,7 @@ export async function createOrUpdateSummaryForCron(
 
     const totalMinutes = calculateTotalMinutesFromHeartbeats(
       heartbeats,
-      idleThresholdMinutes,
+      idleThresholdMinutes
     );
 
     const {
@@ -448,7 +444,7 @@ export async function createOrUpdateSummaryForCron(
 
     if (heartbeats.length > 0) {
       const heartbeatsToUpdate = heartbeats.filter(
-        (h) => h.summariesId !== summary.id,
+        (h) => h.summariesId !== summary.id
       );
 
       if (heartbeatsToUpdate.length > 0) {
@@ -468,8 +464,8 @@ export async function createOrUpdateSummaryForCron(
                 data: {
                   summariesId: summary.id,
                 },
-              }),
-            ),
+              })
+            )
           );
         }
       }
@@ -484,7 +480,7 @@ export async function createOrUpdateSummaryForCron(
 
 export async function processHeartbeatsByDate(
   userId: string,
-  heartbeats: any[],
+  heartbeats: any[]
 ) {
   if (heartbeats.length === 0) return;
 
@@ -508,7 +504,7 @@ export async function processHeartbeatsByDate(
 
 export async function processSummariesByDate(
   userId: string,
-  heartbeats: Heartbeats[],
+  heartbeats: Heartbeats[]
 ) {
   if (heartbeats.length === 0) return;
 
@@ -564,7 +560,7 @@ export async function regenerateSummariesForUser(userId: string) {
   } catch (error) {
     console.error(
       "Regenerate summaries error:",
-      error instanceof Error ? error.message : "Unknown error",
+      error instanceof Error ? error.message : "Unknown error"
     );
     throw createError({
       statusCode: 69,

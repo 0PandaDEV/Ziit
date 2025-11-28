@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "~~/prisma/prisma";
 import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
@@ -13,8 +13,6 @@ defineRouteMeta({
     operationId: "getPublicStats",
   },
 });
-
-const prisma = new PrismaClient();
 
 export default defineCachedEventHandler(
   async () => {

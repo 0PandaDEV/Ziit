@@ -1,11 +1,8 @@
 import { defineCronHandler } from "#nuxt/cron";
-import { PrismaClient } from "@prisma/client";
+
 import { processSummariesByDate } from "~~/server/utils/summarize";
 import { handleLog } from "../utils/logging";
-
-const prisma = new PrismaClient({
-  log: ["warn", "error"],
-});
+import { prisma } from "~~/prisma/prisma";
 
 export default defineCronHandler(
   "daily",
@@ -90,7 +87,7 @@ export default defineCronHandler(
       await generatePublicStats(now);
 
       handleLog(
-        `Summarization complete. Processed ${processedCount} heartbeats.`,
+        `Summarization complete. Processed ${processedCount} heartbeats.`
       );
     } catch (error) {
       console.error("Error in summarization cron job", error);
@@ -99,7 +96,7 @@ export default defineCronHandler(
   {
     timeZone: "UTC",
     runOnInit: true,
-  },
+  }
 );
 
 async function generatePublicStats(date: Date) {
@@ -187,7 +184,7 @@ async function generatePublicStats(date: Date) {
     const totalUsers = userCountResult;
     const totalHeartbeats = heartbeatCountResult;
     const totalHours = Math.floor(
-      (summariesAggregateResult._sum.totalMinutes || 0) / 60,
+      (summariesAggregateResult._sum.totalMinutes || 0) / 60
     );
 
     const topEditor = topEditorResult[0]?.editor || "Unknown";
@@ -207,7 +204,7 @@ async function generatePublicStats(date: Date) {
     });
 
     handleLog(
-      `Generated public stats for ${statsDate.toISOString().split("T")[0]}: ${totalUsers} users, ${totalHeartbeats} heartbeats, ${totalHours} hours`,
+      `Generated public stats for ${statsDate.toISOString().split("T")[0]}: ${totalUsers} users, ${totalHeartbeats} heartbeats, ${totalHours} hours`
     );
   } catch (error) {
     console.error("Error generating public stats:", error);

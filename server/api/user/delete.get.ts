@@ -1,5 +1,5 @@
-import { PrismaClient } from "@prisma/client";
 import { H3Event } from "h3";
+import { prisma } from "~~/prisma/prisma";
 import { handleApiError } from "~~/server/utils/logging";
 
 defineRouteMeta({
@@ -16,8 +16,6 @@ defineRouteMeta({
     operationId: "deleteUser",
   },
 });
-
-const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event: H3Event) => {
   try {
