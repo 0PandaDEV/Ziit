@@ -1,3 +1,5 @@
+### For users confused why their account got deleted check this issue https://github.com/0pandadev/Ziit/issues/81
+
 <p align="center">
    <img src="https://github.com/user-attachments/assets/bc6a1efd-2a7a-473a-8f09-ae75cafeba84"/>
 </p>
