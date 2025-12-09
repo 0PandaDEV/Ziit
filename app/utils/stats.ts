@@ -124,7 +124,7 @@ export async function fetchStats(): Promise<void> {
 
   try {
     const timezoneOffsetMinutes = new Date().getTimezoneOffset();
-    const timezoneOffsetSeconds = timezoneOffsetMinutes * 60;
+    const timezoneOffsetSeconds = timezoneOffsetMinutes * 60 * -1;
 
     const baseUrl = window.location.origin;
     const url = new URL("/api/stats", baseUrl);
