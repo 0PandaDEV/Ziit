@@ -1,5 +1,5 @@
 import { computed } from "vue";
-import * as statsLib from "~/lib/stats";
+import * as statsLib from "~/utils/stats";
 
 export function useTimeRangeOptions() {
   const timeRangeOptions = computed(() => [

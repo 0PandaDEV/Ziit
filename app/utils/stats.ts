@@ -1,5 +1,5 @@
-import type { User } from "@prisma/client";
 import { ref } from "vue";
+import type { User } from "~~/prisma/client/client";
 
 export const TimeRangeEnum = {
   TODAY: "today",
@@ -123,17 +123,13 @@ export async function fetchStats(): Promise<void> {
   state.error = null;
 
   try {
-    const now = new Date();
-    const timezoneOffsetMinutes = now.getTimezoneOffset();
+    const timezoneOffsetMinutes = new Date().getTimezoneOffset();
     const timezoneOffsetSeconds = timezoneOffsetMinutes * 60;
 
     const baseUrl = window.location.origin;
     const url = new URL("/api/stats", baseUrl);
     url.searchParams.append("timeRange", state.timeRange);
-    url.searchParams.append(
-      "midnightOffsetSeconds",
-      timezoneOffsetSeconds.toString()
-    );
+    url.searchParams.append("midnightOffsetSeconds", timezoneOffsetSeconds.toString());
 
     if (state.timeRange === TimeRangeEnum.TODAY) {
       url.searchParams.append("t", Date.now().toString());

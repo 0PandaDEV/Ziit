@@ -269,9 +269,9 @@
 </template>
 
 <script setup lang="ts">
-import type { User } from "@prisma/client";
 import { ref, onMounted, computed } from "vue";
-import * as statsLib from "~/lib/stats";
+import * as statsLib from "~/utils/stats";
+import type { User } from "~~/prisma/generated/client";
 import { ImportStatus, type ImportJob } from "~~/types/import";
 
 const { data: fetchedUser } = await useFetch("/api/user");
