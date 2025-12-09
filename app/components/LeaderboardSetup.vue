@@ -14,9 +14,15 @@
 </template>
 
 <script setup lang="ts">
-import type { User } from "@prisma/client";
+import type { User } from "~~/prisma/generated/client";
 
-const userState = useState<User | null>("user");
+const props = defineProps<{
+  user: User | null;
+}>();
+
+const emit = defineEmits<{
+  (e: "updated", payload: { leaderboardEnabled: boolean }): void;
+}>();
 
 async function setLeaderboard(option: boolean) {
   await $fetch("/api/user", {
@@ -27,9 +33,7 @@ async function setLeaderboard(option: boolean) {
     },
   });
 
-  if (userState.value) {
-    userState.value.leaderboardFirstSet = true;
-  }
+  emit("updated", { leaderboardEnabled: option });
 }
 
 useKeybind({

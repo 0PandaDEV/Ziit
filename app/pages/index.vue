@@ -1,7 +1,11 @@
 <template>
   <NuxtLayout name="default">
     <div class="stats-dashboard">
-      <LeaderboardSetup v-if="!leaderboardSet" />
+      <LeaderboardSetup
+        v-if="!leaderboardFirstSet"
+        :user="userState || null"
+        @updated="onLeaderboardUpdated" />
+
       <div class="chart-container">
         <div class="chart" ref="chartContainer"></div>
       </div>
@@ -240,10 +244,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { LucideMaximize } from "lucide-vue-next";
-import type { User } from "@prisma/client";
 
-import * as statsLib from "~/lib/stats";
-import type { Heartbeat } from "~/lib/stats";
+import * as statsLib from "~/utils/stats";
 import {
   Chart,
   CategoryScale,
@@ -257,6 +259,7 @@ import {
 import { useTimeRangeOptions } from "~/composables/useTimeRangeOptions";
 import UiListModal from "~/components/Ui/ListModal.vue";
 import type { KeyString } from "@waradu/keyboard";
+import type { User } from "~~/prisma/generated/client";
 
 Chart.register(
   CategoryScale,
@@ -274,16 +277,20 @@ type ItemWithTime = {
 };
 
 const toast = useToast();
-const { data: userState } = useAsyncData("user", () => $fetch("/api/user"));
 const chartContainer = ref<HTMLElement | null>(null);
 const projectSort = ref<"time" | "name">("time");
 const uniqueLanguages = ref(0);
+const { data: userState } = useAsyncData<User>("user", () =>
+  $fetch<User>("/api/user")
+);
+
+const leaderboardFirstSet = ref(userState.value?.leaderboardFirstSet ?? false);
+
 let chart: Chart | null = null;
 
 const showListModal = ref(false);
 const modalTitle = ref("");
 const modalItems = ref<ItemWithTime[]>([]);
-const leaderboardSet = ref(true);
 
 const stats = ref(statsLib.getStats());
 const timeRange = ref(statsLib.getTimeRange());
@@ -414,40 +421,14 @@ function openListModal(title: string, items: ItemWithTime[]) {
   showListModal.value = true;
 }
 
-const HEARTBEAT_INTERVAL_SECONDS = 30;
-
-watch(
-  () => userState.value?.leaderboardFirstSet,
-  (newValue) => {
-    if (newValue !== undefined) {
-      leaderboardSet.value = newValue;
-    }
-  },
-  { immediate: true }
-);
-
-async function fetchUserData() {
-  if (userState.value) return userState.value;
-
-  try {
-    const data = await $fetch<User>("/api/user");
-    userState.value = data;
-    leaderboardSet.value = userState.value.leaderboardFirstSet;
-
-    if (data?.keystrokeTimeout) {
-      statsLib.setKeystrokeTimeout(data.keystrokeTimeout);
-    }
-
-    return data;
-  } catch (error) {
-    console.error("Error fetching user data:", error);
-    return null;
-  }
+function onLeaderboardUpdated(payload: { leaderboardEnabled: boolean }) {
+  leaderboardFirstSet.value = true;
 }
 
 onMounted(async () => {
   await statsLib.refreshStats();
-  await fetchUserData();
+  statsLib.setKeystrokeTimeout(userState.value!.keystrokeTimeout);
+
   timeRangeOptions.value.forEach(
     (option: { key: string; value: statsLib.TimeRange }) => {
       if (option.key && option.value) {
@@ -660,7 +641,7 @@ function getChartConfig() {
 
     case "week": {
       labels = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date(yesterday);
+        const date = new Date(today);
         date.setDate(date.getDate() - i);
         return getDateLabel(date);
       }).reverse();
@@ -672,12 +653,12 @@ function getChartConfig() {
     case "month":
     case "last-90-days": {
       const daysToGoBack = timeRange.value === "month" ? 29 : 89;
-      const startDate = new Date(yesterday);
+      const startDate = new Date(today);
       startDate.setDate(startDate.getDate() - daysToGoBack);
 
       const days: Date[] = [];
       let currentDate = new Date(startDate);
-      while (currentDate <= yesterday) {
+      while (currentDate <= today) {
         days.push(new Date(currentDate));
         currentDate.setDate(currentDate.getDate() + 1);
       }
@@ -688,12 +669,12 @@ function getChartConfig() {
     }
 
     case "month-to-date": {
-      const startDate = new Date(yesterday);
+      const startDate = new Date(today);
       startDate.setDate(1);
 
       const days: Date[] = [];
       let currentDate = new Date(startDate);
-      while (currentDate <= yesterday) {
+      while (currentDate <= today) {
         days.push(new Date(currentDate));
         currentDate.setDate(currentDate.getDate() + 1);
       }
@@ -868,134 +849,8 @@ function getSingleDayChartData(result: number[]): number[] {
     return result;
   }
 
-  const relevantHeartbeats = stats.value?.heartbeats;
-
-  if (!relevantHeartbeats?.length) return result;
-
-  const now = new Date();
-  let startDate: Date, endDate: Date;
-
-  if (timeRange.value === statsLib.TimeRangeEnum.TODAY) {
-    startDate = new Date(now);
-    startDate.setHours(0, 0, 0, 0);
-
-    endDate = new Date(now);
-    endDate.setHours(23, 59, 59, 999);
-  } else {
-    const yesterdayDate = new Date(now);
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-
-    startDate = new Date(yesterdayDate);
-    startDate.setHours(0, 0, 0, 0);
-
-    endDate = new Date(yesterdayDate);
-    endDate.setHours(23, 59, 59, 999);
-  }
-
-  const filteredHeartbeats = relevantHeartbeats.filter((hb) => {
-    const timestamp =
-      typeof hb.timestamp === "string" ? parseInt(hb.timestamp) : hb.timestamp;
-    const hbDate = new Date(timestamp);
-    const hbTime = hbDate.getTime();
-
-    return hbTime >= startDate.getTime() && hbTime <= endDate.getTime();
-  });
-
-  const heartbeatsByProject = groupHeartbeatsByProject(filteredHeartbeats);
-
-  for (const projectKey in heartbeatsByProject) {
-    const projectBeats = heartbeatsByProject[projectKey]?.sort((a, b) => {
-      const aTime =
-        typeof a.timestamp === "string"
-          ? parseInt(a.timestamp)
-          : Number(a.timestamp);
-      const bTime =
-        typeof b.timestamp === "string"
-          ? parseInt(b.timestamp)
-          : Number(b.timestamp);
-      return aTime - bTime;
-    });
-
-    if (!projectBeats) {
-      continue;
-    }
-
-    for (let i = 0; i < projectBeats.length; i++) {
-      const currentBeat = projectBeats[i];
-      const previousBeat = i > 0 ? projectBeats[i - 1] : undefined;
-      const durationSeconds = calculateInlinedDuration(
-        currentBeat!,
-        previousBeat
-      );
-
-      const timestamp =
-        typeof currentBeat?.timestamp === "string"
-          ? parseInt(currentBeat.timestamp)
-          : Number(currentBeat?.timestamp);
-
-      const ts = new Date(timestamp);
-      const localHour = ts.getHours();
-
-      if (localHour >= 0 && localHour < 24) {
-        result[localHour]! += durationSeconds / 3600;
-      }
-    }
-  }
-
+  // Return empty result if hourlyData is not available
   return result;
-}
-
-function calculateInlinedDuration(
-  current: Heartbeat,
-  previous?: Heartbeat
-): number {
-  const keystrokeTimeoutSecs = statsLib.getKeystrokeTimeout() * 60;
-
-  if (!previous) {
-    return HEARTBEAT_INTERVAL_SECONDS;
-  }
-
-  const currentTs =
-    typeof current.timestamp === "string"
-      ? parseInt(current.timestamp)
-      : Number(current.timestamp);
-
-  const previousTs =
-    typeof previous.timestamp === "string"
-      ? parseInt(previous.timestamp)
-      : Number(previous.timestamp);
-
-  const diffSeconds = Math.round((currentTs - previousTs) / 1000);
-
-  if (diffSeconds < keystrokeTimeoutSecs) {
-    return diffSeconds;
-  } else {
-    return HEARTBEAT_INTERVAL_SECONDS;
-  }
-}
-
-function groupHeartbeatsByProject(
-  heartbeats: Heartbeat[]
-): Record<string, Heartbeat[]> {
-  const result: Record<string, Heartbeat[]> = {};
-
-  for (const hb of heartbeats) {
-    const projectKey = hb.project || "unknown";
-    if (!result[projectKey]) {
-      result[projectKey] = [];
-    }
-    result[projectKey]?.push(hb);
-  }
-
-  return result;
-}
-
-async function logout() {
-  try {
-    window.location.href = "/api/auth/logout";
-  } catch (e: any) {
-    toast.error(e.data?.message || "Logout failed");
-  }
 }
 
 useSeoMeta({
