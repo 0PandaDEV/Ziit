@@ -1,10 +1,10 @@
 import { H3Event } from "h3";
-import { TimeRangeEnum } from "~/lib/stats";
-import type { TimeRange } from "~/lib/stats";
+import { TimeRangeEnum } from "~/utils/stats";
+import type { TimeRange } from "~/utils/stats";
 import { z } from "zod";
 import { calculateStats } from "~~/server/utils/stats";
 import { handleApiError } from "~~/server/utils/logging";
-import { prisma } from "~~/prisma/prisma";
+import { prisma } from "~~/prisma/db";
 
 defineRouteMeta({
   openAPI: {

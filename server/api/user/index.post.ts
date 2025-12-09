@@ -2,7 +2,7 @@ import { H3Event } from "h3";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import { handleApiError } from "~~/server/utils/logging";
-import { prisma } from "~~/prisma/prisma";
+import { prisma } from "~~/prisma/db";
 
 defineRouteMeta({
   openAPI: {

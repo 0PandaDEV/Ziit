@@ -1,4 +1,4 @@
-import { prisma } from "~~/prisma/prisma";
+import { prisma } from "~~/prisma/db";
 import { decrypt, encrypt } from "paseto-ts/v4";
 import { handleApiError } from "~~/server/utils/logging";
 

@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import { encrypt } from "paseto-ts/v4";
-import { prisma } from "~~/prisma/prisma";
+import { prisma } from "~~/prisma/db";
 import { z } from "zod";
 import { handleApiError} from "~~/server/utils/logging";
 

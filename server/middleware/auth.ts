@@ -1,7 +1,7 @@
 import { decrypt } from "paseto-ts/v4";
 
 import type { H3Event } from "h3";
-import { prisma } from "~~/prisma/prisma";
+import { prisma } from "~~/prisma/db";
 
 const AUTH_CONFIG = {
   publicApiPaths: [

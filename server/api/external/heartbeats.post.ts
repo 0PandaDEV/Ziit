@@ -1,7 +1,7 @@
 
 import { H3Event } from "h3";
 import { z } from "zod";
-import { prisma } from "~~/prisma/prisma";
+import { prisma } from "~~/prisma/db";
 import { handleApiError } from "~~/server/utils/logging";
 
 // This endpoint is depracated

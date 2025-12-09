@@ -1,4 +1,4 @@
-import { prisma } from "~~/prisma/prisma";
+import { prisma } from "~~/prisma/db";
 import { defineCronHandler } from "#nuxt/cron";
 
 export default defineCronHandler(

@@ -2,7 +2,7 @@ import { defineCronHandler } from "#nuxt/cron";
 
 import { processSummariesByDate } from "~~/server/utils/summarize";
 import { handleLog } from "../utils/logging";
-import { prisma } from "~~/prisma/prisma";
+import { prisma } from "~~/prisma/db";
 
 export default defineCronHandler(
   "daily",

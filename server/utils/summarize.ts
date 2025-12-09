@@ -1,5 +1,5 @@
-import { Heartbeats, Summaries } from "~~/prisma/client/client";
-import { prisma } from "~~/prisma/prisma";
+import { Heartbeats, Summaries } from "~~/prisma/generated/client";
+import { prisma } from "~~/prisma/db";
 
 export function calculateTotalMinutesFromHeartbeats(
   heartbeats: Heartbeats[],
