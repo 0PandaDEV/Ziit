@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import type { User } from "~~/prisma/client/client";
+import type { User } from "~~/prisma/generated/client";
 
 export const TimeRangeEnum = {
   TODAY: "today",

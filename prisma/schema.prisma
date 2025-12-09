@@ -3,7 +3,7 @@
 
 generator client {
   provider        = "prisma-client"
-  output          = "./client"
+  output          = "./generated"
   previewFeatures = ["postgresqlExtensions"]
 }
 

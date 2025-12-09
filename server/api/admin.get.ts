@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { prisma } from "~~/prisma/prisma";
+import { prisma } from "~~/prisma/db";
 import { H3Event } from "h3";
 
 const adminKeySchema = z.base64();
