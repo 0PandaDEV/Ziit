@@ -1,6 +1,6 @@
-import { TimeRangeEnum, type TimeRange, type Summary } from "~/lib/stats";
+import { TimeRangeEnum, type TimeRange, type Summary } from "~/utils/stats";
 import { badgen } from "badgen";
-import { calculateStats } from "~~/server/utils/stats";
+import { calculateStats, getUserTimeRangeTotal } from "~~/server/utils/stats";
 
 defineRouteMeta({
   openAPI: {
@@ -75,23 +75,21 @@ export default defineEventHandler(async (event) => {
   const style = query.style ? String(query.style) : "classic";
   const icon = query.icon as string;
 
-  const stats = (await calculateStats(
-    userId,
-    timeRangeParam,
-    undefined,
-    project
-  )) as StatsResult | StatsWithProject;
-
   let totalSeconds = 0;
 
-  if ("projectFilter" in stats) {
-    totalSeconds = stats.projectSeconds;
+  if (project === "all") {
+    const timeTotal = await getUserTimeRangeTotal(userId, timeRangeParam);
+    totalSeconds = timeTotal.totalMinutes * 60;
   } else {
-    if (project === "all") {
-      totalSeconds = stats.summaries.reduce(
-        (total: number, summary: Summary) => total + summary.totalSeconds,
-        0
-      );
+    const stats = (await calculateStats(
+      userId,
+      timeRangeParam,
+      undefined,
+      project
+    )) as StatsResult | StatsWithProject;
+
+    if ("projectFilter" in stats) {
+      totalSeconds = stats.projectSeconds;
     } else {
       for (const summary of stats.summaries) {
         if (summary.projects) {
@@ -147,12 +145,5 @@ export default defineEventHandler(async (event) => {
     badgeOptions.icon = "/favicon.ico";
   }
 
-  const svg = badgen(badgeOptions);
-
-  event.node.res.setHeader("Content-Type", "image/svg+xml");
-  event.node.res.setHeader("Cache-Control", "max-age=600, s-maxage=600");
-  event.node.res.setHeader("Access-Control-Allow-Origin", "*");
-  event.node.res.setHeader("Access-Control-Allow-Methods", "GET");
-
-  return svg;
+  return badgen(badgeOptions);
 });
