@@ -1,5 +1,4 @@
-import { defineConfig, env } from "prisma/config";
-import "dotenv/config";
+import { defineConfig } from "prisma/config";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -8,7 +7,7 @@ export default defineConfig({
   },
   datasource: {
     url:
-      env("NUXT_DATABASE_URL") ||
+      process.env.NUXT_DATABASE_URL ||
       "postgresql://placeholder:placeholder@localhost:5432/placeholder",
   },
 });
