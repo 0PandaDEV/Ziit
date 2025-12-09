@@ -60,6 +60,12 @@ export default defineNuxtConfig({
         priority: 1,
         changefreq: "daily",
       },
+      {
+        loc: "/leaderboard",
+        lastmod: new Date().toISOString(),
+        priority: 0.9,
+        changefreq: "daily",
+      },
     ],
   },
   pwa: {
