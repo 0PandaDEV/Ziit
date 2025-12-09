@@ -7,6 +7,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: env("NUXT_DATABASE_URL"),
+    url:
+      env("NUXT_DATABASE_URL") ||
+      "postgresql://placeholder:placeholder@localhost:5432/placeholder",
   },
 });
