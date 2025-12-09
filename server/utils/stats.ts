@@ -1,5 +1,5 @@
-import { TimeRange } from "~/lib/stats";
-import { prisma } from "~~/prisma/prisma";
+import { TimeRange } from "~/utils/stats";
+import { prisma } from "~~/prisma/db";
 
 export async function calculateStats(
   userId: string,
@@ -64,9 +64,11 @@ export async function calculateStats(
 
 export async function getUserTimeRangeTotal(
   userId: string,
-  timeRange: TimeRange
+  timeRange: TimeRange,
+  offsetSeconds?: number
 ) {
   const timeRangeUpper = timeRange.toUpperCase().replace(/-/g, "_");
+  const offset = offsetSeconds ?? 0;
 
   try {
     const result = await prisma.$queryRaw<
@@ -79,7 +81,8 @@ export async function getUserTimeRangeTotal(
     >`
       SELECT * FROM get_user_time_range_total(
         ${userId}::TEXT,
-        ${timeRangeUpper}::TEXT
+        ${timeRangeUpper}::TEXT,
+        ${offset}::INT
       )
     `;
 
