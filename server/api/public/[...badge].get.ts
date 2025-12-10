@@ -1,4 +1,4 @@
-import { TimeRangeEnum, type TimeRange, type Summary } from "~/utils/stats";
+import { TimeRangeEnum, type TimeRange, type Summary } from "~/composables/useStats";
 import { badgen } from "badgen";
 import { calculateStats, getUserTimeRangeTotal } from "~~/server/utils/stats";
 

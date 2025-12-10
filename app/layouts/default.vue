@@ -16,29 +16,22 @@
 </template>
 
 <script setup lang="ts">
-import * as statsLib from "~/utils/stats";
-import { watch } from "vue";
+import { computed } from "vue";
+import { useStats, type TimeRange } from "~/composables/useStats";
 import { useTimeRangeOptions } from "~/composables/useTimeRangeOptions";
 
-const stats = ref(statsLib.getStats());
-const timeRange = ref(statsLib.getTimeRange());
+const { stats, timeRange, setTimeRange, formatTime } = useStats();
 const { timeRangeOptions } = useTimeRangeOptions();
 
 const selectedTimeRange = computed({
   get: () => timeRange.value,
-  set: (value: statsLib.TimeRange) => {
-    statsLib.setTimeRange(value);
-    timeRange.value = value;
+  set: (value: TimeRange) => {
+    setTimeRange(value);
   },
 });
 
 const formattedTime = computed(() => {
-  return statsLib.formatTime(stats.value.totalSeconds || 0);
-});
-
-watch([() => statsLib.getStats(), () => statsLib.getTimeRange()], () => {
-  stats.value = statsLib.getStats();
-  timeRange.value = statsLib.getTimeRange();
+  return formatTime(stats.value.totalSeconds || 0);
 });
 </script>
 

@@ -270,12 +270,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
-import * as statsLib from "~/utils/stats";
 import type { User } from "~~/prisma/generated/client";
 import { ImportStatus, type ImportJob } from "~~/types/import";
 
 const { data: fetchedUser } = await useFetch("/api/user");
 const user = useState<User | null>("user", () => fetchedUser.value as User);
+
+const { setKeystrokeTimeout, refreshStats } = useStats();
 
 const showApiKey = ref(false);
 const toast = useToast();
@@ -499,8 +500,8 @@ onUnmounted(() => {
   stopSpinner();
 });
 
-if (user.value?.keystrokeTimeout) {
-  statsLib.setKeystrokeTimeout(user.value.keystrokeTimeout);
+if (user.value?.keystrokeTimeout !== undefined) {
+  setKeystrokeTimeout(user.value.keystrokeTimeout);
 }
 
 onMounted(() => {
@@ -687,7 +688,7 @@ async function updateKeystrokeTimeout() {
       user.value.keystrokeTimeout = keystrokeTimeout.value;
     }
 
-    statsLib.setKeystrokeTimeout(keystrokeTimeout.value);
+    setKeystrokeTimeout(keystrokeTimeout.value);
 
     toast.success("Keystroke timeout updated");
 
@@ -695,7 +696,7 @@ async function updateKeystrokeTimeout() {
       timeoutChanged.value = true;
     }
 
-    await statsLib.refreshStats();
+    await refreshStats();
   } catch (error) {
     console.error("Error updating keystroke timeout:", error);
     toast.error("Failed to update keystroke timeout");
@@ -769,7 +770,8 @@ async function regenerateSummaries() {
     );
     timeoutChanged.value = false;
     originalKeystrokeTimeout.value = keystrokeTimeout.value;
-    await statsLib.refreshStats();
+
+    await refreshStats();
   } catch (error) {
     console.error("Error regenerating summaries:", error);
     toast.error("Failed to regenerate summaries");

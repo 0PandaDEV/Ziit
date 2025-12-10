@@ -244,8 +244,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { LucideMaximize } from "lucide-vue-next";
-
-import * as statsLib from "~/utils/stats";
 import {
   Chart,
   CategoryScale,
@@ -280,30 +278,40 @@ const toast = useToast();
 const chartContainer = ref<HTMLElement | null>(null);
 const projectSort = ref<"time" | "name">("time");
 const uniqueLanguages = ref(0);
-const { data: userState } = useAsyncData<User>("user", () =>
-  $fetch<User>("/api/user")
+
+const userState = useState<User | null>("user");
+
+if (!userState.value) {
+  const { data: fetchedUser } = await useFetch<User>("/api/user");
+  userState.value = fetchedUser.value || null;
+}
+
+const leaderboardFirstSet = computed(
+  () => userState.value?.leaderboardFirstSet ?? false
 );
 
-const leaderboardFirstSet = ref(userState.value?.leaderboardFirstSet ?? false);
+const {
+  stats,
+  timeRange,
+  setTimeRange,
+  refreshStats,
+  formatTime,
+  setKeystrokeTimeout,
+} = useStats();
+
+if (userState.value?.keystrokeTimeout !== undefined) {
+  setKeystrokeTimeout(userState.value.keystrokeTimeout);
+}
+
+await refreshStats();
+
+const { timeRangeOptions } = useTimeRangeOptions();
 
 let chart: Chart | null = null;
 
 const showListModal = ref(false);
 const modalTitle = ref("");
 const modalItems = ref<ItemWithTime[]>([]);
-
-const stats = ref(statsLib.getStats());
-const timeRange = ref(statsLib.getTimeRange());
-const { formatTime } = statsLib;
-const { timeRangeOptions } = useTimeRangeOptions();
-
-watch(
-  [() => statsLib.getStats(), () => statsLib.getTimeRange()],
-  ([newStats, newTimeRange]) => {
-    stats.value = newStats;
-    timeRange.value = newTimeRange;
-  }
-);
 
 const months = [
   "Jan",
@@ -422,26 +430,23 @@ function openListModal(title: string, items: ItemWithTime[]) {
 }
 
 function onLeaderboardUpdated(payload: { leaderboardEnabled: boolean }) {
-  leaderboardFirstSet.value = true;
+  if (userState.value) {
+    userState.value.leaderboardFirstSet = true;
+  }
 }
 
 onMounted(async () => {
-  await statsLib.refreshStats();
-  statsLib.setKeystrokeTimeout(userState.value!.keystrokeTimeout);
-
-  timeRangeOptions.value.forEach(
-    (option: { key: string; value: statsLib.TimeRange }) => {
-      if (option.key && option.value) {
-        useKeybind({
-          keys: [option.key.toLocaleLowerCase() as KeyString],
-          run: async () => {
-            statsLib.setTimeRange(option.value);
-          },
-          config: { prevent: true },
-        });
-      }
+  timeRangeOptions.value.forEach((option: { key: string; value: any }) => {
+    if (option.key && option.value) {
+      useKeybind({
+        keys: [option.key.toLocaleLowerCase() as KeyString],
+        run: async () => {
+          setTimeRange(option.value);
+        },
+        config: { prevent: true },
+      });
     }
-  );
+  });
 
   if (chartContainer.value) {
     renderChart();

@@ -1,6 +1,6 @@
 import { H3Event } from "h3";
-import { TimeRangeEnum } from "~/utils/stats";
-import type { TimeRange } from "~/utils/stats";
+import { TimeRangeEnum } from "~/composables/useStats";
+import type { TimeRange } from "~/composables/useStats";
 import { handleApiError} from "~~/server/utils/logging";
 import { calculateStats } from "~~/server/utils/stats";
 

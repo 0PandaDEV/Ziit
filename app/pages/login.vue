@@ -52,6 +52,15 @@
 
 <script setup lang="ts">
 import { LucideKeyRound, LucideMail } from "lucide-vue-next";
+import type { User } from "~~/prisma/generated/client";
+
+const { data: _userState } = useAsyncData<User>(
+  "user",
+  () => $fetch<User>("/api/user"),
+  {
+    lazy: true,
+  }
+);
 
 const error = ref("");
 const email = ref("");
@@ -100,7 +109,7 @@ useKeybind({
   async run() {
     await epilogueAuth();
   },
-  config: { ignoreIfEditable: true }
+  config: { ignoreIfEditable: true },
 });
 
 useKeybind({

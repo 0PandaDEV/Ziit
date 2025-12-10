@@ -1,4 +1,4 @@
-import { TimeRange } from "~/utils/stats";
+import { TimeRange } from "~/composables/useStats";
 import { prisma } from "~~/prisma/db";
 
 export async function calculateStats(
