@@ -78,7 +78,6 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ needs.prepare.outputs.labels }}
-          tags: ghcr.io/${{ github.repository_owner }}/ziit:nightly-${{ env.PLATFORM_PAIR }}
           outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/ziit,push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=build-${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,mode=max,scope=build-${{ env.PLATFORM_PAIR }}
