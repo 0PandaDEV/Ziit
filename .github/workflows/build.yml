@@ -31,7 +31,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository_owner }}/ziit
           tags: |
             type=raw,value=${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_type == 'tag' && github.ref_name || 'nightly' }}
             type=sha,format=short
@@ -78,8 +78,8 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ needs.prepare.outputs.labels }}
-          tags: ghcr.io/${{ github.repository }}:nightly-${{ env.PLATFORM_PAIR }}
-          outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
+          tags: ghcr.io/${{ github.repository_owner }}/ziit:nightly-${{ env.PLATFORM_PAIR }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/ziit,push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=build-${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,mode=max,scope=build-${{ env.PLATFORM_PAIR }}
 
@@ -126,10 +126,10 @@ jobs:
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/${{ github.repository }}@sha256:%s ' *)
+            $(printf 'ghcr.io/${{ github.repository_owner }}/ziit@sha256:%s ' *)
         env:
           DOCKER_METADATA_OUTPUT_JSON: ${{ needs.prepare.outputs.json }}
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ghcr.io/${{ github.repository }}:${{ fromJSON(needs.prepare.outputs.json).labels['org.opencontainers.image.version'] }}
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/ziit:${{ fromJSON(needs.prepare.outputs.json).labels['org.opencontainers.image.version'] }}
