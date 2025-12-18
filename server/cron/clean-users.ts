@@ -4,13 +4,13 @@ import { defineCronHandler } from "#nuxt/cron";
 export default defineCronHandler(
   "daily",
   async () => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const date = new Date();
+    date.setDate(date.getDate() - 90);
 
     const users = await prisma.user.findMany({
       where: {
         lastlogin: {
-          lt: thirtyDaysAgo,
+          lt: date,
         },
         heartbeats: {
           none: {},
