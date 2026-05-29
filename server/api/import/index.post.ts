@@ -294,6 +294,30 @@ const wakaTimeExportSchema = z.object({
   ),
 });
 
+const FILE_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+
+function assertSafeFileId(fileId: unknown): void {
+  if (typeof fileId !== "string" || !FILE_ID_PATTERN.test(fileId)) {
+    throw handleApiError(
+      400,
+      `Rejected import with invalid fileId: ${JSON.stringify(fileId)}`,
+      "Invalid upload identifier.",
+    );
+  }
+}
+
+function assertWithinUserDir(userTempDir: string, targetPath: string): void {
+  const base = path.resolve(userTempDir);
+  const resolved = path.resolve(targetPath);
+  if (resolved !== base && !resolved.startsWith(base + path.sep)) {
+    throw handleApiError(
+      400,
+      `Path traversal detected: ${resolved} escapes ${base}`,
+      "Invalid upload path.",
+    );
+  }
+}
+
 async function handleChunkUpload(formData: any[], userId: string) {
   const fileId = formData.find((p) => p.name === "fileId")?.data.toString();
   const chunkIndex = parseInt(
@@ -316,6 +340,8 @@ async function handleChunkUpload(formData: any[], userId: string) {
     );
   }
 
+  assertSafeFileId(fileId);
+
   const MAX_CHUNK_SIZE = 100 * 1024 * 1024;
   if (chunk.data && chunk.data.length > MAX_CHUNK_SIZE) {
     throw handleApiError(
@@ -336,6 +362,7 @@ async function handleChunkUpload(formData: any[], userId: string) {
 
   const userTempDir = path.join(tmpdir(), "ziit-chunks", userId);
   const chunksDir = path.join(userTempDir, fileId);
+  assertWithinUserDir(userTempDir, chunksDir);
   mkdirSync(chunksDir, { recursive: true });
 
   let job = activeJobs.get(fileId);
@@ -387,6 +414,7 @@ async function handleChunkUpload(formData: any[], userId: string) {
 }
 
 async function processFileInBackground(fileId: string, userId: string) {
+  assertSafeFileId(fileId);
   const job = activeJobs.get(fileId);
   if (!job || job.fileId !== fileId) {
     throw handleApiError(
@@ -403,6 +431,8 @@ async function processFileInBackground(fileId: string, userId: string) {
   const userTempDir = path.join(tmpdir(), "ziit-chunks", userId);
   const chunksDir = path.join(userTempDir, fileId);
   const combinedFilePath = path.join(userTempDir, `${fileId}-combined.json`);
+  assertWithinUserDir(userTempDir, chunksDir);
+  assertWithinUserDir(userTempDir, combinedFilePath);
 
   try {
     handleLog(
