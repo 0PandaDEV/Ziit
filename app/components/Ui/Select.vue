@@ -34,7 +34,7 @@
 
 <script setup lang="ts" generic="T">
 import { ref, computed } from "vue";
-import { LucideChevronsDownUp, LucideChevronsUpDown } from "lucide-vue-next";
+import { LucideChevronsDownUp, LucideChevronsUpDown } from "@lucide/vue";
 
 interface SelectItem<V> {
   label: string;

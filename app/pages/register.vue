@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { LucideKeyRound, LucideMail } from "lucide-vue-next";
+import { LucideKeyRound, LucideMail } from "@lucide/vue";
 import type { User } from "~~/prisma/generated/client";
 
 const { data: _userState } = useAsyncData<User>(

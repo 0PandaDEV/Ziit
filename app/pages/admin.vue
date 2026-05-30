@@ -94,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { LucideKeyRound } from "lucide-vue-next";
+import { LucideKeyRound } from "@lucide/vue";
 import { ref, onMounted, onUnmounted } from "vue";
 
 const cookie = useCookie("adminKey", {

@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { PropType } from "vue";
-import { LucideX } from "lucide-vue-next";
+import { LucideX } from "@lucide/vue";
 
 type Item = {
   name: string;

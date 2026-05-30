@@ -243,7 +243,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { LucideMaximize } from "lucide-vue-next";
+import { LucideMaximize } from "@lucide/vue";
 import {
   Chart,
   CategoryScale,
