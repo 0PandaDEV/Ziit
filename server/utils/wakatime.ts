@@ -3,7 +3,7 @@ import { handleApiError, handleLog } from "~~/server/utils/logging";
 import { activeJobs, updateJob } from "~~/server/utils/import-queue";
 import { randomUUID } from "crypto";
 import path from "path";
-import { ImportJob, ImportStatus } from "~~/types/import";
+import { type ImportJob, ImportStatus } from "~~/types/import";
 
 const enum Endpoints {
   WakatimeApiUrl = "https://api.wakatime.com/api/v1",
@@ -494,8 +494,8 @@ export function parseUserAgent(userAgent: string): {
   const match = userAgent.match(userAgentPattern);
 
   if (match && match.length >= 3) {
-    let os: string = match[1];
-    let editor: string = match[2];
+    let os: string = match[1]!;
+    let editor: string = match[2]!;
 
     const editorLower = editor.toLowerCase();
     editor =
@@ -530,7 +530,7 @@ export function parseUserAgent(userAgent: string): {
       editor.replace(/\b\w/g, (l) => l.toUpperCase());
 
     if (osMatch && osMatch[1]) {
-      const osInfo = osMatch[1].split(";")[0].trim();
+      const osInfo = osMatch[1]!.split(";")[0]!.trim();
       if (osInfo.startsWith("Windows")) {
         os = "Windows";
       } else if (osInfo.startsWith("Macintosh")) {

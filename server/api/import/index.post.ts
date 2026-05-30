@@ -17,7 +17,7 @@ import { tmpdir } from "os";
 import fs from "fs";
 import type { WakatimeExportData } from "~~/server/utils/wakatime";
 import busboy from "busboy";
-import { ImportJob, ImportStatus } from "~~/types/import";
+import { type ImportJob, ImportStatus } from "~~/types/import";
 
 async function safeReadMultipartFormData(event: H3Event): Promise<any[]> {
   const contentLength = getHeader(event, "content-length");
@@ -447,8 +447,8 @@ async function processFileInBackground(fileId: string, userId: string) {
       .readdirSync(chunksDir)
       .filter((file) => file.startsWith("chunk-"))
       .sort((a, b) => {
-        const indexA = parseInt(a.split("-")[1]);
-        const indexB = parseInt(b.split("-")[1]);
+        const indexA = parseInt(a.split("-")[1] ?? "0");
+        const indexB = parseInt(b.split("-")[1] ?? "0");
         return indexA - indexB;
       });
 

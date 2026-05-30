@@ -13,8 +13,8 @@
         class="item"
         :style="{
           '--percentage': `${
-            sortedItems.length > 0 && sortedItems[0].seconds > 0
-              ? ((item.seconds / sortedItems[0].seconds) * 100).toFixed(1)
+            maxSeconds > 0
+              ? ((item.seconds / maxSeconds) * 100).toFixed(1)
               : 0
           }%`,
         }">
@@ -66,6 +66,8 @@ const listContentRef = ref<HTMLElement | null>(null);
 const sortedItems = computed(() => {
   return [...props.items].sort((a, b) => b.seconds - a.seconds);
 });
+
+const maxSeconds = computed(() => sortedItems.value[0]?.seconds ?? 0);
 
 const calculatePercentage = (seconds: number): string => {
   if (props.totalSeconds === 0) return "0.0";

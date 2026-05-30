@@ -1,5 +1,5 @@
 import { createEventStream, getRequestHeader } from "h3";
-import type { User } from "@prisma/client";
+import type { User } from "~~/prisma/generated/client";
 
 import { handleLog } from "~~/server/utils/logging";
 import {

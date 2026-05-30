@@ -1,4 +1,4 @@
-import { TimeRange } from "~/composables/useStats";
+import type { TimeRange } from "~/composables/useStats";
 import { prisma } from "~~/prisma/db";
 
 export async function calculateStats(
@@ -96,10 +96,10 @@ export async function getUserTimeRangeTotal(
     }
 
     return {
-      totalMinutes: result[0].total_minutes,
-      totalHours: result[0].total_hours,
-      startDate: result[0].start_date,
-      endDate: result[0].end_date,
+      totalMinutes: result[0]!.total_minutes,
+      totalHours: result[0]!.total_hours,
+      startDate: result[0]!.start_date,
+      endDate: result[0]!.end_date,
     };
   } catch (error) {
     console.error("Error getting time range total:", error);

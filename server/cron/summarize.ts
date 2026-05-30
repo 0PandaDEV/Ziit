@@ -76,7 +76,7 @@ export default defineCronHandler(
         });
 
         for (const userId in userHeartbeats) {
-          await processSummariesByDate(userId, userHeartbeats[userId]);
+          await processSummariesByDate(userId, userHeartbeats[userId]!);
         }
 
         if (heartbeatsToSummarize.length < BATCH_SIZE) {

@@ -1,4 +1,8 @@
 import { computed } from "vue";
+import type { Ref } from "vue";
+
+declare function useState<T>(key: string, init: () => T): Ref<T>;
+declare function useRequestURL(): URL;
 import type { User } from "~~/prisma/generated/client";
 
 export const TimeRangeEnum = {
@@ -125,7 +129,7 @@ export const useStats = () => {
         const requestURL = useRequestURL();
         baseUrl = requestURL.origin;
       } else {
-        baseUrl = window.location.origin;
+        baseUrl = location.origin;
       }
 
       const url = new URL("/api/stats", baseUrl);
@@ -159,7 +163,7 @@ export const useStats = () => {
         err instanceof Error &&
         err.message.includes("401")
       ) {
-        window.location.href = "/login";
+        (location as { href: string }).href = "/login";
       }
     }
   };

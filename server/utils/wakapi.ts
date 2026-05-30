@@ -4,7 +4,7 @@ import { processHeartbeatsByDate } from "~~/server/utils/summarize";
 import { handleApiError, handleLog } from "~~/server/utils/logging";
 import { activeJobs, updateJob } from "~~/server/utils/import-queue";
 import { randomUUID } from "crypto";
-import { ImportJob, ImportStatus } from "~~/types/import";
+import { type ImportJob, ImportStatus } from "~~/types/import";
 
 interface WakApiHeartbeat {
   id: string;
@@ -61,19 +61,19 @@ async function fetchWakApiHeartbeats(
   const allDateStrings: string[] = [];
   const currentDate = new Date(startDate);
   while (currentDate <= endDate) {
-    allDateStrings.push(currentDate.toISOString().split("T")[0]);
+    allDateStrings.push(currentDate.toISOString().split("T")[0]!);
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split("T")[0];
+  const tomorrowStr = tomorrow.toISOString().split("T")[0]!;
   if (!allDateStrings.includes(tomorrowStr)) allDateStrings.push(tomorrowStr);
 
   const heartbeatsByDate = new Map<string, any[]>();
 
   for (let i = 0; i < allDateStrings.length; i++) {
-    const dateStr = allDateStrings[i];
+    const dateStr = allDateStrings[i]!;
 
     const heartbeatsUrl = `${baseUrl}/users/${userIdentifier}/heartbeats`;
     const heartbeatsResponse = await $fetch<{ data: WakApiHeartbeat[] }>(
@@ -171,7 +171,7 @@ export async function handleWakApiSequentialImport(
     });
 
     for (let i = 0; i < datesWithData.length; i++) {
-      const dateStr = datesWithData[i];
+      const dateStr = datesWithData[i]!;
       const heartbeats = heartbeatsByDate.get(dateStr);
 
       if (heartbeats && heartbeats.length > 0) {

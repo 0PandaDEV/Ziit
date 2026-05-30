@@ -14,7 +14,7 @@ import {
   handleWakApiSequentialImport,
   prepareWakApiData,
 } from "./wakapi";
-import { ImportJob, ImportStatus, JobUpdateOptions, QueueJob, WorkChunk } from "~~/types/import";
+import { type ImportJob, ImportStatus, type JobUpdateOptions, type QueueJob, type WorkChunk } from "~~/types/import";
 
 export const activeJobs = new Map<string, ImportJob>();
 
@@ -233,7 +233,7 @@ class ImportQueue {
     });
 
     worker.on("error", (error) => {
-      handleLog(`Worker thread ${workerId} error: ${error.message}`);
+      handleLog(`Worker thread ${workerId} error: ${(error as Error).message}`);
       this.restartWorkerThread(workerId);
     });
 

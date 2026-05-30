@@ -1,4 +1,4 @@
-import { Heartbeats, Summaries } from "~~/prisma/generated/client";
+import type { Heartbeats, Summaries } from "~~/prisma/generated/client";
 import { prisma } from "~~/prisma/db";
 
 export function calculateTotalMinutesFromHeartbeats(
@@ -123,27 +123,27 @@ export function calculateCategoryTimes(
   }
 
   Object.keys(projectsTime).forEach((key) => {
-    projectsTime[key] = Math.round(projectsTime[key]);
+    projectsTime[key] = Math.round(projectsTime[key]!);
   });
 
   Object.keys(editorsTime).forEach((key) => {
-    editorsTime[key] = Math.round(editorsTime[key]);
+    editorsTime[key] = Math.round(editorsTime[key]!);
   });
 
   Object.keys(languagesTime).forEach((key) => {
-    languagesTime[key] = Math.round(languagesTime[key]);
+    languagesTime[key] = Math.round(languagesTime[key]!);
   });
 
   Object.keys(osTime).forEach((key) => {
-    osTime[key] = Math.round(osTime[key]);
+    osTime[key] = Math.round(osTime[key]!);
   });
 
   Object.keys(filesTime).forEach((key) => {
-    filesTime[key] = Math.round(filesTime[key]);
+    filesTime[key] = Math.round(filesTime[key]!);
   });
 
   Object.keys(branchesTime).forEach((key) => {
-    branchesTime[key] = Math.round(branchesTime[key]);
+    branchesTime[key] = Math.round(branchesTime[key]!);
   });
 
   return {
@@ -488,7 +488,7 @@ export async function processHeartbeatsByDate(
 
   heartbeats.forEach((heartbeat) => {
     const date = new Date(heartbeat.timestamp);
-    const dateKey = date.toISOString().split("T")[0];
+    const dateKey = date.toISOString().split("T")[0]!;
 
     if (!heartbeatsByDate.has(dateKey)) {
       heartbeatsByDate.set(dateKey, []);
@@ -512,7 +512,7 @@ export async function processSummariesByDate(
 
   heartbeats.forEach((heartbeat) => {
     const date = new Date(heartbeat.timestamp);
-    const dateKey = date.toISOString().split("T")[0];
+    const dateKey = date.toISOString().split("T")[0]!;
 
     if (!heartbeatsByDate.has(dateKey)) {
       heartbeatsByDate.set(dateKey, []);
