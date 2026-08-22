@@ -29,7 +29,7 @@
     "chart.js": "4.5.1",
     "dotenv": "^17.4.2",
     "@lucide/vue": "1.23.0",
-    "nuxt": "4.4.8",
+    "nuxt": "4.5.1",
     "nuxt-cron": "1.8.0",
     "prettier": "3.9.4",
     "prisma": "7.8.0",
