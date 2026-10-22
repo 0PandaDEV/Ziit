@@ -519,12 +519,32 @@ function renderChart() {
           },
           ticks: {
             maxRotation: 0,
-            autoSkip: true,
+            autoSkip: false,
+            align: "inner",
             font: {
               size: 12,
               family: "ChivoMono",
             },
             color: "#666666",
+            callback: function (value, index, ticks) {
+              const label = String(this.getLabelForValue(Number(value)));
+              const count = ticks.length;
+              if (count <= 1) return label;
+              const charWidth = 7.3;
+              const labelWidth =
+                Math.max(
+                  ...ticks.map((t) =>
+                    String(this.getLabelForValue(Number(t.value))).length
+                  )
+                ) * charWidth;
+              const available = Math.max(this.chart.width - 64, 1);
+              const slot = available / (count - 1);
+              const step = Math.max(
+                1,
+                Math.ceil((labelWidth * 1.5 + 14) / slot)
+              );
+              return (count - 1 - index) % step === 0 ? label : "";
+            },
           },
           border: {
             display: false,
@@ -628,7 +648,7 @@ function getChartConfig() {
     `${date.getDate()} ${months[date.getMonth()]}`;
   const getMonthLabel = (date: Date) => months[date.getMonth()];
   const getMonthYearLabel = (date: Date) =>
-    `${months[date.getMonth()]} ${date.getFullYear()}`;
+    `${months[date.getMonth()]} ${String(date.getFullYear()).slice(-2)}'`;
   const getHourLabel = (hour: number) =>
     `${hour.toString().padStart(2, "0")}:00`;
 
