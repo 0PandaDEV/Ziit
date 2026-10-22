@@ -10,7 +10,7 @@ COPY --link . .
 RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" bunx prisma generate
 RUN bun run build
 
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
 
 EXPOSE 3000
