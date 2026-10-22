@@ -1,7 +1,7 @@
 import { H3Event } from "h3";
 import { z } from "zod";
 import bcrypt from "bcrypt";
-import { handleApiError } from "~~/server/utils/logging";
+import { handleApiError, zodMessage } from "~~/server/utils/logging";
 import { prisma } from "~~/prisma/db";
 
 defineRouteMeta({
@@ -9,7 +9,7 @@ defineRouteMeta({
     tags: ["User"],
     summary: "Update current user settings",
     description:
-      "Updates settings for the authenticated user (email, password, keystrokeTimeout).",
+      "Updates settings for the authenticated user (email, password, leaderboard opt-in).",
     requestBody: {
       required: true,
       content: {
@@ -17,7 +17,6 @@ defineRouteMeta({
           schema: {
             type: "object",
             properties: {
-              keystrokeTimeout: { type: "integer", minimum: 1, maximum: 60 },
               email: { type: "string", format: "email" },
               password: {
                 type: "string",
@@ -55,7 +54,6 @@ const passwordSchema = z
   );
 
 const userSettingsSchema = z.object({
-  keystrokeTimeout: z.number().min(1).max(60).optional(),
   email: z.string().email().optional(),
   password: passwordSchema.optional(),
   leaderboardEnabled: z.boolean().optional(),
@@ -70,22 +68,19 @@ export default defineEventHandler(async (event: H3Event) => {
 
     if (!validatedData.success) {
       const errorDetail = `Invalid user settings data for user ${event.context.user.id}: ${validatedData.error.message}`;
-      const clientMessage =
-        validatedData.error.message || "Invalid user settings data.";
+      const clientMessage = zodMessage(
+        validatedData.error,
+        "Invalid user settings data."
+      );
       throw handleApiError(400, errorDetail, clientMessage);
     }
 
     const updateData: {
-      keystrokeTimeout?: number;
       email?: string;
       passwordHash?: string;
       leaderboardEnabled?: boolean;
       leaderboardFirstSet?: boolean;
     } = {};
-
-    if (validatedData.data.keystrokeTimeout !== undefined) {
-      updateData.keystrokeTimeout = validatedData.data.keystrokeTimeout;
-    }
 
     if (validatedData.data.leaderboardEnabled !== undefined) {
       updateData.leaderboardEnabled = validatedData.data.leaderboardEnabled;

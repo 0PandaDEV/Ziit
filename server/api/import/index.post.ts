@@ -1,6 +1,6 @@
 import { H3Event } from "h3";
 import z from "zod";
-import { handleApiError, handleLog } from "~~/server/utils/logging";
+import { handleApiError, handleLog, zodMessage } from "~~/server/utils/logging";
 import {
   activeJobs,
   queueWakApiImport,
@@ -475,7 +475,7 @@ async function processFileInBackground(fileId: string, userId: string) {
     const validationResult = wakaTimeExportSchema.safeParse(parsedData);
     if (!validationResult.success) {
       throw new Error(
-        `Invalid WakaTime export format: ${validationResult.error.message}`,
+        `Invalid WakaTime export format: ${zodMessage(validationResult.error)}`,
       );
     }
 
@@ -670,7 +670,7 @@ export default defineEventHandler(async (event: H3Event) => {
     throw handleApiError(
       400,
       `Invalid request data for user ${userId}: ${validationResult.error.message}`,
-      validationResult.error.message || "Invalid API request data.",
+      zodMessage(validationResult.error, "Invalid API request data."),
     );
   }
 

@@ -37,6 +37,13 @@ export function handleApiError(
   });
 }
 
+export function zodMessage(
+  error: { issues: Array<{ message: string }> },
+  fallback = "Invalid request"
+): string {
+  return error.issues[0]?.message || fallback;
+}
+
 export function handleLog(...message: any[]) {
   console.log(new Date().toISOString(), ...message);
 }

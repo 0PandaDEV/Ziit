@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { encrypt } from "paseto-ts/v4";
 import { prisma } from "~~/prisma/db";
 import { z } from "zod";
-import { handleApiError} from "~~/server/utils/logging";
+import { handleApiError, zodMessage } from "~~/server/utils/logging";
 
 defineRouteMeta({
   openAPI: {
@@ -77,7 +77,7 @@ export default defineEventHandler(async (event) => {
       throw handleApiError(
         400,
         errorDetail,
-        passwordValidation.error.message
+        zodMessage(passwordValidation.error, "Invalid password")
       );
     }
 

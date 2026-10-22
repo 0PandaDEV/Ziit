@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { encrypt } from "paseto-ts/v4";
 import { prisma } from "~~/prisma/db";
 import { z } from "zod";
-import { handleApiError } from "~~/server/utils/logging";
+import { handleApiError, zodMessage } from "~~/server/utils/logging";
 
 defineRouteMeta({
   openAPI: {
@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
     throw handleApiError(
       400,
       `Login validation failed for email ${body.email}. Errors: ${JSON.stringify(validation.error)}`,
-      validation.error.message || "Email and password are required"
+      zodMessage(validation.error, "Email and password are required")
     );
   }
 
