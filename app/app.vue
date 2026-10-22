@@ -7,6 +7,23 @@
 </template>
 
 <script setup lang="ts">
+const navigation = [
+  { key: "1", path: "/" },
+  { key: "2", path: "/stats" },
+  { key: "3", path: "/leaderboard" },
+  { key: "4", path: "/settings" },
+];
+
+for (const { key, path } of navigation) {
+  useKeybind({
+    keys: [key],
+    run() {
+      navigateTo(path);
+    },
+    config: { prevent: true, ignoreIfEditable: true },
+  });
+}
+
 useKeybind({
   keys: ["f"],
   run() {
