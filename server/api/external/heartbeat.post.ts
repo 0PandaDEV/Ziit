@@ -2,6 +2,11 @@ import { H3Event } from "h3";
 import { z } from "zod";
 import { prisma } from "~~/prisma/db";
 import { handleApiError } from "~~/server/utils/logging";
+import {
+  normalizeEditor,
+  normalizeLanguage,
+  normalizeOs,
+} from "~~/server/utils/normalize";
 
 defineRouteMeta({
   openAPI: {
@@ -69,9 +74,21 @@ const apiKeySchema = z.uuid();
 const heartbeatSchema = z.object({
   timestamp: z.iso.datetime().or(z.number()),
   project: z.string().min(1).max(255),
-  language: z.string().min(1).max(50),
-  editor: z.string().min(1).max(50),
-  os: z.string().min(1).max(50),
+  language: z
+    .string()
+    .min(1)
+    .max(50)
+    .transform((v) => normalizeLanguage(v) ?? v),
+  editor: z
+    .string()
+    .min(1)
+    .max(50)
+    .transform((v) => normalizeEditor(v) ?? v),
+  os: z
+    .string()
+    .min(1)
+    .max(50)
+    .transform((v) => normalizeOs(v) ?? v),
   branch: z.string().max(255).optional(),
   file: z.string().max(255),
 });
