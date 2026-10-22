@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release
+        required: true
+      base:
+        description: Previous tag or ref to compare from (defaults to the previous tag)
+        required: false
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Changelog
+        id: changelog
+        uses: 0PandaDEV/changelog@main
+        with:
+          head: ${{ env.TAG }}
+          base: ${{ github.event.inputs.base }}
+          step-summary: "true"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NOTES: ${{ steps.changelog.outputs.markdown }}
+        run: |
+          flags=()
+          if [[ "$TAG" == *-* ]]; then
+            flags+=(--prerelease)
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes "$NOTES" "${flags[@]}"
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes "$NOTES" "${flags[@]}"
+          fi
