@@ -10,31 +10,31 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.9.1",
-    "@prisma/client": "7.9.1",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "7.10.1",
     "bcrypt": "6.0.0",
     "busboy": "1.6.0",
-    "paseto-ts": "2.0.6",
-    "stream-json": "3.5.0",
-    "zod": "4.4.3"
+    "paseto-ts": "2.0.7",
+    "stream-json": "3.7.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@nuxtjs/sitemap": "8.3.4",
+    "@nuxtjs/sitemap": "9.1.0",
     "@types/bcrypt": "6.0.0",
-    "@types/busboy": "1.5.4",
-    "@types/node": "26.2.0",
+    "@types/busboy": "1.5.5",
+    "@types/node": "26.6.5",
     "@vite-pwa/nuxt": "1.1.1",
-    "@waradu/keyboard": "9.0.4",
+    "@waradu/keyboard": "9.3.0",
     "badgen": "3.3.2",
     "chart.js": "4.5.1",
-    "dotenv": "^17.4.2",
-    "@lucide/vue": "1.31.0",
-    "nuxt": "4.5.2",
+    "dotenv": "^18.0.8",
+    "@lucide/vue": "1.61.0",
+    "nuxt": "4.6.2",
     "nuxt-cron": "1.8.0",
-    "prettier": "3.9.6",
-    "prisma": "7.9.1",
-    "sass-embedded": "1.100.0",
-    "vue": "3.5.41",
-    "vue-router": "5.2.0"
+    "prettier": "3.9.10",
+    "prisma": "7.10.1",
+    "sass-embedded": "1.106.0",
+    "vue": "3.5.44",
+    "vue-router": "5.4.0"
   }
 }
