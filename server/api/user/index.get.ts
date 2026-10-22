@@ -28,7 +28,6 @@ export default defineEventHandler(async (event: H3Event) => {
         epilogueId: true,
         epilogueUsername: true,
         apiKey: true,
-        keystrokeTimeout: true,
         leaderboardEnabled: true,
         leaderboardFirstSet: true,
       },

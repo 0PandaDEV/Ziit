@@ -58,7 +58,7 @@ export default defineCachedEventHandler(
         const [usersCount, heartbeatsResult, summariesAggregate] =
           await Promise.all([
             prisma.user.count(),
-            prisma.$queryRaw`SELECT COUNT(*) as count FROM "Heartbeats"` as Promise<
+            prisma.$queryRaw`SELECT COALESCE(SUM(heartbeat_count), 0) as count FROM heartbeats_daily` as Promise<
               [{ count: string }]
             >,
             prisma.summaries.aggregate({ _sum: { totalMinutes: true } }),

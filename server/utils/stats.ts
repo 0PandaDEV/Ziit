@@ -10,7 +10,7 @@ export async function calculateStats(
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
-      keystrokeTimeout: true,
+      id: true,
     },
   });
 

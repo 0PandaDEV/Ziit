@@ -296,12 +296,7 @@ const {
   setTimeRange,
   refreshStats,
   formatTime,
-  setKeystrokeTimeout,
 } = useStats();
-
-if (userState.value?.keystrokeTimeout !== undefined) {
-  setKeystrokeTimeout(userState.value.keystrokeTimeout);
-}
 
 await refreshStats();
 

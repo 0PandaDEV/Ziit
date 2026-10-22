@@ -1,6 +1,7 @@
 import { prisma } from "~~/prisma/db";
 import { decrypt, encrypt } from "paseto-ts/v4";
 import { handleApiError } from "~~/server/utils/logging";
+import { recomputeSummariesForUser } from "~~/server/utils/summarize";
 
 defineRouteMeta({
   openAPI: {
@@ -117,9 +118,8 @@ export default defineEventHandler(async (event) => {
                   where: { userId: existingEpilogueUser.id },
                   data: { userId: userId },
                 }),
-                tx.summaries.updateMany({
+                tx.summaries.deleteMany({
                   where: { userId: existingEpilogueUser.id },
-                  data: { userId: userId },
                 }),
                 tx.user.delete({
                   where: { id: existingEpilogueUser.id },
@@ -154,6 +154,12 @@ export default defineEventHandler(async (event) => {
               });
             }
           });
+
+          if (redirectUrl.includes("accounts_merged")) {
+            recomputeSummariesForUser(userId).catch((error) => {
+              console.error("Summary rebuild after account merge failed", error);
+            });
+          }
 
           return sendRedirect(event, redirectUrl);
         }

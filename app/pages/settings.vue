@@ -114,28 +114,6 @@
         </div>
       </section>
 
-      <section class="tracking-settings">
-        <h2 class="title">Tracking Settings</h2>
-        <div class="setting-group">
-          <p class="setting-description">Keystroke Timeout (minutes):</p>
-          <UiNumberInput
-            id="keystrokeTimeout"
-            v-model="keystrokeTimeout"
-            :min="1"
-            :max="60"
-            @update:modelValue="updateKeystrokeTimeout" />
-
-          <p>
-            In order to work correctly, summaries need to be regenerated after
-            changing the keystroke timeout.
-          </p>
-          <UiButton
-            text="Regenerate Summaries"
-            keyName="Alt+R"
-            @click="regenerateSummaries" />
-        </div>
-      </section>
-
       <section class="wakatime-import">
         <h2 class="title">Data Import</h2>
         <div class="setting-group">
@@ -303,14 +281,9 @@ import { ImportStatus, type ImportJob } from "~~/types/import";
 const { data: fetchedUser } = await useFetch("/api/user");
 const user = useState<User | null>("user", () => fetchedUser.value as User);
 
-const { setKeystrokeTimeout, refreshStats } = useStats();
-
 const showApiKey = ref(false);
 const toast = useToast();
 const route = useRoute();
-const keystrokeTimeout = ref(user.value?.keystrokeTimeout || 15);
-const originalKeystrokeTimeout = ref(user.value?.keystrokeTimeout || 15);
-const timeoutChanged = ref(false);
 const hasGithubAccount = computed(() => !!user.value?.githubId);
 const hasEpilogueAccount = computed(() => !!user.value?.epilogueId);
 const WAKATIME_API = "wakatime-api" as const;
@@ -531,10 +504,6 @@ onUnmounted(() => {
   stopSpinner();
 });
 
-if (user.value?.keystrokeTimeout !== undefined) {
-  setKeystrokeTimeout(user.value.keystrokeTimeout);
-}
-
 onMounted(() => {
   if (document.readyState === "complete") {
     connectionDelay = setTimeout(() => {
@@ -696,36 +665,6 @@ useKeybind({
   config: { prevent: true, ignoreIfEditable: true },
 });
 
-async function updateKeystrokeTimeout() {
-  if (!user.value) return;
-
-  try {
-    await $fetch("/api/user", {
-      method: "POST",
-      body: {
-        keystrokeTimeout: keystrokeTimeout.value,
-      },
-    });
-
-    if (user.value) {
-      user.value.keystrokeTimeout = keystrokeTimeout.value;
-    }
-
-    setKeystrokeTimeout(keystrokeTimeout.value);
-
-    toast.success("Keystroke timeout updated");
-
-    if (originalKeystrokeTimeout.value !== keystrokeTimeout.value) {
-      timeoutChanged.value = true;
-    }
-
-    await refreshStats();
-  } catch (error) {
-    console.error("Error updating keystroke timeout:", error);
-    toast.error("Failed to update keystroke timeout");
-  }
-}
-
 async function changeEmail() {
   if (!newEmail.value || newEmail.value === user.value?.email) {
     showEmailModal.value = false;
@@ -787,22 +726,6 @@ async function changePassword() {
     toast.error(error?.data?.message || "Failed to update password");
   } finally {
     isLoading.value = false;
-  }
-}
-
-async function regenerateSummaries() {
-  try {
-    const response = await $fetch("/api/user/regenerateSummaries");
-    toast.success(
-      (response as any).message || "Summaries regenerated successfully"
-    );
-    timeoutChanged.value = false;
-    originalKeystrokeTimeout.value = keystrokeTimeout.value;
-
-    await refreshStats();
-  } catch (error) {
-    console.error("Error regenerating summaries:", error);
-    toast.error("Failed to regenerate summaries");
   }
 }
 

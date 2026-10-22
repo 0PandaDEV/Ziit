@@ -1,94 +1,25 @@
 import { defineCronHandler } from "#nuxt/cron";
 
-import { processSummariesByDate } from "~~/server/utils/summarize";
+import { summarizePendingDays } from "~~/server/utils/summarize";
 import { handleLog } from "../utils/logging";
 import { prisma } from "~~/prisma/db";
+import {
+  normalizeEditor,
+  normalizeLanguage,
+  normalizeOs,
+} from "~~/server/utils/normalize";
 
 export default defineCronHandler(
   "daily",
   async () => {
     try {
+      const processedCount = await summarizePendingDays();
+
       const now = new Date();
-      now.setHours(0, 0, 0, 0);
-
-      const BATCH_SIZE = 5000;
-      let processedCount = 0;
-      let hasMore = true;
-
-      while (hasMore) {
-        const heartbeatsToSummarize = await prisma.$queryRaw<
-          Array<{
-            id: string;
-            timestamp: Date;
-            userId: string;
-            project: string | null;
-            editor: string | null;
-            language: string | null;
-            os: string | null;
-            file: string | null;
-            branch: string | null;
-            createdAt: Date;
-            summariesId: string | null;
-            keystrokeTimeout: number;
-          }>
-        >`
-          SELECT DISTINCT ON (h."userId", h.timestamp, h.id)
-            h.id,
-            h.timestamp,
-            h."userId",
-            h.project,
-            h.editor,
-            h.language,
-            h.os,
-            h.file,
-            h.branch,
-            h."createdAt",
-            h."summariesId",
-            u."keystrokeTimeout"
-          FROM "Heartbeats" h
-          INNER JOIN "User" u ON h."userId" = u.id
-          WHERE h.timestamp < ${now}::timestamptz
-            AND h."summariesId" IS NULL
-          ORDER BY h."userId", h.timestamp ASC, h.id
-          LIMIT ${BATCH_SIZE}
-        `;
-
-        if (heartbeatsToSummarize.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        processedCount += heartbeatsToSummarize.length;
-
-        const userHeartbeats: Record<
-          string,
-          Array<(typeof heartbeatsToSummarize)[0]>
-        > = {};
-
-        heartbeatsToSummarize.forEach((heartbeat) => {
-          const userId = heartbeat.userId;
-
-          if (!userHeartbeats[userId]) {
-            userHeartbeats[userId] = [];
-          }
-
-          userHeartbeats[userId].push(heartbeat);
-        });
-
-        for (const userId in userHeartbeats) {
-          await processSummariesByDate(userId, userHeartbeats[userId]!);
-        }
-
-        if (heartbeatsToSummarize.length < BATCH_SIZE) {
-          hasMore = false;
-        }
-      }
-
+      now.setUTCHours(0, 0, 0, 0);
       await generatePublicStats(now);
 
-      handleLog(
-        `Summarization complete. Processed ${processedCount} heartbeats.`
-      );
+      handleLog(`Summarization complete. Processed ${processedCount} days.`);
     } catch (error) {
       console.error("Error in summarization cron job", error);
     }
@@ -124,7 +55,10 @@ async function generatePublicStats(date: Date) {
     ] = await Promise.all([
       prisma.user.count(),
 
-      prisma.heartbeats.count(),
+      prisma.$queryRaw<Array<{ total: bigint }>>`
+        SELECT COALESCE(SUM(heartbeat_count), 0)::bigint AS total
+        FROM heartbeats_daily
+      `,
 
       prisma.summaries.aggregate({
         _sum: {
@@ -132,64 +66,44 @@ async function generatePublicStats(date: Date) {
         },
       }),
 
-      prisma.heartbeats.groupBy({
-        by: ["editor"],
-        where: {
-          editor: { not: null },
-        },
-        _count: {
-          _all: true,
-        },
-        orderBy: {
-          _count: {
-            editor: "desc",
-          },
-        },
-        take: 1,
-      }),
+      prisma.$queryRaw<Array<{ name: string }>>`
+        SELECT editor AS name
+        FROM heartbeats_daily
+        WHERE editor IS NOT NULL
+        GROUP BY editor
+        ORDER BY SUM(heartbeat_count) DESC
+        LIMIT 1
+      `,
 
-      prisma.heartbeats.groupBy({
-        by: ["language"],
-        where: {
-          language: { not: null },
-        },
-        _count: {
-          _all: true,
-        },
-        orderBy: {
-          _count: {
-            language: "desc",
-          },
-        },
-        take: 1,
-      }),
+      prisma.$queryRaw<Array<{ name: string }>>`
+        SELECT language AS name
+        FROM heartbeats_daily
+        WHERE language IS NOT NULL
+        GROUP BY language
+        ORDER BY SUM(heartbeat_count) DESC
+        LIMIT 1
+      `,
 
-      prisma.heartbeats.groupBy({
-        by: ["os"],
-        where: {
-          os: { not: null },
-        },
-        _count: {
-          _all: true,
-        },
-        orderBy: {
-          _count: {
-            os: "desc",
-          },
-        },
-        take: 1,
-      }),
+      prisma.$queryRaw<Array<{ name: string }>>`
+        SELECT os AS name
+        FROM heartbeats_daily
+        WHERE os IS NOT NULL
+        GROUP BY os
+        ORDER BY SUM(heartbeat_count) DESC
+        LIMIT 1
+      `,
     ]);
 
     const totalUsers = userCountResult;
-    const totalHeartbeats = heartbeatCountResult;
+    const totalHeartbeats = Number(heartbeatCountResult[0]?.total ?? 0);
     const totalHours = Math.floor(
       (summariesAggregateResult._sum.totalMinutes || 0) / 60
     );
 
-    const topEditor = topEditorResult[0]?.editor || "Unknown";
-    const topLanguage = topLanguageResult[0]?.language || "Unknown";
-    const topOS = topOSResult[0]?.os || "Unknown";
+    const topEditor = normalizeEditor(topEditorResult[0]?.name) || "Unknown";
+    const topLanguage =
+      normalizeLanguage(topLanguageResult[0]?.name) || "Unknown";
+    const topOS = normalizeOs(topOSResult[0]?.name) || "Unknown";
 
     await prisma.stats.create({
       data: {

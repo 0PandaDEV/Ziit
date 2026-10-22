@@ -23,7 +23,6 @@ model User {
   epilogueUsername    String?
   epilogueToken       String?
   apiKey              String       @unique @default(uuid())
-  keystrokeTimeout    Int          @default(5)
   leaderboardEnabled  Boolean      @default(false)
   leaderboardFirstSet Boolean      @default(false)
   createdAt           DateTime     @default(now())
@@ -73,6 +72,7 @@ model Summaries {
   createdAt    DateTime @default(now())
 
   @@id([id, date])
+  @@unique([userId, date])
   @@index([userId, date(sort: Desc)])
 }
 
@@ -88,4 +88,8 @@ model Stats {
   createdAt       DateTime @default(now())
 
   @@unique([date])
+}
+
+model SummaryRebuild {
+  userId String @id
 }

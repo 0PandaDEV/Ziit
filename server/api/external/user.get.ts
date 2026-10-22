@@ -51,10 +51,9 @@ export default defineEventHandler(async (event: H3Event) => {
         githubId: string | null;
         githubUsername: string | null;
         apiKey: string;
-        keystrokeTimeout: number;
       }>
     >`
-      SELECT id, email, "githubId", "githubUsername", "apiKey", "keystrokeTimeout"
+      SELECT id, email, "githubId", "githubUsername", "apiKey"
       FROM "User"
       WHERE "apiKey" = ${apiKey}
       LIMIT 1

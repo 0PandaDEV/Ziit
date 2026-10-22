@@ -3,7 +3,6 @@ import type { Ref } from "vue";
 
 declare function useState<T>(key: string, init: () => T): Ref<T>;
 declare function useRequestURL(): URL;
-import type { User } from "~~/prisma/generated/client";
 
 export const TimeRangeEnum = {
   TODAY: "today",
@@ -76,38 +75,13 @@ const statsState = () =>
   useState<StatsResult>("stats-data", () => ({ ...initialStats }));
 const timeRangeState = () =>
   useState<TimeRange>("stats-timerange", () => TimeRangeEnum.TODAY);
-const keystrokeTimeoutState = () =>
-  useState<number>("keystroke-timeout", () => 0);
 const cacheState = () =>
   useState<Record<string, StatsResult>>("stats-cache", () => ({}));
 
 export const useStats = () => {
   const stats = statsState();
   const timeRange = timeRangeState();
-  const keystrokeTimeout = keystrokeTimeoutState();
   const cache = cacheState();
-
-  const setKeystrokeTimeout = (minutes: number): void => {
-    keystrokeTimeout.value = minutes;
-  };
-
-  const getKeystrokeTimeout = async (): Promise<number> => {
-    if (keystrokeTimeout.value > 0) {
-      return keystrokeTimeout.value;
-    }
-
-    try {
-      const user = await $fetch<User>("/api/user");
-      if (user && typeof user.keystrokeTimeout === "number") {
-        keystrokeTimeout.value = user.keystrokeTimeout;
-        return user.keystrokeTimeout;
-      }
-    } catch {
-      return keystrokeTimeout.value;
-    }
-
-    return keystrokeTimeout.value;
-  };
 
   const fetchStats = async (): Promise<void> => {
     const cacheKey = timeRange.value;
@@ -248,13 +222,10 @@ export const useStats = () => {
   return {
     stats: computed(() => stats.value),
     timeRange: computed(() => timeRange.value),
-    keystrokeTimeout: computed(() => keystrokeTimeout.value),
     fetchStats,
     setTimeRange,
     refreshStats,
     formatTime,
-    setKeystrokeTimeout,
-    getKeystrokeTimeout,
   };
 };
 
