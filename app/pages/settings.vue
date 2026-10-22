@@ -732,11 +732,6 @@ async function changeEmail() {
     return;
   }
 
-  if (!newPasswordValid.value) {
-    toast.error(newPasswordError.value ?? "Invalid password");
-    return;
-  }
-
   isLoading.value = true;
 
   try {
@@ -765,6 +760,11 @@ async function changeEmail() {
 async function changePassword() {
   if (!newPassword.value || newPassword.value !== confirmPassword.value) {
     toast.error("Passwords do not match");
+    return;
+  }
+
+  if (!newPasswordValid.value) {
+    toast.error(newPasswordError.value ?? "Invalid password");
     return;
   }
 
