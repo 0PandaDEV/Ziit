@@ -235,6 +235,33 @@
         </div>
       </section>
 
+      <section class="data-export">
+        <h2 class="title">Data Export</h2>
+        <div class="setting-group">
+          <div class="radio-group">
+            <UiRadioButton
+              :text="'JSON'"
+              :selected="exportFormat === 'json'"
+              :value="'json'"
+              @update="(val: ExportFormat) => (exportFormat = val)" />
+            <UiRadioButton
+              :text="'CSV'"
+              :selected="exportFormat === 'csv'"
+              :value="'csv'"
+              @update="(val: ExportFormat) => (exportFormat = val)" />
+          </div>
+          <p class="setting-description" v-if="exportFormat === 'json'">
+            Includes your account info, daily summaries and every heartbeat.
+          </p>
+          <p class="setting-description" v-else>
+            One row per heartbeat: timestamp, project, editor, language, OS,
+            file and branch.
+          </p>
+        </div>
+
+        <UiButton text="Export Data" keyName="X" @click="exportData" />
+      </section>
+
       <section class="dange-zone">
         <h2 class="title">Danger Zone</h2>
         <div class="setting-group">
@@ -291,6 +318,8 @@ const WAKATIME_FILE = "wakatime-file" as const;
 const WAKAPI = "wakapi" as const;
 type ImportType = typeof WAKATIME_API | typeof WAKATIME_FILE | typeof WAKAPI;
 const importType = ref<ImportType>(WAKATIME_API);
+type ExportFormat = "json" | "csv";
+const exportFormat = ref<ExportFormat>("json");
 const importApiKey = ref("");
 const wakapiInstanceUrl = ref("");
 
@@ -636,25 +665,17 @@ useKeybind({
 });
 
 useKeybind({
-  keys: ["i"],
-  run: async () => {
-    await importTrackingData();
+  keys: ["x"],
+  run: () => {
+    exportData();
   },
   config: { prevent: true, ignoreIfEditable: true },
 });
 
 useKeybind({
-  keys: ["alt_r"],
+  keys: ["i"],
   run: async () => {
-    if (
-      !confirm(
-        "Confirm that you want to regenerate all your summaires which can take a while."
-      )
-    ) {
-      return;
-    }
-
-    await regenerateSummaries();
+    await importTrackingData();
   },
   config: { prevent: true, ignoreIfEditable: true },
 });
@@ -897,6 +918,16 @@ function handleFileChange(event: Event) {
 onBeforeUnmount(() => {
   disconnectEventSource();
 });
+
+function exportData() {
+  const link = document.createElement("a");
+  link.href = `/api/user/export?format=${exportFormat.value}`;
+  link.download = "";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  toast.success("Export started");
+}
 
 async function importTrackingData() {
   if (importType.value === "wakatime-file") {

@@ -20,6 +20,7 @@ const RATE_LIMIT_CONFIG = {
   profiles,
   pathMappings: [
     { path: "/api/auth", profile: "auth" },
+    { path: "/api/user/export", profile: "import" },
     { path: "/api/external", profile: "external" },
     { path: "/api/stats", profile: "stats" },
     { path: "/api/import", profile: "import" },
