@@ -1,9 +1,8 @@
-name: Docker Build
+name: Nightly Build
 
 on:
   push:
     branches: [main]
-    tags: ["*"]
   workflow_dispatch:
     inputs:
       tag:
