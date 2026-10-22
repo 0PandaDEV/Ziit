@@ -1,7 +1,7 @@
 FROM oven/bun:alpine AS build
 WORKDIR /app
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl nodejs
 
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile
