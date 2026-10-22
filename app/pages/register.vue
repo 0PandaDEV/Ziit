@@ -37,13 +37,16 @@
           :icon="LucideMail"
           @focus="isInputFocused = true"
           @blur="isInputFocused = false" />
-        <UiInput
-          v-model="password"
-          placeholder="Password"
-          type="password"
-          :icon="LucideKeyRound"
-          @focus="isInputFocused = true"
-          @blur="isInputFocused = false" />
+        <div class="password-field">
+          <UiInput
+            v-model="password"
+            placeholder="Password"
+            type="password"
+            :icon="LucideKeyRound"
+            @focus="onPasswordFocus"
+            @blur="onPasswordBlur" />
+          <PasswordRules :rules="passwordResults" :visible="showRules" />
+        </div>
       </form>
       <div class="buttons">
         <UiButton text="Register" keyName="enter" @click="register" />
@@ -71,8 +74,30 @@ const email = ref("");
 const password = ref("");
 const toast = useToast();
 const isInputFocused = ref(false);
+const showRules = ref(false);
+const {
+  results: passwordResults,
+  valid: passwordValid,
+  firstError: passwordError,
+} = usePasswordRules(password);
+
+function onPasswordFocus() {
+  isInputFocused.value = true;
+  showRules.value = true;
+}
+
+function onPasswordBlur() {
+  isInputFocused.value = false;
+  showRules.value = false;
+}
 
 async function register() {
+  if (!passwordValid.value) {
+    showRules.value = true;
+    toast.error(passwordError.value ?? "Invalid password");
+    return;
+  }
+
   try {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 

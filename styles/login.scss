@@ -24,9 +24,18 @@ main {
 }
 
 .form {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.password-field {
+  position: relative;
+
+  @media (max-width: 760px) {
+    position: static;
+  }
 }
 
 .buttons {

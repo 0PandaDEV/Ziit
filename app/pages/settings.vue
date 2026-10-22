@@ -317,6 +317,8 @@ const showPasswordModal = ref(false);
 const newEmail = ref("");
 const newPassword = ref("");
 const confirmPassword = ref("");
+const { valid: newPasswordValid, firstError: newPasswordError } =
+  usePasswordRules(newPassword);
 const isLoading = ref(false);
 
 function useClampedRef(initialValue: number, min: number, max: number) {
@@ -706,6 +708,11 @@ async function updateKeystrokeTimeout() {
 async function changeEmail() {
   if (!newEmail.value || newEmail.value === user.value?.email) {
     showEmailModal.value = false;
+    return;
+  }
+
+  if (!newPasswordValid.value) {
+    toast.error(newPasswordError.value ?? "Invalid password");
     return;
   }
 
