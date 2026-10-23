@@ -56,7 +56,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!validationResult.success) {
       throw handleApiError(
         401,
-        `External Stats API: Invalid API key format. Key prefix: ${apiKey.substring(0, 4)}...`,
+        `External Stats API: Invalid API key format.`,
         "Invalid API key format."
       );
     }
@@ -69,7 +69,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!user || user.apiKey !== apiKey) {
       throw handleApiError(
         401,
-        `External Stats API: Invalid API key. Key prefix: ${apiKey.substring(0, 4)}...`,
+        `External Stats API: Invalid API key.`,
         "Invalid API key."
       );
     }
@@ -99,11 +99,9 @@ export default defineEventHandler(async (event: H3Event) => {
       error instanceof Error
         ? error.message
         : "An unknown error occurred fetching external stats.";
-    const apiKeyPrefix =
-      getHeader(event, "authorization")?.substring(7, 11) || "UNKNOWN";
     throw handleApiError(
       69,
-      `External Stats API: Failed to fetch statistics. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`,
+      `External Stats API: Failed to fetch statistics. Error: ${detailedMessage}`,
       "Failed to fetch statistics."
     );
   }

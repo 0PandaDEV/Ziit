@@ -39,7 +39,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!validationResult.success) {
       throw handleApiError(
         401,
-        `External User API: Invalid API key format. Key prefix: ${apiKey.substring(0, 4)}...`,
+        `External User API: Invalid API key format.`,
         "Invalid API key format."
       );
     }
@@ -64,7 +64,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!user) {
       throw handleApiError(
         404,
-        `External User API: User not found for API key prefix: ${apiKey.substring(0, 4)}...`,
+        `External User API: User not found for provided API key.`,
         "User not found."
       );
     }
@@ -76,11 +76,9 @@ export default defineEventHandler(async (event: H3Event) => {
       error instanceof Error
         ? error.message
         : "An unknown error occurred fetching external user data.";
-    const apiKeyPrefix =
-      getHeader(event, "authorization")?.substring(7, 11) || "UNKNOWN";
     throw handleApiError(
       69,
-      `External User API: Failed to fetch user data. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`,
+      `External User API: Failed to fetch user data. Error: ${detailedMessage}`,
       "Failed to fetch user data."
     );
   }

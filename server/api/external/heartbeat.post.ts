@@ -109,7 +109,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!validationResult.success) {
       throw handleApiError(
         401,
-        `Heartbeat API error: Invalid API key format. Key: ${apiKey.substring(0, 4)}...`
+        `Heartbeat API error: Invalid API key format.`
       );
     }
 
@@ -121,7 +121,7 @@ export default defineEventHandler(async (event: H3Event) => {
     if (!user || user.apiKey !== apiKey) {
       throw handleApiError(
         401,
-        `Heartbeat API error: Invalid API key. Key: ${apiKey.substring(0, 4)}...`
+        `Heartbeat API error: Invalid API key.`
       );
     }
 
@@ -162,11 +162,9 @@ export default defineEventHandler(async (event: H3Event) => {
       error instanceof Error
         ? error.message
         : "An unknown error occurred processing heartbeat.";
-    const apiKeyPrefix =
-      getHeader(event, "authorization")?.substring(7, 11) || "UNKNOWN";
     throw handleApiError(
       69,
-      `Heartbeat API error: Failed to process heartbeat. API Key prefix: ${apiKeyPrefix}... Error: ${detailedMessage}`,
+      `Heartbeat API error: Failed to process heartbeat. Error: ${detailedMessage}`,
       "Failed to process your request."
     );
   }

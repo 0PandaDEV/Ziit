@@ -1,8 +1,15 @@
 import { z } from "zod";
 import { prisma } from "~~/prisma/db";
 import { H3Event } from "h3";
+import { createHash, timingSafeEqual } from "crypto";
 
 const adminKeySchema = z.base64();
+
+function isValidAdminKey(provided: string, expected: string): boolean {
+  const providedHash = createHash("sha256").update(provided).digest();
+  const expectedHash = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(providedHash, expectedHash);
+}
 
 export default defineEventHandler(async (event: H3Event) => {
   try {
@@ -22,7 +29,7 @@ export default defineEventHandler(async (event: H3Event) => {
       throw handleApiError(401, `Admin API error: Invalid Admin key format.`);
     }
 
-    if (validatedAdminKey.data === config.adminKey) {
+    if (isValidAdminKey(validatedAdminKey.data, config.adminKey)) {
       const results = await prisma.$queryRaw<
         Array<{
           id: string;
@@ -47,12 +54,15 @@ export default defineEventHandler(async (event: H3Event) => {
         total_minutes: Number(user.total_minutes),
       }));
     }
+
+    throw handleApiError(401, "Admin API error: Invalid Admin key.");
   } catch (error) {
-    const adminKey =
-      getHeader(event, "authorization")?.substring(7, 11) || "UNKNOWN";
+    if (isError(error)) {
+      throw error;
+    }
     throw handleApiError(
       69,
-      `Admin API error: Error occurred getting the user data. API Key prefix: ${adminKey}... Error: ${
+      `Admin API error: Error occurred getting the user data. Error: ${
         error instanceof Error
           ? error.message
           : "An unknown error occurred getting the user data."
