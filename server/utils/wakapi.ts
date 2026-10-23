@@ -5,6 +5,7 @@ import { handleApiError, handleLog } from "~~/server/utils/logging";
 import { activeJobs, updateJob } from "~~/server/utils/import-queue";
 import { randomUUID } from "crypto";
 import { type ImportJob, ImportStatus } from "~~/types/import";
+import { fetchExternalInstance } from "~~/server/utils/url-policy";
 
 interface WakApiHeartbeat {
   id: string;
@@ -76,13 +77,12 @@ async function fetchWakApiHeartbeats(
     const dateStr = allDateStrings[i]!;
 
     const heartbeatsUrl = `${baseUrl}/users/${userIdentifier}/heartbeats`;
-    const heartbeatsResponse = await $fetch<{ data: WakApiHeartbeat[] }>(
-      heartbeatsUrl,
-      {
-        params: { date: dateStr },
-        headers,
-      }
-    );
+    const heartbeatsResponse = await fetchExternalInstance<{
+      data: WakApiHeartbeat[];
+    }>(heartbeatsUrl, {
+      params: { date: dateStr },
+      headers,
+    });
 
     if (heartbeatsResponse?.data && heartbeatsResponse.data.length > 0) {
       const heartbeats = heartbeatsResponse.data.map((h) =>
@@ -120,7 +120,7 @@ export async function prepareWakApiData(
 
   const allTimeUrl = `${baseUrl}/users/${userIdentifier}/all_time_since_today`;
 
-  const allTimeResponse = await $fetch<{
+  const allTimeResponse = await fetchExternalInstance<{
     data: { range: { start_date: string; end_date: string } };
   }>(allTimeUrl, { headers });
 
