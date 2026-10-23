@@ -81,16 +81,21 @@ async function safeReadMultipartFormData(event: H3Event): Promise<any[]> {
             const fileSizeStr = getFieldVal("fileSize");
             const fileSize = fileSizeStr ? parseInt(fileSizeStr) : 0;
 
+            const currentUserId = (event as any).context.user?.id || "";
+
             if (fileId && fileSize > 0) {
               const MB = 1024 * 1024;
               let job = activeJobs.get(fileId);
+              if (job && job.userId !== currentUserId) {
+                return;
+              }
               if (!job) {
                 job = {
                   id: fileId,
                   fileName: getFieldVal("fileName") || filename,
                   status: ImportStatus.Processing,
                   progress: 0,
-                  userId: (event as any).context.user?.id || "",
+                  userId: currentUserId,
                   type: "wakatime-file",
                   totalSize: fileSize,
                   uploadedSize: 0,
@@ -366,6 +371,13 @@ async function handleChunkUpload(formData: any[], userId: string) {
   mkdirSync(chunksDir, { recursive: true });
 
   let job = activeJobs.get(fileId);
+  if (job && job.userId !== userId) {
+    throw handleApiError(
+      404,
+      `Job not found for file ID ${fileId}`,
+      "Import job not found.",
+    );
+  }
   if (!job) {
     job = {
       id: fileId,
@@ -416,7 +428,7 @@ async function handleChunkUpload(formData: any[], userId: string) {
 async function processFileInBackground(fileId: string, userId: string) {
   assertSafeFileId(fileId);
   const job = activeJobs.get(fileId);
-  if (!job || job.fileId !== fileId) {
+  if (!job || job.fileId !== fileId || job.userId !== userId) {
     throw handleApiError(
       404,
       `Job not found for file ID ${fileId}`,

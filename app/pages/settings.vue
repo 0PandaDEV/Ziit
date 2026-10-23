@@ -864,7 +864,7 @@ async function importTrackingData() {
 
       const file = selectedFile.value;
       const fileSize = file.size;
-      const fileId = String(file.lastModified || Date.now());
+      const fileId = crypto.randomUUID();
 
       if (fileSize <= CHUNK_SIZE) {
         const formData = new FormData();
