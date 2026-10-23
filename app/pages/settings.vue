@@ -755,7 +755,7 @@ async function regenerateApiKey() {
   }
 
   try {
-    const data = await $fetch("/api/user/apikey");
+    const data = await $fetch("/api/user/apikey", { method: "POST" });
 
     if (user.value) {
       user.value = {
@@ -993,7 +993,7 @@ function countDown(type: string) {
 
 async function purgeData() {
   try {
-    const response = await $fetch("/api/user/purge");
+    const response = await $fetch("/api/user/purge", { method: "POST" });
     toast.success(response.message);
     purgeTimer.value = 0;
   } catch (e: any) {
@@ -1008,7 +1008,7 @@ async function purgeData() {
 
 async function deleteAccount() {
   try {
-    await $fetch("/api/user/delete");
+    await $fetch("/api/user/delete", { method: "POST" });
     deleteTimer.value = 0;
     toast.success("Successfully deleted account");
     await navigateTo("/login");

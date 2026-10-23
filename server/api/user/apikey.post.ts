@@ -21,7 +21,7 @@ defineRouteMeta({
       },
       500: { description: "Failed to generate API key" },
     },
-    operationId: "getUserRegenerateApiKey",
+    operationId: "postUserRegenerateApiKey",
   },
 });
 
