@@ -207,13 +207,17 @@ export default defineEventHandler(async (event) => {
       });
 
       if (!user) {
-        user = await tx.user.findUnique({
+        const existingByEmail = await tx.user.findUnique({
           where: { email: primaryEmail },
         });
 
-        if (user) {
+        if (existingByEmail) {
+          if (existingByEmail.passwordHash) {
+            throw new Error("ACCOUNT_EXISTS_PASSWORD");
+          }
+
           user = await tx.user.update({
-            where: { id: user.id },
+            where: { id: existingByEmail.id },
             data: {
               githubId: githubUser.id.toString(),
               githubUsername: githubUser.login,
@@ -265,6 +269,10 @@ export default defineEventHandler(async (event) => {
 
     return sendRedirect(event, "/");
   } catch (error) {
+    if (error instanceof Error && error.message === "ACCOUNT_EXISTS_PASSWORD") {
+      return sendRedirect(event, "/login?error=account_exists_use_password");
+    }
+
     const detailedMessage =
       error instanceof Error
         ? error.message

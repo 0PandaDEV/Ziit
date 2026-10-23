@@ -77,6 +77,8 @@ onMounted(() => {
       github_auth_failed: "GitHub authentication failed",
       epilogue_auth_failed: "Epilogue authentication failed",
       link_failed: "Account linking failed, please try again",
+      account_exists_use_password:
+        "An account with this email already exists. Log in with your password, then link GitHub from Settings.",
       cancelled: "Authentication was cancelled",
       link_cancelled: "Account linking was cancelled",
     };
