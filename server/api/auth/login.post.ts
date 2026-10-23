@@ -84,7 +84,7 @@ export default defineEventHandler(async (event) => {
     const token = encrypt(config.pasetoKey, {
       userId: user.id,
       email: user.email,
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      exp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     });
 
     setCookie(event, "ziit_session", token, {
