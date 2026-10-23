@@ -42,9 +42,10 @@ export default defineEventHandler(async (event) => {
     return sendRedirect(event, "/login?error=cancelled");
   }
 
+  const state = query.state as string;
   const storedState = getCookie(event, "epilogue_oauth_state");
 
-  if (!storedState) {
+  if (!state || !storedState || state !== storedState) {
     return sendRedirect(event, "/login?error=invalid_state");
   }
 
