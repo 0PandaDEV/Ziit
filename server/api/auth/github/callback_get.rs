@@ -35,7 +35,12 @@ struct GithubEmail {
 }
 
 fn clear(cx: &Cx, name: &str) {
-    cookies(cx).remove(Cookie::build((name.to_string(), "")).path("/").build());
+    cookies(cx).remove(
+        Cookie::build((name.to_string(), ""))
+            .secure(true)
+            .path("/")
+            .build(),
+    );
 }
 
 async fn merge_link(user_id: &str, gh: &GithubUser) -> sqlx::Result<&'static str> {

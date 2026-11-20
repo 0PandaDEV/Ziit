@@ -126,7 +126,12 @@ pub async fn clear_session(cx: &Cx) {
             .execute(pool())
             .await;
     }
-    cookies(cx).remove(Cookie::build((SESSION_COOKIE, "")).path("/").build());
+    cookies(cx).remove(
+        Cookie::build((SESSION_COOKIE, ""))
+            .secure(true)
+            .path("/")
+            .build(),
+    );
 }
 
 pub async fn revoke_other_sessions(cx: &Cx, user_id: &str) -> sqlx::Result<()> {

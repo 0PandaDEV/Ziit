@@ -139,7 +139,7 @@ pub async fn callback(cx: &Cx) -> Result<Response> {
         "epilogue_link_account",
         "epilogue_link_session",
     ] {
-        cookies(cx).remove(Cookie::build((name, "")).path("/").build());
+        cookies(cx).remove(Cookie::build((name, "")).secure(true).path("/").build());
     }
 
     let config = config();
