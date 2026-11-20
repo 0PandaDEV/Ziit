@@ -1,3 +1,5 @@
+pub mod clean_chunks;
+pub mod clean_sessions;
 pub mod clean_users;
 pub mod public_stats;
 
@@ -41,7 +43,11 @@ pub fn start() {
         normalize_data::run().await;
         public_stats::run().await;
         clean_users::run().await;
+        clean_chunks::run().await;
+        clean_sessions::run().await;
     });
     daily(public_stats::run);
     daily(clean_users::run);
+    daily(clean_chunks::run);
+    daily(clean_sessions::run);
 }
