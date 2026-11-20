@@ -22,6 +22,9 @@ COPY --from=build /app/public /app/public
 COPY styles ./styles
 COPY public ./public
 
+RUN useradd --system --uid 10001 --no-create-home ziit
+USER ziit
+
 ENV HOST=0.0.0.0 \
     PORT=3000 \
     ZIIT_ENV=production
