@@ -1,0 +1,193 @@
+name: Nightly Build
+
+permissions:
+  contents: read
+  actions: read
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".github/FUNDING.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      base: ${{ steps.version.outputs.base }}
+      full: ${{ steps.version.outputs.full }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compute nightly version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=$(grep -m 1 '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          FULL="${BASE}-nightly.$(date -u +%Y%m%d).${{ github.run_number }}"
+          echo "base=$BASE" >> $GITHUB_OUTPUT
+          echo "full=$FULL" >> $GITHUB_OUTPUT
+          echo "building $FULL"
+
+  changelog:
+    needs: version
+    runs-on: ubuntu-24.04
+    outputs:
+      markdown: ${{ steps.changelog.outputs.markdown }}
+    steps:
+      - name: Find changelog base commit
+        id: base
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE=$(gh api "repos/${{ github.repository }}/actions/workflows/nightly.yml/runs?status=success&per_page=1" \
+            --jq '.workflow_runs[0].head_sha // ""')
+
+          RELEASE=""
+          if TAG=$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name 2>/dev/null) && [ -n "$TAG" ]; then
+            RELEASE=$(gh api "repos/${{ github.repository }}/commits/${TAG}" --jq .sha 2>/dev/null || true)
+          fi
+
+          if [ -n "$RELEASE" ]; then
+            if [ -z "$BASE" ]; then
+              BASE="$RELEASE"
+              echo "no previous nightly, using release $TAG"
+            else
+              STATUS=$(gh api "repos/${{ github.repository }}/compare/${RELEASE}...${BASE}" --jq .status 2>/dev/null || true)
+              case "$STATUS" in
+                behind|diverged)
+                  BASE="$RELEASE"
+                  echo "release $TAG is newer than the last nightly, using it as base"
+                  ;;
+              esac
+            fi
+          fi
+
+          echo "sha=$BASE" >> $GITHUB_OUTPUT
+
+      - name: Changelog
+        id: changelog
+        uses: 0PandaDEV/changelog@main
+        with:
+          head: ${{ github.sha }}
+          base: ${{ steps.base.outputs.sha }}
+          step-summary: "true"
+
+  build:
+    name: Build (${{ matrix.arch }})
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Stamp nightly version into Cargo.toml
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i '0,/^version = ".*"$/s//version = "${{ needs.version.outputs.full }}"/' Cargo.toml
+          grep -n -m 1 '^version = ' Cargo.toml
+
+      - name: Image name
+        id: image
+        run: |
+          name="${REGISTRY}/${{ github.repository }}"
+          echo "name=$(echo "$name" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=nightly-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=nightly-${{ matrix.arch }}
+
+      - name: Export digest
+        run: |
+          mkdir -p "${{ runner.temp }}/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish image
+    needs: [version, build, changelog]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create multi-arch tags
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          VERSION: ${{ needs.version.outputs.full }}
+        run: |
+          set -euo pipefail
+          name="${REGISTRY}/${{ github.repository }}"
+          name="$(echo "$name" | tr '[:upper:]' '[:lower:]')"
+          docker buildx imagetools create \
+            -t "${name}:nightly" \
+            -t "${name}:${VERSION}" \
+            $(printf "${name}@sha256:%s " *)
+
+          {
+            echo "### Nightly image"
+            echo
+            echo "\`${name}:nightly\`"
+            echo "\`${name}:${VERSION}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
