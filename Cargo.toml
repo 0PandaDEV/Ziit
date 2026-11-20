@@ -59,3 +59,8 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 debug = false
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
