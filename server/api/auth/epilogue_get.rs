@@ -1,23 +1,15 @@
 use topcoat::{
     Result,
     context::Cx,
-    router::{request::headers, response::Response, route},
+    router::{response::Response, route},
 };
 
 use crate::server::utils::{
     auth::short_cookie, config::config, http_util::redirect, logging::plain,
 };
 
-pub fn frontend_url(cx: &Cx) -> String {
-    let host = headers(cx)
-        .get("host")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    let proto = headers(cx)
-        .get("x-forwarded-proto")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("http");
-    format!("{proto}://{host}")
+pub fn frontend_url() -> String {
+    config().base_url.clone()
 }
 
 pub fn authorize_url(state: &str, cancel_url: &str) -> String {
@@ -44,6 +36,6 @@ pub async fn epilogue(cx: &Cx) -> Result<Response> {
     short_cookie(cx, "epilogue_oauth_state", state.clone());
     Ok(redirect(&authorize_url(
         &state,
-        &format!("{}/login?error=cancelled", frontend_url(cx)),
+        &format!("{}/login?error=cancelled", frontend_url()),
     )))
 }

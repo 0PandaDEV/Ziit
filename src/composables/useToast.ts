@@ -21,13 +21,35 @@ export function toast(message: string, type: ToastType = "error", duration = 300
   setTimeout(() => el.remove(), duration);
 }
 
+const PENDING = "ziit_pending_toast";
+
+export function toastNextPage(message: string, type: ToastType = "success") {
+  try {
+    sessionStorage.setItem(PENDING, JSON.stringify({ message, type }));
+  } catch {
+    toast(message, type);
+  }
+}
+
+function showPending() {
+  try {
+    const raw = sessionStorage.getItem(PENDING);
+    if (!raw) return;
+    sessionStorage.removeItem(PENDING);
+    const { message, type } = JSON.parse(raw);
+    toast(message, type);
+  } catch {}
+}
+
 declare global {
   interface Window {
     toast: typeof toast;
+    toastNextPage: typeof toastNextPage;
   }
 }
 
 window.toast = toast;
+window.toastNextPage = toastNextPage;
 
 function scan() {
   for (const el of document.querySelectorAll<HTMLElement>("[data-toast]:not([data-shown])")) {
@@ -36,5 +58,6 @@ function scan() {
   }
 }
 
+showPending();
 scan();
 new MutationObserver(scan).observe(document.body, { childList: true, subtree: true });

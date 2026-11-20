@@ -31,13 +31,14 @@ struct GithubUser {
 struct GithubEmail {
     email: String,
     primary: bool,
+    verified: bool,
 }
 
 fn clear(cx: &Cx, name: &str) {
     cookies(cx).remove(Cookie::build((name.to_string(), "")).path("/").build());
 }
 
-async fn merge_link(user_id: &str, gh: &GithubUser, token: &str) -> sqlx::Result<&'static str> {
+async fn merge_link(user_id: &str, gh: &GithubUser) -> sqlx::Result<&'static str> {
     let mut tx = pool().begin().await?;
     let existing: Option<String> =
         sqlx::query_scalar(r#"SELECT id FROM "User" WHERE "githubId" = $1"#)
@@ -60,21 +61,28 @@ async fn merge_link(user_id: &str, gh: &GithubUser, token: &str) -> sqlx::Result
                 .bind(&other)
                 .execute(&mut *tx)
                 .await?;
-            sqlx::query(r#"UPDATE "User" SET "githubId" = $1, "githubUsername" = $2, "githubAccessToken" = $3 WHERE id = $4"#)
-                .bind(gh.id.to_string()).bind(&gh.login).bind(token).bind(user_id).execute(&mut *tx).await?;
+            sqlx::query(
+                r#"UPDATE "User" SET "githubId" = $1, "githubUsername" = $2 WHERE id = $3"#,
+            )
+            .bind(gh.id.to_string())
+            .bind(&gh.login)
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
             "/settings?success=accounts_merged"
         }
         _ if current.flatten().as_deref() == Some(gh.id.to_string().as_str()) => {
-            sqlx::query(r#"UPDATE "User" SET "githubAccessToken" = $1 WHERE id = $2"#)
-                .bind(token)
-                .bind(user_id)
-                .execute(&mut *tx)
-                .await?;
             "/settings?success=github_updated"
         }
         _ => {
-            sqlx::query(r#"UPDATE "User" SET "githubId" = $1, "githubUsername" = $2, "githubAccessToken" = $3 WHERE id = $4"#)
-                .bind(gh.id.to_string()).bind(&gh.login).bind(token).bind(user_id).execute(&mut *tx).await?;
+            sqlx::query(
+                r#"UPDATE "User" SET "githubId" = $1, "githubUsername" = $2 WHERE id = $3"#,
+            )
+            .bind(gh.id.to_string())
+            .bind(&gh.login)
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
             "/settings?success=github_linked"
         }
     };
@@ -87,7 +95,7 @@ enum Login {
     PasswordAccount,
 }
 
-async fn login_or_create(gh: &GithubUser, email: &str, token: &str) -> sqlx::Result<Login> {
+async fn login_or_create(gh: &GithubUser, email: &str) -> sqlx::Result<Login> {
     let mut tx = pool().begin().await?;
     let found: Option<User> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         r#"SELECT {USER_COLS} FROM "User" WHERE "githubId" = $1"#
@@ -96,17 +104,21 @@ async fn login_or_create(gh: &GithubUser, email: &str, token: &str) -> sqlx::Res
     .fetch_optional(&mut *tx)
     .await?;
     let user = if let Some(user) = found {
-        sqlx::query_as(sqlx::AssertSqlSafe(format!(r#"UPDATE "User" SET "githubAccessToken" = $1, lastlogin = now() WHERE id = $2 RETURNING {USER_COLS}"#)))
-            .bind(token).bind(&user.id).fetch_one(&mut *tx).await?
+        sqlx::query_as(sqlx::AssertSqlSafe(format!(
+            r#"UPDATE "User" SET lastlogin = now() WHERE id = $1 RETURNING {USER_COLS}"#
+        )))
+        .bind(&user.id)
+        .fetch_one(&mut *tx)
+        .await?
     } else if let Some(existing) = find_user_by_email(email).await? {
         if existing.password_hash.is_some() {
             return Ok(Login::PasswordAccount);
         }
-        sqlx::query_as(sqlx::AssertSqlSafe(format!(r#"UPDATE "User" SET "githubId" = $1, "githubUsername" = $2, "githubAccessToken" = $3, lastlogin = now() WHERE id = $4 RETURNING {USER_COLS}"#)))
-            .bind(gh.id.to_string()).bind(&gh.login).bind(token).bind(&existing.id).fetch_one(&mut *tx).await?
+        sqlx::query_as(sqlx::AssertSqlSafe(format!(r#"UPDATE "User" SET "githubId" = $1, "githubUsername" = $2, lastlogin = now() WHERE id = $3 RETURNING {USER_COLS}"#)))
+            .bind(gh.id.to_string()).bind(&gh.login).bind(&existing.id).fetch_one(&mut *tx).await?
     } else {
-        sqlx::query_as(sqlx::AssertSqlSafe(format!(r#"INSERT INTO "User" (id, email, "githubId", "githubUsername", "githubAccessToken", "apiKey", lastlogin) VALUES ($1, $2, $3, $4, $5, $6, now()) RETURNING {USER_COLS}"#)))
-            .bind(new_id()).bind(email).bind(gh.id.to_string()).bind(&gh.login).bind(token).bind(uuid::Uuid::new_v4().to_string())
+        sqlx::query_as(sqlx::AssertSqlSafe(format!(r#"INSERT INTO "User" (id, email, "githubId", "githubUsername", "apiKey", lastlogin) VALUES ($1, $2, $3, $4, $5, now()) RETURNING {USER_COLS}"#)))
+            .bind(new_id()).bind(email).bind(gh.id.to_string()).bind(&gh.login).bind(uuid::Uuid::new_v4().to_string())
             .fetch_one(&mut *tx).await?
     };
     tx.commit().await?;
@@ -186,13 +198,12 @@ pub async fn callback(cx: &Cx) -> Result<Response> {
         .map_err(|e| failure(e.to_string()))?;
     let Some(email) = emails
         .iter()
-        .find(|e| e.primary)
-        .or(emails.first())
+        .find(|e| e.primary && e.verified)
         .map(|e| e.email.clone())
     else {
         return Err(server_error(
             format!(
-                "GitHub callback error: No primary email found for GitHub user ID {}.",
+                "GitHub callback error: No verified primary email found for GitHub user ID {}.",
                 gh.id
             ),
             "Could not retrieve email from GitHub",
@@ -201,7 +212,7 @@ pub async fn callback(cx: &Cx) -> Result<Response> {
 
     if linking {
         if let Some(user_id) = link_session.as_deref().and_then(decrypt_user_id) {
-            return match merge_link(&user_id, &gh, &access).await {
+            return match merge_link(&user_id, &gh).await {
                 Ok(target) => {
                     if target.contains("accounts_merged") {
                         tokio::spawn(async move {
@@ -216,13 +227,13 @@ pub async fn callback(cx: &Cx) -> Result<Response> {
         return Ok(redirect("/settings?error=link_failed"));
     }
 
-    match login_or_create(&gh, &email, &access)
+    match login_or_create(&gh, &email)
         .await
         .map_err(|e| failure(e.to_string()))?
     {
         Login::PasswordAccount => Ok(redirect("/login?error=account_exists_use_password")),
         Login::Ok(user) => {
-            set_session(cx, &user, SameSite::Lax);
+            set_session(cx, &user, SameSite::Lax).await?;
             Ok(no_store(redirect("/")))
         }
     }

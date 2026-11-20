@@ -18,7 +18,11 @@ async function call(url: string, method: string, body?: Json): Promise<any> {
 }
 
 function finish(el: HTMLElement, data: any) {
-  if (el.dataset.success) window.toast(el.dataset.success, "success");
+  const leaving = el.dataset.redirect || el.dataset.reload !== undefined;
+  if (el.dataset.success) {
+    if (leaving) window.toastNextPage(el.dataset.success, "success");
+    else window.toast(el.dataset.success, "success");
+  }
   if (el.dataset.redirect) location.href = el.dataset.redirect;
   else if (el.dataset.reload !== undefined) location.reload();
   const target = el.dataset.apply;

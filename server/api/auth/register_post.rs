@@ -46,7 +46,7 @@ pub async fn register(cx: &Cx, Json(body): Json<Value>) -> Result<Response> {
         };
         return Err(fail(
             400,
-            format!("Password validation failed for email {email}: {message}"),
+            format!("Password validation failed: {message}"),
             Some(message),
         ));
     }
@@ -61,11 +61,7 @@ pub async fn register(cx: &Cx, Json(body): Json<Value>) -> Result<Response> {
         .map_err(|e| failure(&e))?
         .is_some()
     {
-        return Err(fail(
-            409,
-            format!("Registration attempt with existing email: {email}."),
-            None,
-        ));
+        return Err(fail(409, "Registration attempt with existing email.", None));
     }
     let hash = hash_password(password.to_string())
         .await
@@ -85,6 +81,6 @@ pub async fn register(cx: &Cx, Json(body): Json<Value>) -> Result<Response> {
         .await
         .map_err(|e| failure(&e))?
         .ok_or_else(|| failure(&"user missing after insert"))?;
-    set_session(cx, &user, SameSite::Strict);
+    set_session(cx, &user, SameSite::Strict).await?;
     Ok(redirect("/"))
 }

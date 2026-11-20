@@ -28,7 +28,7 @@ struct EpilogueUser {
     email: Option<String>,
 }
 
-async fn merge_link(user_id: &str, ep: &EpilogueUser, token: &str) -> sqlx::Result<&'static str> {
+async fn merge_link(user_id: &str, ep: &EpilogueUser) -> sqlx::Result<&'static str> {
     let mut tx = pool().begin().await?;
     let existing: Option<String> =
         sqlx::query_scalar(r#"SELECT id FROM "User" WHERE "epilogueId" = $1"#)
@@ -51,21 +51,28 @@ async fn merge_link(user_id: &str, ep: &EpilogueUser, token: &str) -> sqlx::Resu
                 .bind(&other)
                 .execute(&mut *tx)
                 .await?;
-            sqlx::query(r#"UPDATE "User" SET "epilogueId" = $1, "epilogueUsername" = $2, "epilogueToken" = $3 WHERE id = $4"#)
-                .bind(&ep.id).bind(&ep.username).bind(token).bind(user_id).execute(&mut *tx).await?;
+            sqlx::query(
+                r#"UPDATE "User" SET "epilogueId" = $1, "epilogueUsername" = $2 WHERE id = $3"#,
+            )
+            .bind(&ep.id)
+            .bind(&ep.username)
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
             "/settings?success=accounts_merged"
         }
         _ if current.flatten().as_deref() == Some(ep.id.as_str()) => {
-            sqlx::query(r#"UPDATE "User" SET "epilogueToken" = $1 WHERE id = $2"#)
-                .bind(token)
-                .bind(user_id)
-                .execute(&mut *tx)
-                .await?;
             "/settings?success=epilogue_updated"
         }
         _ => {
-            sqlx::query(r#"UPDATE "User" SET "epilogueId" = $1, "epilogueUsername" = $2, "epilogueToken" = $3 WHERE id = $4"#)
-                .bind(&ep.id).bind(&ep.username).bind(token).bind(user_id).execute(&mut *tx).await?;
+            sqlx::query(
+                r#"UPDATE "User" SET "epilogueId" = $1, "epilogueUsername" = $2 WHERE id = $3"#,
+            )
+            .bind(&ep.id)
+            .bind(&ep.username)
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
             "/settings?success=epilogue_linked"
         }
     };
@@ -73,7 +80,7 @@ async fn merge_link(user_id: &str, ep: &EpilogueUser, token: &str) -> sqlx::Resu
     Ok(outcome)
 }
 
-async fn login_or_create(ep: &EpilogueUser, token: &str) -> sqlx::Result<User> {
+async fn login_or_create(ep: &EpilogueUser) -> sqlx::Result<User> {
     let mut tx = pool().begin().await?;
     let found: Option<User> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         r#"SELECT {USER_COLS} FROM "User" WHERE "epilogueId" = $1"#
@@ -91,8 +98,8 @@ async fn login_or_create(ep: &EpilogueUser, token: &str) -> sqlx::Result<User> {
                 .username
                 .clone()
                 .unwrap_or_else(|| format!("epilogue_user_{}", ep.id));
-            sqlx::query_as(sqlx::AssertSqlSafe(format!(r#"INSERT INTO "User" (id, email, "epilogueId", "epilogueUsername", "epilogueToken", "apiKey") VALUES ($1, $2, $3, $4, $5, $6) RETURNING {USER_COLS}"#)))
-                .bind(new_id()).bind(email).bind(&ep.id).bind(username).bind(token).bind(uuid::Uuid::new_v4().to_string())
+            sqlx::query_as(sqlx::AssertSqlSafe(format!(r#"INSERT INTO "User" (id, email, "epilogueId", "epilogueUsername", "apiKey") VALUES ($1, $2, $3, $4, $5) RETURNING {USER_COLS}"#)))
+                .bind(new_id()).bind(email).bind(&ep.id).bind(username).bind(uuid::Uuid::new_v4().to_string())
                 .fetch_one(&mut *tx).await?
         }
         Some(user) => {
@@ -101,8 +108,13 @@ async fn login_or_create(ep: &EpilogueUser, token: &str) -> sqlx::Result<User> {
                 .clone()
                 .or(user.epilogue_username.clone())
                 .unwrap_or_else(|| format!("epilogue_user_{}", ep.id));
-            sqlx::query_as(sqlx::AssertSqlSafe(format!(r#"UPDATE "User" SET "epilogueToken" = $1, "epilogueUsername" = $2 WHERE id = $3 RETURNING {USER_COLS}"#)))
-                .bind(token).bind(username).bind(&user.id).fetch_one(&mut *tx).await?
+            sqlx::query_as(sqlx::AssertSqlSafe(format!(
+                r#"UPDATE "User" SET "epilogueUsername" = $1 WHERE id = $2 RETURNING {USER_COLS}"#
+            )))
+            .bind(username)
+            .bind(&user.id)
+            .fetch_one(&mut *tx)
+            .await?
         }
     };
     tx.commit().await?;
@@ -179,7 +191,7 @@ pub async fn callback(cx: &Cx) -> Result<Response> {
 
     if linking {
         if let Some(user_id) = link_session.as_deref().and_then(decrypt_user_id) {
-            return match merge_link(&user_id, &ep, &token.token).await {
+            return match merge_link(&user_id, &ep).await {
                 Ok(target) => {
                     if target.contains("accounts_merged") {
                         tokio::spawn(async move {
@@ -194,9 +206,9 @@ pub async fn callback(cx: &Cx) -> Result<Response> {
         return Ok(redirect("/settings?error=link_failed"));
     }
 
-    let user = login_or_create(&ep, &token.token)
+    let user = login_or_create(&ep)
         .await
         .map_err(|e| failure(e.to_string()))?;
-    set_session(cx, &user, SameSite::Lax);
+    set_session(cx, &user, SameSite::Lax).await?;
     Ok(no_store(redirect("/")))
 }

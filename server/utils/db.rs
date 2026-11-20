@@ -125,7 +125,7 @@ async fn baseline_from_prisma(pool: &PgPool) {
     }
 }
 
-pub const USER_COLS: &str = r#"id, email, "passwordHash", "githubId", "githubUsername", "githubAccessToken", "epilogueId", "epilogueUsername", "epilogueToken", "apiKey", "leaderboardEnabled", "leaderboardFirstSet""#;
+pub const USER_COLS: &str = r#"id, email, "passwordHash", "githubId", "githubUsername", "epilogueId", "epilogueUsername", "apiKey", "leaderboardEnabled", "leaderboardFirstSet", "publicData""#;
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -140,27 +140,34 @@ pub struct User {
     pub github_id: Option<String>,
     #[sqlx(rename = "githubUsername")]
     pub github_username: Option<String>,
-    #[sqlx(rename = "githubAccessToken")]
-    #[serde(skip)]
-    pub github_access_token: Option<String>,
     #[sqlx(rename = "epilogueId")]
     pub epilogue_id: Option<String>,
     #[sqlx(rename = "epilogueUsername")]
     pub epilogue_username: Option<String>,
-    #[sqlx(rename = "epilogueToken")]
-    #[serde(skip)]
-    pub epilogue_token: Option<String>,
     #[sqlx(rename = "apiKey")]
     pub api_key: String,
     #[sqlx(rename = "leaderboardEnabled")]
     pub leaderboard_enabled: bool,
     #[sqlx(rename = "leaderboardFirstSet")]
     pub leaderboard_first_set: bool,
+    #[sqlx(rename = "publicData")]
+    pub public_data: bool,
 }
 
 pub async fn find_user_by_id(id: &str) -> sqlx::Result<Option<User>> {
     sqlx::query_as(sqlx::AssertSqlSafe(format!(
         r#"SELECT {USER_COLS} FROM "User" WHERE id = $1"#
+    )))
+    .bind(id)
+    .fetch_optional(pool())
+    .await
+}
+
+pub async fn find_user_by_session(id: &str) -> sqlx::Result<Option<User>> {
+    sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        r#"SELECT {USER_COLS} FROM "User" WHERE id = (
+             SELECT "userId" FROM "Session" WHERE id = $1 AND "expiresAt" > now()
+           )"#
     )))
     .bind(id)
     .fetch_optional(pool())

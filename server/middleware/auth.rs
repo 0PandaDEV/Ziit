@@ -1,8 +1,8 @@
 use topcoat::context::Cx;
 
 use crate::server::utils::{
-    auth::{AuthUser, SESSION_COOKIE, clear_session, decrypt_user_id, read_cookie},
-    db::find_user_by_id,
+    auth::{AuthUser, SESSION_COOKIE, clear_session, read_cookie, session_id},
+    db::find_user_by_session,
 };
 
 const PUBLIC_API_PATHS: [&str; 4] = [
@@ -37,8 +37,11 @@ pub fn is_public_path(path: &str) -> bool {
 
 pub async fn current_user(cx: &Cx) -> Option<AuthUser> {
     let token = read_cookie(cx, SESSION_COOKIE)?;
-    let user_id = decrypt_user_id(&token)?;
-    find_user_by_id(&user_id).await.ok().flatten().map(AuthUser)
+    find_user_by_session(&session_id(&token))
+        .await
+        .ok()
+        .flatten()
+        .map(AuthUser)
 }
 
 pub enum Outcome {
@@ -62,7 +65,7 @@ pub async fn check(cx: &Cx, path: &str) -> Outcome {
     match current_user(cx).await {
         Some(user) => Outcome::Allowed(Some(Box::new(user))),
         None => {
-            clear_session(cx);
+            clear_session(cx).await;
             Outcome::Denied
         }
     }

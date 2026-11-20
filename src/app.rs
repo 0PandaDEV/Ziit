@@ -85,7 +85,7 @@ async fn root(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                     <a (nav(cx, path)) data-key=(key) style="display:none" aria-hidden="true" tabindex="-1"></a>
                 }
                 if signed_in {
-                    <a href="/api/auth/logout" data-key="Alt+L" style="display:none" aria-hidden="true" tabindex="-1"></a>
+                    <button type="button" data-api="/api/auth/logout" data-redirect="/login?success=logout" data-key="Alt+L" style="display:none" aria-hidden="true" tabindex="-1"></button>
                 }
                 <div class=(class) style="display:contents" data-needs-tz=(needs_tz)>(slot)</div>
             </body>

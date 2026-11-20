@@ -17,10 +17,10 @@ use crate::server::utils::{
 pub async fn login(cx: &Cx, Json(body): Json<Value>) -> Result<Response> {
     let email = match body.get("email").and_then(Value::as_str) {
         Some(e) if valid_email(e) => e.to_string(),
-        Some(e) => {
+        Some(_) => {
             return Err(fail(
                 400,
-                format!("Login validation failed for email {e}"),
+                "Login validation failed: invalid email format",
                 Some("Invalid email format"),
             ));
         }
@@ -37,7 +37,7 @@ pub async fn login(cx: &Cx, Json(body): Json<Value>) -> Result<Response> {
         Some(_) => {
             return Err(fail(
                 400,
-                format!("Login validation failed for email {email}"),
+                "Login validation failed: empty password",
                 Some("Password is required"),
             ));
         }
@@ -59,25 +59,21 @@ pub async fn login(cx: &Cx, Json(body): Json<Value>) -> Result<Response> {
     let Some(user) = user else {
         return Err(fail(
             401,
-            format!(
-                "Invalid login attempt for email: {email}. User not found or no password hash."
-            ),
+            "Invalid login attempt: user not found or no password hash.",
             Some("Invalid email or password"),
         ));
     };
     let Some(hash) = user.password_hash.clone() else {
         return Err(fail(
             401,
-            format!(
-                "Invalid login attempt for email: {email}. User not found or no password hash."
-            ),
+            "Invalid login attempt: user not found or no password hash.",
             Some("Invalid email or password"),
         ));
     };
     if !verify_password(password, hash).await {
         return Err(fail(
             401,
-            format!("Invalid login attempt for email: {email}. Password mismatch."),
+            "Invalid login attempt: password mismatch.",
             Some("Invalid email or password"),
         ));
     }
@@ -93,6 +89,6 @@ pub async fn login(cx: &Cx, Json(body): Json<Value>) -> Result<Response> {
             )
         })?;
 
-    set_session(cx, &user, SameSite::Strict);
+    set_session(cx, &user, SameSite::Strict).await?;
     Ok(redirect("/"))
 }
