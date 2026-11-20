@@ -1,4 +1,4 @@
-node_modules
-.output
-.nuxt
+target
+.env
 .git
+public/js
