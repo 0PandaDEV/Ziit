@@ -5,7 +5,7 @@ use topcoat::{
     router::{BodyLimit, content::multipart::Multipart, response::Response, route},
 };
 
-use super::parse_export;
+use super::{assert_import_capacity, clean_file_name};
 use crate::server::utils::{
     http_util::{auth_user, json},
     import_queue::{
@@ -13,11 +13,13 @@ use crate::server::utils::{
         update_job,
     },
     logging::fail,
+    wakatime::ExportSource,
 };
 
-#[route(POST "/api/import/file", with(BodyLimit::max(500 * 1024 * 1024)))]
+#[route(POST "/api/import/file", with(BodyLimit::max(101 * 1024 * 1024)))]
 pub async fn file(cx: &Cx, mut form: Multipart) -> Result<Response> {
     let user = auth_user(cx)?;
+    assert_import_capacity()?;
     let mut upload = None;
     while let Some(field) = form.next_field().await? {
         if field.name() == Some("file") && field.file_name().is_some() {
@@ -33,9 +35,15 @@ pub async fn file(cx: &Cx, mut form: Multipart) -> Result<Response> {
         ));
     };
     tracing::info!("Processing WakaTime exported file upload");
-    let export = parse_export(&bytes).map_err(|e| fail(400, e, Some("Invalid file format")))?;
+    let source = ExportSource {
+        size: bytes.len() as u64,
+        reader: Box::new(std::io::Cursor::new(bytes)),
+        cleanup: None,
+    };
     let job_id = uuid::Uuid::new_v4().to_string();
-    let file_name = name.unwrap_or_else(|| format!("WakaTime Import {}", jiff::Timestamp::now()));
+    let file_name = clean_file_name(
+        &name.unwrap_or_else(|| format!("WakaTime Import {}", jiff::Timestamp::now())),
+    );
     insert_job(ImportJob::new(
         &job_id,
         &user.id,
@@ -43,7 +51,7 @@ pub async fn file(cx: &Cx, mut form: Multipart) -> Result<Response> {
         file_name,
     ));
     update_job(&job_id, Update::status(ImportStatus::Processing));
-    let queued = queue_wakatime_file_import(export, &user.id, &job_id);
+    let queued = queue_wakatime_file_import(source, &user.id, &job_id);
     Ok(json(
         &json!({ "success": true, "jobId": queued, "message": "File import has been queued for processing" }),
     ))

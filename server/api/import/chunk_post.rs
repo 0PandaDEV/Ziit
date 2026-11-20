@@ -7,17 +7,20 @@ use topcoat::{
     router::{BodyLimit, content::multipart::Multipart, response::Response, route},
 };
 
-use super::{assert_safe_file_id, chunks_dir};
+use super::{assert_safe_file_id, chunks_dir, clean_file_name, ensure_dir};
 use crate::server::utils::{
     http_util::{auth_user, json},
     import_queue::{
-        ImportJob, ImportMethod, ImportStatus, Update, insert_job, update_job, with_job,
+        ImportJob, ImportMethod, ImportStatus, Update, all_job_statuses, insert_job, update_job,
+        with_job,
     },
     logging::fail,
 };
 
 const MAX_CHUNK_SIZE: usize = 100 * 1024 * 1024;
 const MAX_FILE_SIZE: i64 = 2 * 1024 * 1024 * 1024;
+const MAX_TOTAL_CHUNKS: u64 = 4096;
+const MAX_UPLOADS_PER_USER: usize = 3;
 
 #[route(POST "/api/import/chunk", with(BodyLimit::max(MAX_CHUNK_SIZE + 1024 * 1024)))]
 pub async fn chunk(cx: &Cx, mut form: Multipart) -> Result<Response> {
@@ -35,6 +38,13 @@ pub async fn chunk(cx: &Cx, mut form: Multipart) -> Result<Response> {
             "chunk" => data = Some(field.bytes().await?),
             other => {
                 let text = field.text().await?;
+                if text.len() > 1024 {
+                    return Err(fail(
+                        400,
+                        "Oversized form field in chunked upload",
+                        Some("Invalid upload data"),
+                    ));
+                }
                 match other {
                     "fileId" => file_id = Some(text),
                     "fileName" => file_name = Some(text),
@@ -55,6 +65,7 @@ pub async fn chunk(cx: &Cx, mut form: Multipart) -> Result<Response> {
         ));
     };
     assert_safe_file_id(&file_id)?;
+    let file_name = clean_file_name(&file_name);
     if data.len() > MAX_CHUNK_SIZE {
         return Err(fail(
             413,
@@ -63,6 +74,17 @@ pub async fn chunk(cx: &Cx, mut form: Multipart) -> Result<Response> {
                 data.len()
             ),
             Some("Individual chunk size exceeds maximum allowed limit"),
+        ));
+    }
+    if file_size <= 0
+        || total_chunks == 0
+        || total_chunks > MAX_TOTAL_CHUNKS
+        || chunk_index >= total_chunks
+    {
+        return Err(fail(
+            400,
+            format!("Invalid chunk metadata for file ID {file_id}"),
+            Some("Invalid chunk metadata"),
         ));
     }
     if file_size > MAX_FILE_SIZE {
@@ -81,7 +103,32 @@ pub async fn chunk(cx: &Cx, mut form: Multipart) -> Result<Response> {
             Some("Import job not found."),
         ));
     }
+    let dir = chunks_dir(&user.id, &file_id);
+    let path = dir.join(format!("chunk-{chunk_index}"));
+    let previous = fs::metadata(&path).map(|m| m.len() as i64).unwrap_or(0);
+    let (declared, so_far) = with_job(&file_id, |j| {
+        (j.total_size.unwrap_or(0), j.uploaded_size.unwrap_or(0))
+    })
+    .unwrap_or((file_size, 0));
+    if so_far - previous + data.len() as i64 > declared {
+        return Err(fail(
+            413,
+            format!("Upload for file ID {file_id} exceeds declared size {declared}"),
+            Some("Uploaded data exceeds declared file size"),
+        ));
+    }
     if existing.is_none() {
+        let uploading = all_job_statuses(Some(&user.id))
+            .iter()
+            .filter(|j| matches!(j.status, ImportStatus::Uploading))
+            .count();
+        if uploading >= MAX_UPLOADS_PER_USER {
+            return Err(fail(
+                429,
+                format!("Too many concurrent uploads for user {}", user.id),
+                Some("Too many uploads in progress"),
+            ));
+        }
         let mut job = ImportJob::new(&file_id, &user.id, ImportMethod::WakatimeFile, file_name);
         job.total_size = Some(file_size);
         job.uploaded_size = Some(0);
@@ -95,14 +142,11 @@ pub async fn chunk(cx: &Cx, mut form: Multipart) -> Result<Response> {
         }
     }
 
-    let dir = chunks_dir(&user.id, &file_id);
-    fs::create_dir_all(&dir)
-        .map_err(|e| fail(69, format!("Failed to create chunk dir: {e}"), None))?;
-    fs::write(dir.join(format!("chunk-{chunk_index}")), &data)
-        .map_err(|e| fail(69, format!("Failed to write chunk: {e}"), None))?;
+    ensure_dir(&dir).map_err(|e| fail(69, format!("Failed to create chunk dir: {e}"), None))?;
+    fs::write(&path, &data).map_err(|e| fail(69, format!("Failed to write chunk: {e}"), None))?;
 
     let uploaded = with_job(&file_id, |j| {
-        let next = j.uploaded_size.unwrap_or(0) + data.len() as i64;
+        let next = j.uploaded_size.unwrap_or(0) - previous + data.len() as i64;
         j.uploaded_size = Some(next);
         next
     })

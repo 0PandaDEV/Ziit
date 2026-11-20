@@ -1,15 +1,30 @@
-use std::{collections::HashMap, sync::LazyLock, time::Duration};
+use std::{
+    collections::HashMap,
+    io::{BufReader, Read},
+    path::PathBuf,
+    sync::{
+        Arc, LazyLock,
+        atomic::{AtomicI64, AtomicU64, Ordering},
+    },
+    time::Duration,
+};
 
 use base64::{Engine, engine::general_purpose::STANDARD};
+use futures::StreamExt;
 use jiff::Timestamp;
 use regex::Regex;
-use serde::Deserialize;
+use serde::{
+    Deserialize,
+    de::{DeserializeSeed, Error as _, IgnoredAny, MapAccess, SeqAccess, Visitor},
+};
 
 use super::{
     heartbeats::{HeartbeatInput, process_heartbeats_by_date},
     import_queue::{ImportStatus, Update, update_job},
+    url_policy::download_limited,
 };
 
+const MAX_DUMP_SIZE: usize = 2 * 1024 * 1024 * 1024;
 const API: &str = "https://api.wakatime.com/api/v1";
 
 #[derive(Debug, Clone, Deserialize)]
@@ -38,22 +53,6 @@ pub struct WakatimeDay {
     pub date: String,
     #[serde(default)]
     pub heartbeats: Vec<WakatimeHeartbeat>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct WakatimeExportData {
-    pub user: WakatimeUser,
-    #[allow(dead_code)]
-    pub range: WakatimeRange,
-    pub days: Vec<WakatimeDay>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct WakatimeRange {
-    #[allow(dead_code)]
-    pub start: f64,
-    #[allow(dead_code)]
-    pub end: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -235,12 +234,151 @@ pub fn map_heartbeat(
     }
 }
 
-pub fn prepare_wakatime_file_data(export: WakatimeExportData) -> Vec<WakatimeDay> {
-    export
-        .days
-        .into_iter()
-        .filter(|d| !d.heartbeats.is_empty())
-        .collect()
+pub struct ExportSource {
+    pub reader: Box<dyn Read + Send>,
+    pub size: u64,
+    pub cleanup: Option<PathBuf>,
+}
+
+struct Counting<R> {
+    inner: R,
+    count: Arc<AtomicU64>,
+}
+
+impl<R: Read> Read for Counting<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let read = self.inner.read(buf)?;
+        self.count.fetch_add(read as u64, Ordering::Relaxed);
+        Ok(read)
+    }
+}
+
+type Sink<'a> = &'a mut dyn FnMut(Option<Arc<str>>, WakatimeDay) -> bool;
+
+struct Days<'a> {
+    sink: Sink<'a>,
+    last_plugin: Option<Arc<str>>,
+}
+
+impl<'de> DeserializeSeed<'de> for Days<'_> {
+    type Value = ();
+
+    fn deserialize<D: serde::Deserializer<'de>>(self, deserializer: D) -> Result<(), D::Error> {
+        deserializer.deserialize_seq(self)
+    }
+}
+
+impl<'de> Visitor<'de> for Days<'_> {
+    type Value = ();
+
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("a list of days")
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<(), A::Error> {
+        while let Some(day) = seq.next_element::<WakatimeDay>()? {
+            if day.heartbeats.is_empty() {
+                continue;
+            }
+            if !(self.sink)(self.last_plugin.clone(), day) {
+                return Err(A::Error::custom("import was stopped"));
+            }
+        }
+        Ok(())
+    }
+}
+
+struct Export<'a>(Sink<'a>);
+
+impl<'de> Visitor<'de> for Export<'_> {
+    type Value = ();
+
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("a WakaTime export object")
+    }
+
+    fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<(), A::Error> {
+        let sink = self.0;
+        let mut last_plugin: Option<Arc<str>> = None;
+        let mut seen_days = false;
+        while let Some(key) = map.next_key::<String>()? {
+            match key.as_str() {
+                "user" => {
+                    let user: WakatimeUser = map.next_value()?;
+                    last_plugin = user.last_plugin.map(Arc::from);
+                }
+                "days" => {
+                    map.next_value_seed(Days {
+                        sink: &mut *sink,
+                        last_plugin: last_plugin.clone(),
+                    })?;
+                    seen_days = true;
+                }
+                _ => {
+                    map.next_value::<IgnoredAny>()?;
+                }
+            }
+        }
+        if seen_days {
+            Ok(())
+        } else {
+            Err(A::Error::missing_field("days"))
+        }
+    }
+}
+
+pub fn stream_export<R: Read>(reader: R, sink: Sink) -> Result<(), String> {
+    let invalid = |e: serde_json::Error| format!("Invalid WakaTime export format: {e}");
+    let mut de = serde_json::Deserializer::from_reader(reader);
+    serde::Deserializer::deserialize_map(&mut de, Export(sink)).map_err(invalid)?;
+    de.end().map_err(invalid)
+}
+
+pub async fn import_stream(
+    source: ExportSource,
+    agents: HashMap<String, WakatimeUserAgent>,
+    user_id: &str,
+    job_id: &str,
+) -> Result<i64, String> {
+    let read = Arc::new(AtomicU64::new(0));
+    let size = source.size.max(1);
+    let counted = Counting {
+        inner: source.reader,
+        count: read.clone(),
+    };
+    let (tx, rx) = tokio::sync::mpsc::channel::<(Option<Arc<str>>, WakatimeDay)>(4);
+    let parser = tokio::task::spawn_blocking(move || {
+        let reader = BufReader::with_capacity(1024 * 1024, counted);
+        stream_export(reader, &mut |plugin, day| {
+            tx.blocking_send((plugin, day)).is_ok()
+        })
+    });
+    update_job(
+        job_id,
+        Update::progress(ImportStatus::ProcessingHeartbeats, 0, 100),
+    );
+    let done = AtomicI64::new(0);
+    let (agents, read, done) = (&agents, &read, &done);
+    futures::stream::unfold(rx, |mut rx| async move { rx.recv().await.map(|v| (v, rx)) })
+        .for_each_concurrent(4, |(plugin, day)| async move {
+            let rows = day
+                .heartbeats
+                .iter()
+                .map(|h| map_heartbeat(h, agents, user_id, plugin.as_deref()))
+                .collect();
+            process_heartbeats_by_date(user_id, rows).await;
+            done.fetch_add(1, Ordering::Relaxed);
+            let percent = (read.load(Ordering::Relaxed) * 100 / size).min(99) as i64;
+            update_job(
+                job_id,
+                Update::progress(ImportStatus::ProcessingHeartbeats, percent, 100),
+            );
+        })
+        .await;
+    parser
+        .await
+        .map_err(|e| format!("Import parser crashed: {e}"))??;
+    Ok(done.load(Ordering::Relaxed))
 }
 
 pub async fn handle_wakatime_import(
@@ -258,37 +396,18 @@ pub async fn handle_wakatime_import(
     update_job(job_id, Update::status(ImportStatus::WaitingForDataDump));
     let url = poll_for_data_dump(&client, api_key, job_id).await?;
     update_job(job_id, Update::status(ImportStatus::Downloading));
-    let bytes = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(err)?
-        .bytes()
-        .await
-        .map_err(err)?;
-    let export: WakatimeExportData = serde_json::from_slice(&bytes).map_err(err)?;
+    let bytes = download_limited(&url, MAX_DUMP_SIZE, Duration::from_secs(30 * 60)).await?;
     update_job(job_id, Update::status(ImportStatus::FetchingMetadata));
     let agents = fetch_user_agents(&client, api_key).await?;
+    let source = ExportSource {
+        size: bytes.len() as u64,
+        reader: Box::new(std::io::Cursor::new(bytes)),
+        cleanup: None,
+    };
+    let total = import_stream(source, agents, user_id, job_id)
+        .await
+        .map_err(err)?;
 
-    let last_plugin = export.user.last_plugin.clone();
-    let days = prepare_wakatime_file_data(export);
-    let total = days.len() as i64;
-    update_job(
-        job_id,
-        Update::progress(ImportStatus::ProcessingHeartbeats, 0, total),
-    );
-    for (i, day) in days.iter().enumerate() {
-        let rows = day
-            .heartbeats
-            .iter()
-            .map(|h| map_heartbeat(h, &agents, user_id, last_plugin.as_deref()))
-            .collect();
-        process_heartbeats_by_date(user_id, rows).await;
-        update_job(
-            job_id,
-            Update::progress(ImportStatus::ProcessingHeartbeats, i as i64 + 1, total),
-        );
-    }
     tracing::info!("[wakatime] Successfully imported {total} days from WakaTime API");
     Ok(total)
 }

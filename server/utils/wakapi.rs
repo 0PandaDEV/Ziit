@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time::Duration};
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use jiff::{Timestamp, civil::Date};
@@ -7,7 +7,7 @@ use serde::Deserialize;
 use super::{
     heartbeats::{HeartbeatInput, process_heartbeats_by_date},
     import_queue::{ImportStatus, Update, update_job},
-    url_policy::fetch_external_instance,
+    url_policy::{fetch_external_instance, pinned_client},
     wakatime::{basename, parse_user_agent},
 };
 
@@ -36,6 +36,8 @@ struct AllTime {
 struct Range {
     start_date: String,
 }
+
+const MAX_IMPORTED_HEARTBEATS: usize = 3_000_000;
 
 fn map(h: WakapiHeartbeat, user_id: &str) -> HeartbeatInput {
     let agent = parse_user_agent(h.user_agent_id.as_deref().unwrap_or(""));
@@ -67,9 +69,7 @@ pub async fn prepare_wakapi_data(
         "{}/api/compat/wakatime/v1",
         instance_url.trim_end_matches('/')
     );
-    let client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .build()?;
+    let client = pinned_client(instance_url, Duration::from_secs(60)).await?;
 
     let all_time: Data<AllTime> = fetch_external_instance(
         &client,
@@ -83,7 +83,12 @@ pub async fn prepare_wakapi_data(
             "Failed to fetch activity date range from WakAPI for user {user_id}"
         ))
     })?;
-    let mut day: Date = start.to_zoned_datetime(jiff::tz::TimeZone::UTC).date();
+    let earliest = Date::constant(2000, 1, 1);
+    let mut day: Date = start
+        .to_zoned_datetime(jiff::tz::TimeZone::UTC)
+        .date()
+        .max(earliest);
+    let mut collected = 0usize;
     let last: Date = Timestamp::now()
         .to_zoned_datetime(jiff::tz::TimeZone::UTC)
         .date()
@@ -100,6 +105,10 @@ pub async fn prepare_wakapi_data(
             Some(&auth),
         )
         .await?;
+        collected += response.data.len();
+        if collected > MAX_IMPORTED_HEARTBEATS {
+            return Err(topcoat::Error::msg("Import is too large"));
+        }
         if !response.data.is_empty() {
             by_date.insert(
                 date,

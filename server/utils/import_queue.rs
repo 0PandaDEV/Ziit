@@ -6,16 +6,13 @@ use std::{
     },
 };
 
-use futures::StreamExt;
 use serde::Serialize;
 use tokio::sync::Semaphore;
 
 use super::{
-    heartbeats::{finalize_import, process_heartbeats_by_date},
+    heartbeats::finalize_import,
     wakapi::{handle_wakapi_sequential_import, prepare_wakapi_data},
-    wakatime::{
-        WakatimeExportData, handle_wakatime_import, map_heartbeat, prepare_wakatime_file_data,
-    },
+    wakatime::{ExportSource, handle_wakatime_import, import_stream},
 };
 
 const WORKER_COUNT: usize = 10;
@@ -262,6 +259,20 @@ pub fn with_job<R>(id: &str, f: impl FnOnce(&mut ImportJob) -> R) -> Option<R> {
     JOBS.lock().unwrap().get_mut(id).map(f)
 }
 
+pub fn active_file_imports() -> usize {
+    JOBS.lock()
+        .unwrap()
+        .values()
+        .filter(|j| {
+            j.kind == Some(ImportMethod::WakatimeFile)
+                && matches!(
+                    j.status,
+                    ImportStatus::Processing | ImportStatus::ProcessingHeartbeats
+                )
+        })
+        .count()
+}
+
 pub fn job_exists(id: &str) -> bool {
     JOBS.lock().unwrap().contains_key(id)
 }
@@ -353,7 +364,7 @@ enum JobData {
         api_key: String,
     },
     WakatimeFile {
-        export: WakatimeExportData,
+        source: ExportSource,
     },
     Wakapi {
         api_key: String,
@@ -406,45 +417,14 @@ async fn process_job(id: &str, user_id: &str, data: JobData) -> Result<(), Strin
                 .await
                 .map_err(|e| e.to_string())?
         }
-        JobData::WakatimeFile { export } => {
-            let days: Vec<_> = prepare_wakatime_file_data(export.clone());
-            update_job(
-                id,
-                Update::progress(ImportStatus::Processing, 0, days.len() as i64),
-            );
-            update_job(
-                id,
-                Update::progress(ImportStatus::ProcessingHeartbeats, 0, days.len() as i64),
-            );
-            let total = days.len();
-            let done = AtomicUsize::new(0);
-            let concurrency = if total > 10 { 4 } else { 1 };
-            let last_plugin = export.user.last_plugin.clone();
-            futures::stream::iter(days)
-                .for_each_concurrent(concurrency, |day| {
-                    let last_plugin = last_plugin.clone();
-                    let done = &done;
-                    async move {
-                        let agents = HashMap::new();
-                        let rows = day
-                            .heartbeats
-                            .iter()
-                            .map(|h| map_heartbeat(h, &agents, user_id, last_plugin.as_deref()))
-                            .collect();
-                        process_heartbeats_by_date(user_id, rows).await;
-                        let finished = done.fetch_add(1, Ordering::Relaxed) + 1;
-                        update_job(
-                            id,
-                            Update::progress(
-                                ImportStatus::ProcessingHeartbeats,
-                                finished as i64,
-                                total as i64,
-                            ),
-                        );
-                    }
-                })
-                .await;
-            total as i64
+        JobData::WakatimeFile { source } => {
+            update_job(id, Update::status(ImportStatus::Processing));
+            let cleanup = source.cleanup.clone();
+            let result = import_stream(source, HashMap::new(), user_id, id).await;
+            if let Some(dir) = cleanup {
+                let _ = std::fs::remove_dir_all(dir);
+            }
+            result?
         }
         JobData::Wakapi {
             api_key,
@@ -477,11 +457,7 @@ pub fn queue_wakatime_api_import(api_key: String, user_id: &str) -> String {
     spawn_job(id, user_id.to_string(), JobData::WakatimeApi { api_key })
 }
 
-pub fn queue_wakatime_file_import(
-    export: WakatimeExportData,
-    user_id: &str,
-    job_id: &str,
-) -> String {
+pub fn queue_wakatime_file_import(source: ExportSource, user_id: &str, job_id: &str) -> String {
     if !job_exists(job_id) {
         insert_job(ImportJob::new(
             job_id,
@@ -493,7 +469,7 @@ pub fn queue_wakatime_file_import(
     spawn_job(
         job_id.to_string(),
         user_id.to_string(),
-        JobData::WakatimeFile { export },
+        JobData::WakatimeFile { source },
     )
 }
 

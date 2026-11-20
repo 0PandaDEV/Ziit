@@ -7,12 +7,12 @@ use topcoat::{
     router::{content::Json, response::Response, route},
 };
 
-use super::{assert_safe_file_id, chunks_dir, parse_export};
+use super::{assert_import_capacity, assert_safe_file_id, chunks_dir, open_chunks};
 use crate::server::utils::{
     auth::is_uuid,
     http_util::{auth_user, json},
     import_queue::{
-        ImportStatus, Update, job_exists, queue_wakapi_import, queue_wakatime_api_import,
+        ImportStatus, Update, queue_wakapi_import, queue_wakatime_api_import,
         queue_wakatime_file_import, remove_user_jobs, update_job, with_job,
     },
     logging::fail,
@@ -20,7 +20,9 @@ use crate::server::utils::{
 
 async fn process_file_in_background(file_id: String, user_id: String) {
     let owned = with_job(&file_id, |j| {
-        j.user_id == user_id && j.file_id.as_deref() == Some(&file_id)
+        j.user_id == user_id
+            && j.file_id.as_deref() == Some(&file_id)
+            && matches!(j.status, ImportStatus::Uploading)
     })
     .unwrap_or(false);
     if !owned {
@@ -31,38 +33,16 @@ async fn process_file_in_background(file_id: String, user_id: String) {
     }
     update_job(&file_id, Update::status(ImportStatus::Processing));
     let dir = chunks_dir(&user_id, &file_id);
-    let result: Result<(), String> = (|| {
-        if !dir.exists() {
-            return Err(format!(
-                "Chunks directory does not exist: {}",
-                dir.display()
-            ));
+    match open_chunks(&dir) {
+        Ok(source) => {
+            queue_wakatime_file_import(source, &user_id, &file_id);
         }
-        let mut names: Vec<_> = fs::read_dir(&dir)
-            .map_err(|e| e.to_string())?
-            .filter_map(|e| e.ok())
-            .filter_map(|e| e.file_name().into_string().ok())
-            .filter(|n| n.starts_with("chunk-"))
-            .collect();
-        names.sort_by_key(|n| {
-            n.split('-')
-                .nth(1)
-                .and_then(|i| i.parse::<u64>().ok())
-                .unwrap_or(0)
-        });
-        let mut combined = Vec::new();
-        for name in names {
-            combined.extend(fs::read(dir.join(&name)).map_err(|e| e.to_string())?);
+        Err(message) => {
+            tracing::info!("Error processing file {file_id}: {message}");
+            update_job(&file_id, Update::failed(message));
+            let _ = fs::remove_dir_all(&dir);
         }
-        let export = parse_export(&combined)?;
-        queue_wakatime_file_import(export, &user_id, &file_id);
-        Ok(())
-    })();
-    if let Err(message) = result {
-        tracing::info!("Error processing file {file_id}: {message}");
-        update_job(&file_id, Update::failed(message));
     }
-    let _ = fs::remove_dir_all(&dir);
 }
 
 #[route(POST "/api/import")]
@@ -79,13 +59,14 @@ pub async fn import(cx: &Cx, Json(body): Json<Value>) -> Result<Response> {
 
     if process_chunks && let Some(file_id) = body.get("fileId").and_then(Value::as_str) {
         assert_safe_file_id(file_id)?;
-        if !job_exists(file_id) {
+        if with_job(file_id, |j| j.user_id == user.id) != Some(true) {
             return Err(fail(
                 404,
                 format!("Job not found for file ID {file_id}"),
                 Some("Import job not found."),
             ));
         }
+        assert_import_capacity()?;
         tracing::info!("Processing chunks request");
         tokio::spawn(process_file_in_background(
             file_id.to_string(),

@@ -9,6 +9,13 @@ use super::{
 };
 
 const INSERT_BATCH_SIZE: usize = 2000;
+const EARLIEST_TIMESTAMP_SECONDS: i64 = 946_684_800;
+
+fn clean(value: &Option<String>, max: usize) -> Option<String> {
+    value
+        .as_ref()
+        .map(|v| v.chars().filter(|c| *c != '\0').take(max).collect())
+}
 
 #[derive(Debug, Clone)]
 pub struct HeartbeatInput {
@@ -33,12 +40,12 @@ async fn insert_rows(rows: &[HeartbeatInput]) -> sqlx::Result<u64> {
             ids.push(new_id());
             users.push(h.user_id.clone());
             stamps.push(h.timestamp.to_string());
-            cols[0].push(h.project.clone());
-            cols[1].push(h.editor.clone());
-            cols[2].push(h.language.clone());
-            cols[3].push(h.os.clone());
-            cols[4].push(h.file.clone());
-            cols[5].push(h.branch.clone());
+            cols[0].push(clean(&h.project, 255));
+            cols[1].push(clean(&h.editor, 50));
+            cols[2].push(clean(&h.language, 50));
+            cols[3].push(clean(&h.os, 50));
+            cols[4].push(clean(&h.file, 255));
+            cols[5].push(clean(&h.branch, 255));
         }
         let result = sqlx::query(
             r#"INSERT INTO "Heartbeats" (id, "userId", "timestamp", project, editor, language, os, file, branch)
@@ -166,7 +173,14 @@ async fn insert_new_heartbeats(
 
 pub async fn process_heartbeats_by_date(user_id: &str, heartbeats: Vec<HeartbeatInput>) {
     let mut by_date: BTreeMap<Date, Vec<HeartbeatInput>> = BTreeMap::new();
-    for h in heartbeats {
+    let earliest = Timestamp::from_second(EARLIEST_TIMESTAMP_SECONDS).unwrap_or(Timestamp::MIN);
+    let latest = Timestamp::now()
+        .checked_add(jiff::SignedDuration::from_hours(24))
+        .unwrap_or(Timestamp::MAX);
+    for h in heartbeats
+        .into_iter()
+        .filter(|h| h.timestamp >= earliest && h.timestamp <= latest)
+    {
         by_date
             .entry(ts_to_utc_date(h.timestamp))
             .or_default()

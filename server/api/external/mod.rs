@@ -46,6 +46,9 @@ fn text(value: &Value, field: &str, min: usize, max: usize) -> Result<Option<Str
         None | Some(Value::Null) if min == 0 => Ok(None),
         Some(Value::String(s)) => {
             let len = s.chars().count();
+            if s.contains('\0') {
+                return Err(format!("{field}: invalid characters"));
+            }
             if len < min || len > max {
                 Err(format!("{field}: length must be between {min} and {max}"))
             } else {
@@ -67,6 +70,10 @@ pub fn parse_heartbeat(user_id: &str, value: &Value) -> Result<HeartbeatInput, S
             .map_err(|_| "timestamp: invalid datetime".to_string())?,
         _ => return Err("timestamp: expected iso datetime or number".into()),
     };
+    let latest = Timestamp::now()
+        .checked_add(jiff::SignedDuration::from_hours(24))
+        .map_err(|e| e.to_string())?;
+    let timestamp = timestamp.min(latest);
     let project = text(value, "project", 1, 255)?;
     let language = text(value, "language", 1, 50)?;
     let editor = text(value, "editor", 1, 50)?;
