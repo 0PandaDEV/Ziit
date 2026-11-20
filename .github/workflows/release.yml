@@ -1,5 +1,9 @@
 name: Release
 
+permissions:
+  contents: read
+  actions: read
+
 on:
   push:
     tags: ["v*"]
@@ -16,31 +20,61 @@ concurrency:
   group: release-${{ github.event.inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
-permissions:
-  contents: read
-
 env:
   REGISTRY: ghcr.io
   TAG: ${{ github.event.inputs.tag || github.ref_name }}
 
 jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      full: ${{ steps.version.outputs.full }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - name: Compute release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "tag '$TAG' is not vX.Y.Z or vX.Y.Z-prerelease"
+            exit 1
+          fi
+          FULL="${TAG#v}"
+          PRERELEASE=false
+          if [[ "$FULL" == *-* ]]; then
+            PRERELEASE=true
+          fi
+          echo "full=$FULL" >> $GITHUB_OUTPUT
+          echo "prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
+          echo "releasing $FULL (prerelease: $PRERELEASE)"
+
   build:
     name: Build (${{ matrix.arch }})
+    needs: version
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - arch: arm64
             runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v5
         with:
           ref: refs/tags/${{ env.TAG }}
+
+      - name: Stamp release version into Cargo.toml
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i '0,/^version = ".*"$/s//version = "${{ needs.version.outputs.full }}"/' Cargo.toml
+          grep -n -m 1 '^version = ' Cargo.toml
 
       - name: Image name
         id: image
@@ -64,8 +98,8 @@ jobs:
           context: .
           platforms: linux/${{ matrix.arch }}
           outputs: type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha,scope=${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+          cache-from: type=gha,scope=release-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.arch }}
 
       - name: Export digest
         run: |
@@ -80,9 +114,9 @@ jobs:
           if-no-files-found: error
 
   publish:
-    name: Publish manifest
-    needs: build
-    runs-on: ubuntu-latest
+    name: Publish image
+    needs: [version, build]
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
@@ -104,11 +138,14 @@ jobs:
 
       - name: Create multi-arch tags
         working-directory: ${{ runner.temp }}/digests
+        env:
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
         run: |
+          set -euo pipefail
           name="${REGISTRY}/${{ github.repository }}"
           name="$(echo "$name" | tr '[:upper:]' '[:lower:]')"
           tags=(-t "${name}:${TAG}")
-          if [[ "$TAG" != *-* ]]; then
+          if [[ "$PRERELEASE" != "true" ]]; then
             tags+=(-t "${name}:latest")
           fi
           docker buildx imagetools create \
@@ -117,8 +154,8 @@ jobs:
 
   release:
     name: Release
-    needs: publish
-    runs-on: ubuntu-latest
+    needs: [version, publish]
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
@@ -135,9 +172,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           NOTES: ${{ steps.changelog.outputs.markdown }}
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
         run: |
+          set -euo pipefail
           flags=()
-          if [[ "$TAG" == *-* ]]; then
+          if [[ "$PRERELEASE" == "true" ]]; then
             flags+=(--prerelease)
           fi
           if gh release view "$TAG" >/dev/null 2>&1; then

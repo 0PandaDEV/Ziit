@@ -19,8 +19,7 @@
 <br>
 
 [![Better Stack Badge](https://uptime.betterstack.com/status-badges/v3/monitor/1ym1e.svg)](https://status.ziit.app)
- ![ziit](https://ziit.app/api/public/badge/cm98il90n0000o52c3my0bf5p/ziit)
-
+![ziit](https://ziit.app/api/public/badge/cm98il90n0000o52c3my0bf5p/ziit)
 
 > [!IMPORTANT]
 > Upvote Ziit on [AlternativeTo](https://alternativeto.net/software/ziit/about/), [ProductHunt](https://www.producthunt.com/posts/ziit), [PeerPush](https://peerpush.net/p/ziit) to help me promote it.
@@ -66,32 +65,15 @@ For more details on how to setup the IDE extensions checkout the [docs](https://
 
 ## Development
 
-### Prerequisites
+Ziit is built with Rust, [Topcoat](https://github.com/tokio-rs/topcoat) and PostgreSQL with [TimescaleDB](https://docs.timescale.com/self-hosted/latest/install/installation-docker/). The little client code there is lives in `src/composables/*.ts` and is compiled by `build.rs`.
 
-- [Bun](https://bun.sh/)
-- [TimescaleDB](https://docs.timescale.com/self-hosted/latest/install/installation-docker/)
+1. Copy [.env.example](https://github.com/0PandaDEV/Ziit/blob/main/.env.example) to `.env` and fill it in. The old `NUXT_*` names still work.
+2. Install the Topcoat CLI and start the dev server on `http://localhost:3000`. Database migrations run on startup.
 
-### Setup
+```bash
+cargo install topcoat-cli
+topcoat dev
+```
 
-1. **Install dependencies:**
-
-   ```bash
-   bun i
-   ```
-
-2. **Database Migrations:**
-   Apply database schema changes.
-
-   ```bash
-   bunx prisma migrate dev
-   ```
-
-3. **Set the environment variables:**
-   It is imporatnt that you make a `.env` using the [.env.example](https://github.com/0PandaDEV/Ziit/blob/main/.env.example) as a template and set the correct values. All the instructions needed are in the example file.
-
-4. **Run the development server:**
-   The server will start on `http://localhost:3000`.
-
-   ```bash
-   bun dev
-   ```
+> [!NOTE]
+> Upgrading from 1.2 runs a one way database migration (the `Summaries` table is replaced by TimescaleDB aggregates), so back up your database first.

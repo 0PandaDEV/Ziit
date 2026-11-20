@@ -1,0 +1,2 @@
+ALTER TABLE "User" DROP COLUMN IF EXISTS "githubAccessToken";
+ALTER TABLE "User" DROP COLUMN IF EXISTS "epilogueToken";
