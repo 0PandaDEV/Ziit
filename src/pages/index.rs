@@ -1,7 +1,4 @@
-use jiff::{
-    Timestamp,
-    tz::{Offset, TimeZone},
-};
+use jiff::{Timestamp, tz::TimeZone};
 use topcoat::{
     Result,
     context::{Cx, try_context},
@@ -31,11 +28,20 @@ use crate::{
 
 const STALE_AFTER: std::time::Duration = std::time::Duration::from_secs(3);
 
-fn local_today(offset_seconds: i32) -> jiff::civil::Date {
-    let offset = Offset::from_seconds(offset_seconds).unwrap_or(Offset::UTC);
-    Timestamp::now()
-        .to_zoned_datetime(TimeZone::fixed(offset))
-        .date()
+fn cookie_zone(cx: &Cx) -> TimeZone {
+    read_cookie(cx, "ziit_tz")
+        .filter(|name| {
+            name.len() <= 64
+                && name
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '_' | '+' | '-'))
+        })
+        .and_then(|name| TimeZone::get(&name).ok())
+        .unwrap_or(TimeZone::UTC)
+}
+
+fn local_today(zone: &TimeZone) -> jiff::civil::Date {
+    Timestamp::now().to_zoned_datetime(zone.clone()).date()
 }
 
 #[component]
@@ -114,9 +120,8 @@ pub async fn index(cx: &Cx) -> Result<impl View> {
         .and_then(|r| TimeRange::parse(&r))
         .filter(|r| *r != TimeRange::CustomRange)
         .unwrap_or(TimeRange::Today);
-    let offset = read_cookie(cx, "ziit_tz")
-        .and_then(|v| v.parse::<i32>().ok())
-        .unwrap_or(0);
+    let zone = cookie_zone(cx);
+    let offset = zone.to_offset(Timestamp::now()).seconds();
 
     let refresh = headers(cx).contains_key("x-ziit-refresh");
     let (stats, stale) = match &user {
@@ -124,7 +129,7 @@ pub async fn index(cx: &Cx) -> Result<impl View> {
         None => (StatsResult::default(), false),
     };
 
-    let (labels, data) = chart_config(range, &stats, local_today(offset));
+    let (labels, data) = chart_config(range, &stats, local_today(&zone));
     let projects = sorted(&stats.projects);
     let languages = sorted(&stats.languages);
     let editors = sorted(&stats.editors);
