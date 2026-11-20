@@ -8,8 +8,9 @@ use topcoat::{
 use crate::{
     composables::use_password_rules::PASSWORD_RULES,
     server::utils::{
+        auth::revoke_other_sessions,
         db::{find_user_by_email, pool},
-        http_util::{auth_user, hash_password, json, valid_email},
+        http_util::{auth_user, hash_password, json, valid_email, verify_password},
         logging::fail,
     },
 };
@@ -62,6 +63,7 @@ pub async fn update(cx: &Cx, Json(body): Json<Value>) -> Result<Response> {
     };
     let enabled = flag("leaderboardEnabled")?;
     let first_set = flag("leaderboardFirstSet")?;
+    let public_data = flag("publicData")?;
 
     if let Some(email) = &email
         && let Some(existing) = find_user_by_email(email)
@@ -78,6 +80,24 @@ pub async fn update(cx: &Cx, Json(body): Json<Value>) -> Result<Response> {
             None,
         ));
     }
+    let changes_credentials =
+        password.is_some() || email.as_ref().is_some_and(|e| *e != user.email);
+    if changes_credentials && let Some(current_hash) = &user.password_hash {
+        let confirmed = match body.get("currentPassword").and_then(Value::as_str) {
+            Some(current) => verify_password(current.to_string(), current_hash.clone()).await,
+            None => false,
+        };
+        if !confirmed {
+            return Err(fail(
+                403,
+                format!(
+                    "User settings update failed for user {}: current password mismatch.",
+                    user.id
+                ),
+                Some("Current password is incorrect"),
+            ));
+        }
+    }
     let hash = match password {
         Some(p) => Some(
             hash_password(p)
@@ -86,23 +106,35 @@ pub async fn update(cx: &Cx, Json(body): Json<Value>) -> Result<Response> {
         ),
         None => None,
     };
-    if email.is_some() || hash.is_some() || enabled.is_some() || first_set.is_some() {
+    if email.is_some()
+        || hash.is_some()
+        || enabled.is_some()
+        || first_set.is_some()
+        || public_data.is_some()
+    {
         sqlx::query(
             r#"UPDATE "User" SET
                  email = COALESCE($1, email),
                  "passwordHash" = COALESCE($2, "passwordHash"),
                  "leaderboardEnabled" = COALESCE($3, "leaderboardEnabled"),
-                 "leaderboardFirstSet" = COALESCE($4, "leaderboardFirstSet")
-               WHERE id = $5"#,
+                 "leaderboardFirstSet" = COALESCE($4, "leaderboardFirstSet"),
+                 "publicData" = COALESCE($5, "publicData")
+               WHERE id = $6"#,
         )
         .bind(email)
         .bind(hash)
         .bind(enabled)
         .bind(first_set)
+        .bind(public_data)
         .bind(&user.id)
         .execute(pool())
         .await
         .map_err(|e| db_failure(&user.id, &e))?;
+    }
+    if changes_credentials {
+        revoke_other_sessions(cx, &user.id)
+            .await
+            .map_err(|e| db_failure(&user.id, &e))?;
     }
     Ok(json(&json!({ "success": true })))
 }

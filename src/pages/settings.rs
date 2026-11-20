@@ -62,6 +62,17 @@ pub async fn settings(cx: &Cx) -> Result<impl View> {
     } else {
         "Opted in to leaderboard successfully"
     };
+    let public_label = if user.public_data {
+        "Make Data Private"
+    } else {
+        "Make Data Public"
+    };
+    let public_body = format!("{{\"publicData\":{}}}", !user.public_data);
+    let public_success = if user.public_data {
+        "Your data is now private"
+    } else {
+        "Your data is now public"
+    };
     let api_key = user.api_key.clone();
 
     Ok(view! {
@@ -112,14 +123,25 @@ pub async fn settings(cx: &Cx) -> Result<impl View> {
                                 data-reload=""
                             }
                         )
+                        button(
+                            text: public_label,
+                            key_name: "B",
+                            attrs: attributes! {
+                                data-api="/api/user"
+                                data-body=(public_body)
+                                data-success=(public_success)
+                                data-reload=""
+                            }
+                        )
                         button(text: "Change Email", key_name: "E", attrs: attributes! { data-open="#email-modal" })
                         button(text: "Change Password", key_name: "P", attrs: attributes! { data-open="#password-modal" })
-                        button(text: "Logout", key_name: "Alt+L", href: "/api/auth/logout")
+                        button(text: "Logout", key_name: "Alt+L", attrs: attributes! { data-api="/api/auth/logout" data-redirect="/login?success=logout" })
                     </div>
                 </section>
 
                 modal(id: "email-modal", title: "Change Email", api: "/api/user", success: "Email updated successfully",
                     input(name: "email", input_type: "email", placeholder: "New Email Address", value: &user.email, attrs: attributes! { required="" })
+                    input(name: "currentPassword", input_type: "password", placeholder: "Current Password")
                 )
                 modal(
                     id: "password-modal",
@@ -127,6 +149,7 @@ pub async fn settings(cx: &Cx) -> Result<impl View> {
                     api: "/api/user",
                     success: "Password updated successfully",
                     description: "Password must be at least 12 characters and include uppercase, lowercase, numbers, and special characters",
+                    input(name: "currentPassword", input_type: "password", placeholder: "Current Password")
                     <div class="password-field">
                         input(name: "password", input_type: "password", placeholder: "New Password", attrs: attributes! { required="" data-rules="#settings-rules" })
                         password_rules(id: "settings-rules")

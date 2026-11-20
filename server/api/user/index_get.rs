@@ -39,5 +39,6 @@ pub async fn user(cx: &Cx) -> Result<Response> {
         "apiKey": user.api_key,
         "leaderboardEnabled": user.leaderboard_enabled,
         "leaderboardFirstSet": user.leaderboard_first_set,
+        "publicData": user.public_data,
     })))
 }

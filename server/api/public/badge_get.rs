@@ -12,8 +12,9 @@ use crate::{
     composables::use_stats::TimeRange,
     server::utils::{
         badge::{BadgeOptions, badgen},
+        db::pool,
         http_util::query_map,
-        logging::plain,
+        logging::{plain, server_error},
         stats::{calculate_stats, get_user_time_range_total},
     },
 };
@@ -88,9 +89,26 @@ pub async fn badge(cx: &Cx) -> Result<Response> {
     let label_text = segments.get(4).cloned();
     let query = query_map(cx);
     let flat = query.get("style").map(String::as_str) == Some("flat");
-    let icon = query.get("icon").cloned();
+    let icon = query
+        .get("icon")
+        .filter(|i| i.starts_with('/') && !i.starts_with("//") && !i.contains('\\'))
+        .cloned();
 
-    let total_seconds = if project == "all" {
+    let public: Option<bool> =
+        sqlx::query_scalar(r#"SELECT "publicData" FROM "User" WHERE id = $1"#)
+            .bind(user_id)
+            .fetch_optional(pool())
+            .await
+            .map_err(|e| {
+                server_error(
+                    format!("Badge lookup failed: {e}"),
+                    "Failed to process your request.",
+                )
+            })?;
+    let public = public == Some(true);
+    let total_seconds = if !public {
+        0
+    } else if project == "all" {
         get_user_time_range_total(user_id, range, None)
             .await?
             .total_minutes
@@ -117,8 +135,16 @@ pub async fn badge(cx: &Cx) -> Result<Response> {
     let icon = icon.or_else(|| label_text.is_none().then(|| "/favicon.ico".to_string()));
     let svg = badgen(&BadgeOptions {
         label: label_text.as_deref().unwrap_or("Ziit"),
-        status: &format_time(total_seconds),
-        color: &color_hex(&color),
+        status: &if public {
+            format_time(total_seconds)
+        } else {
+            "private".to_string()
+        },
+        color: &if public {
+            color_hex(&color)
+        } else {
+            "9f9f9f".to_string()
+        },
         flat,
         icon: icon.as_deref(),
     });
