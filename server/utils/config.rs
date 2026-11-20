@@ -11,6 +11,7 @@ pub struct Config {
     pub github_client_secret: String,
     pub epilogue_app_id: String,
     pub epilogue_app_secret: String,
+    pub trusted_proxy_hops: usize,
     pub production: bool,
 }
 
@@ -41,6 +42,10 @@ pub fn init() {
         github_client_secret: var("GITHUB_CLIENT_SECRET"),
         epilogue_app_id: var("EPILOGUE_APP_ID"),
         epilogue_app_secret: var("EPILOGUE_APP_SECRET"),
+        trusted_proxy_hops: match var("TRUST_PROXY").as_str() {
+            "true" => 1,
+            other => other.parse().unwrap_or(0),
+        },
         production,
     };
 

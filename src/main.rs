@@ -20,5 +20,9 @@ async fn main() {
     server::utils::db::init().await;
     server::cron::start();
 
-    topcoat::start(app::router().build()).await.unwrap();
+    let router = app::router().trusted_proxies(
+        topcoat::router::TrustedProxies::new()
+            .nearest(server::utils::config::config().trusted_proxy_hops),
+    );
+    topcoat::start(router.build()).await.unwrap();
 }

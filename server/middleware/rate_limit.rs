@@ -4,10 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use topcoat::{
-    context::Cx,
-    router::request::{client_ip, headers},
-};
+use topcoat::{context::Cx, router::request::client_ip};
 
 use crate::server::utils::logging::plain;
 
@@ -63,13 +60,7 @@ fn profile_for(path: &str) -> Profile {
 }
 
 fn ip(cx: &Cx) -> String {
-    headers(cx)
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.split(',').next())
-        .map(|v| v.trim().to_string())
-        .or_else(|| client_ip(cx).map(|ip| ip.to_string()))
-        .unwrap_or_default()
+    client_ip(cx).map(|ip| ip.to_string()).unwrap_or_default()
 }
 
 pub fn check(cx: &Cx, path: &str) -> topcoat::Result<Option<RateLimitHeaders>> {
@@ -77,7 +68,11 @@ pub fn check(cx: &Cx, path: &str) -> topcoat::Result<Option<RateLimitHeaders>> {
         return Ok(None);
     }
     let profile = profile_for(path);
-    let key = format!("{}:{}", ip(cx), path);
+    let scope = match path {
+        "/api/auth/login" | "/api/auth/register" => "/api/auth/credentials",
+        other => other,
+    };
+    let key = format!("{}:{}", ip(cx), scope);
     let now = Instant::now();
     let mut store = STORE.lock().unwrap();
     if store.len() > 10_000 {

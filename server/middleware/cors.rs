@@ -1,8 +1,5 @@
 use http::header::{HeaderName, HeaderValue};
-use topcoat::{
-    context::Cx,
-    router::{request::headers, response::Response},
-};
+use topcoat::{context::Cx, router::response::Response};
 
 use crate::server::utils::config::config;
 
@@ -14,7 +11,7 @@ fn set(response: &mut Response, name: &'static str, value: &str) {
     }
 }
 
-pub fn apply(cx: &Cx, path: &str, response: &mut Response) {
+pub fn apply(_cx: &Cx, path: &str, response: &mut Response) {
     if path.starts_with("/api/") {
         if path.starts_with("/api/external/") {
             set(
@@ -30,25 +27,27 @@ pub fn apply(cx: &Cx, path: &str, response: &mut Response) {
             );
             set(response, "access-control-allow-credentials", "true");
         } else {
-            let origin = headers(cx)
-                .get("origin")
-                .and_then(|v| v.to_str().ok())
-                .map(str::to_string)
-                .or_else(|| Some(config().base_url.clone()).filter(|b| !b.is_empty()))
-                .unwrap_or_default();
-            set(response, "access-control-allow-origin", &origin);
-            set(response, "access-control-allow-methods", "GET,POST,OPTIONS");
-            set(
-                response,
-                "access-control-allow-headers",
-                "authorization,content-type",
-            );
-            set(response, "access-control-allow-credentials", "true");
+            let origin = &config().base_url;
+            if !origin.is_empty() {
+                set(response, "access-control-allow-origin", origin);
+                set(response, "access-control-allow-methods", "GET,POST,OPTIONS");
+                set(
+                    response,
+                    "access-control-allow-headers",
+                    "authorization,content-type",
+                );
+                set(response, "access-control-allow-credentials", "true");
+                set(response, "vary", "origin");
+            }
         }
     }
     set(response, "x-frame-options", "DENY");
     set(response, "x-content-type-options", "nosniff");
-    set(response, "x-xss-protection", "1; mode=block");
+    set(
+        response,
+        "content-security-policy",
+        "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'",
+    );
     set(
         response,
         "permissions-policy",

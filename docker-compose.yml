@@ -9,6 +9,7 @@ services:
       ZIIT_ADMIN_KEY: "" # This is the password for the admin dashboard. RUN THIS COMMAND IN YOUR TERMINAL AND USE THE OUTPUT -> openssl rand -hex 64
       ZIIT_BASE_URL: "" # Base URL of the Ziit instance, including protocol e.g. https://ziit.example.com
       ZIIT_DISABLE_REGISTRATION: false # By default users are allowed to register a new account
+      ZIIT_TRUST_PROXY: 0 # number of reverse proxies in front of Ziit (e.g. 1 behind nginx/caddy), leave 0 if exposed directly
       ZIIT_GITHUB_CLIENT_ID: "" # client id https://docs.ziit.app/deploy/github-oauth
       ZIIT_GITHUB_CLIENT_SECRET: "" # client secret https://docs.ziit.app/deploy/github-oauth
       ZIIT_EPILOGUE_APP_ID: "" # application id https://docs.ziit.app/deploy/epilogue-oauth

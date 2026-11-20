@@ -54,8 +54,18 @@ async fn page(user_id: &str, cursor_ts: &str, cursor_id: &str) -> sqlx::Result<V
 fn csv_cell(value: &Option<String>) -> String {
     match value {
         None => String::new(),
-        Some(v) if v.contains(['"', ',', '\r', '\n']) => format!("\"{}\"", v.replace('"', "\"\"")),
-        Some(v) => v.clone(),
+        Some(v) => {
+            let v = if v.starts_with(['=', '+', '-', '@', '\t', '\r']) {
+                format!("'{v}")
+            } else {
+                v.clone()
+            };
+            if v.contains(['"', ',', '\r', '\n']) {
+                format!("\"{}\"", v.replace('"', "\"\""))
+            } else {
+                v
+            }
+        }
     }
 }
 
