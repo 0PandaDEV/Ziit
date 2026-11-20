@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS "AppState" (
+  "key" TEXT PRIMARY KEY,
+  "value" TEXT NOT NULL,
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
