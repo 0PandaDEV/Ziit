@@ -1,6 +1,6 @@
 [package]
 name = "ziit"
-version = "1.3.1"
+version = "1.3.2"
 edition = "2024"
 license = "AGPL-3.0"
 build = "build.rs"
@@ -25,7 +25,7 @@ tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "signal",
 sqlx = { version = "0.9.1", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "migrate", "macros", "json"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
-jiff = { version = "1.0.1", features = ["serde", "tzdb-bundle-always"] }
+jiff = { version = "1.0.2", features = ["serde", "tzdb-bundle-always"] }
 uuid = { version = "1.29.3", features = ["v4"] }
 bcrypt = "0.19.3"
 pasetors = "0.8.1"
