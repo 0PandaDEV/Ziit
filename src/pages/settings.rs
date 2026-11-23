@@ -110,7 +110,7 @@ pub async fn settings(cx: &Cx) -> Result<impl View> {
                             button(
                                 text: "Link Epilogue",
                                 key_name: "M",
-                                attrs: attributes! { data-api="/api/auth/epilogue/link" data-method="GET" data-open-url="" }
+                                attrs: attributes! { data-api="/api/auth/epilogue/link" data-open-url="" }
                             )
                         }
                         button(

@@ -6,7 +6,7 @@ use topcoat::{
 };
 
 use crate::server::{
-    api::auth::epilogue_get::{authorize_url, frontend_url},
+    api::auth::epilogue_get::{authorize_url, new_pkce},
     utils::{
         auth::{SESSION_COOKIE, encrypt_claims, read_cookie, session_user_id, short_cookie},
         config::config,
@@ -15,7 +15,7 @@ use crate::server::{
     },
 };
 
-#[route(GET "/api/auth/epilogue/link")]
+#[route(POST "/api/auth/epilogue/link")]
 pub async fn link(cx: &Cx) -> Result<Response> {
     let config = config();
     if config.disable_registering {
@@ -31,7 +31,9 @@ pub async fn link(cx: &Cx) -> Result<Response> {
         return Err(plain(500, "Epilogue auth is not configured"));
     }
     let state = uuid::Uuid::new_v4().to_string();
+    let (verifier, challenge) = new_pkce();
     short_cookie(cx, "epilogue_oauth_state", state.clone());
+    short_cookie(cx, "epilogue_pkce", verifier);
     short_cookie(cx, "epilogue_link_account", "true".into());
     let token = encrypt_claims(&user_id, 600).ok_or_else(|| {
         plain(
@@ -40,6 +42,5 @@ pub async fn link(cx: &Cx) -> Result<Response> {
         )
     })?;
     short_cookie(cx, "epilogue_link_session", token);
-    let cancel = format!("{}/settings?error=link_cancelled", frontend_url());
-    Ok(json(&json!({ "url": authorize_url(&state, &cancel) })))
+    Ok(json(&json!({ "url": authorize_url(&state, &challenge) })))
 }

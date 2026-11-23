@@ -1,5 +1,4 @@
 use serde::Deserialize;
-use serde_json::json;
 use topcoat::{
     Result,
     context::Cx,
@@ -7,23 +6,28 @@ use topcoat::{
     router::{response::Response, route},
 };
 
-use crate::server::utils::{
-    auth::{decrypt_user_id, read_cookie, set_session},
-    config::config,
-    db::{USER_COLS, User, new_id, pool},
-    heartbeats::finalize_import,
-    http_util::{CLIENT, no_store, query_map, redirect},
-    logging::server_error,
+use crate::server::{
+    api::auth::epilogue_get::{ISSUER, redirect_uri},
+    utils::{
+        auth::{SESSION_COOKIE, decrypt_user_id, read_cookie, session_user_id, set_session},
+        config::config,
+        db::{USER_COLS, User, new_id, pool},
+        heartbeats::finalize_import,
+        http_util::{CLIENT, no_store, query_map, redirect},
+        logging::server_error,
+    },
 };
 
 #[derive(Deserialize)]
 struct TokenResponse {
-    token: String,
+    access_token: String,
 }
 
 #[derive(Deserialize)]
 struct EpilogueUser {
+    #[serde(rename = "sub")]
     id: String,
+    #[serde(rename = "preferred_username")]
     username: Option<String>,
     email: Option<String>,
 }
@@ -124,28 +128,38 @@ async fn login_or_create(ep: &EpilogueUser) -> sqlx::Result<User> {
 #[route(GET "/api/auth/epilogue/callback")]
 pub async fn callback(cx: &Cx) -> Result<Response> {
     let query = query_map(cx);
-    let Some(code) = query.get("code").filter(|c| !c.is_empty()).cloned() else {
-        return Ok(redirect("/login?error=cancelled"));
-    };
     let state = query.get("state");
     let stored = read_cookie(cx, "epilogue_oauth_state");
-    if stored.is_none() || state.is_some_and(|s| Some(s) != stored.as_ref()) {
-        tracing::error!(
-            state_param = state.is_some(),
-            state_cookie = stored.is_some(),
-            "Epilogue callback error: Invalid state"
-        );
+    if state.is_none() || state != stored.as_ref() {
+        tracing::error!("Epilogue callback error: Invalid state");
         return Ok(redirect("/login?error=invalid_state"));
     }
+    if query.get("iss").is_some_and(|iss| iss != ISSUER) {
+        tracing::error!("Epilogue callback error: Invalid issuer");
+        return Ok(redirect("/login?error=invalid_state"));
+    }
+    let verifier = read_cookie(cx, "epilogue_pkce");
     let linking = read_cookie(cx, "epilogue_link_account").as_deref() == Some("true");
     let link_session = read_cookie(cx, "epilogue_link_session");
     for name in [
         "epilogue_oauth_state",
+        "epilogue_pkce",
         "epilogue_link_account",
         "epilogue_link_session",
     ] {
         cookies(cx).remove(Cookie::build((name, "")).secure(true).path("/").build());
     }
+
+    let Some(code) = query.get("code").filter(|c| !c.is_empty()).cloned() else {
+        return Ok(redirect(if linking {
+            "/settings?error=link_cancelled"
+        } else {
+            "/login?error=cancelled"
+        }));
+    };
+    let Some(verifier) = verifier else {
+        return Ok(redirect("/login?error=invalid_state"));
+    };
 
     let config = config();
     let failure = |detail: String| {
@@ -155,14 +169,22 @@ pub async fn callback(cx: &Cx) -> Result<Response> {
         )
     };
 
+    let form = [
+        ("grant_type", "authorization_code"),
+        ("code", code.as_str()),
+        ("redirect_uri", redirect_uri().as_str()),
+        ("client_id", config.epilogue_app_id.as_str()),
+        ("client_secret", config.epilogue_app_secret.as_str()),
+        ("code_verifier", verifier.as_str()),
+    ]
+    .iter()
+    .map(|(k, v)| format!("{k}={}", urlencoding::encode(v)))
+    .collect::<Vec<_>>()
+    .join("&");
     let token: TokenResponse = CLIENT
-        .post(format!(
-            "https://auth.epilogue.team/api/v1/authorize/{}",
-            config.epilogue_app_id
-        ))
-        .json(
-            &json!({ "authorizationCode": code, "applicationSecret": config.epilogue_app_secret }),
-        )
+        .post(format!("{ISSUER}/oauth/token"))
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(form)
         .send()
         .await
         .map_err(|e| failure(e.to_string()))?
@@ -172,8 +194,8 @@ pub async fn callback(cx: &Cx) -> Result<Response> {
         .await
         .map_err(|e| failure(e.to_string()))?;
     let ep: EpilogueUser = CLIENT
-        .get("https://auth.epilogue.team/api/v1/app/me")
-        .bearer_auth(&token.token)
+        .get(format!("{ISSUER}/oauth/userinfo"))
+        .bearer_auth(&token.access_token)
         .send()
         .await
         .map_err(|e| failure(e.to_string()))?
@@ -195,7 +217,12 @@ pub async fn callback(cx: &Cx) -> Result<Response> {
     }
 
     if linking {
-        if let Some(user_id) = link_session.as_deref().and_then(decrypt_user_id) {
+        let current = match read_cookie(cx, SESSION_COOKIE) {
+            Some(session) => session_user_id(&session).await,
+            None => None,
+        };
+        let bound = link_session.as_deref().and_then(decrypt_user_id);
+        if let Some(user_id) = bound.filter(|id| current.as_deref() == Some(id.as_str())) {
             return match merge_link(&user_id, &ep).await {
                 Ok(target) => {
                     if target.contains("accounts_merged") {
