@@ -5,7 +5,7 @@ use topcoat::{
 };
 
 use crate::server::utils::{
-    auth::short_cookie, config::config, http_util::redirect, logging::plain,
+    auth::short_cookie, config::config, http_util::{base_url_redirect, redirect}, logging::plain,
 };
 
 pub fn frontend_url() -> String {
@@ -25,6 +25,9 @@ pub fn authorize_url(state: &str, cancel_url: &str) -> String {
 
 #[route(GET "/api/auth/epilogue")]
 pub async fn epilogue(cx: &Cx) -> Result<Response> {
+    if let Some(response) = base_url_redirect(cx) {
+        return Ok(response);
+    }
     let config = config();
     if config.disable_registering {
         return Err(plain(403, "Registration is currently disabled"));

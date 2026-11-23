@@ -7,10 +7,14 @@ use http::{
 use serde::Serialize;
 use topcoat::{
     context::{Cx, try_context},
-    router::{Body, request::uri, response::Response},
+    router::{
+        Body,
+        request::{headers, uri},
+        response::Response,
+    },
 };
 
-use super::{auth::AuthUser, db::User, logging::plain};
+use super::{auth::AuthUser, config::config, db::User, logging::plain};
 
 pub fn json<T: Serialize>(value: &T) -> Response {
     let mut response = Response::new(Body::from(
@@ -90,3 +94,21 @@ pub static CLIENT: std::sync::LazyLock<reqwest::Client> = std::sync::LazyLock::n
         .build()
         .expect("http client")
 });
+
+pub fn base_url_redirect(cx: &Cx) -> Option<Response> {
+    let config = config();
+    if config.production {
+        return None;
+    }
+    let base = reqwest::Url::parse(&config.base_url).ok()?;
+    let expected = match base.port() {
+        Some(port) => format!("{}:{port}", base.host_str()?),
+        None => base.host_str()?.to_string(),
+    };
+    let host = headers(cx).get("host")?.to_str().ok()?;
+    if host.eq_ignore_ascii_case(&expected) {
+        return None;
+    }
+    let path = uri(cx).path_and_query().map(|p| p.as_str()).unwrap_or("/");
+    Some(redirect(&format!("{}{path}", config.base_url)))
+}

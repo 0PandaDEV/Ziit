@@ -5,11 +5,14 @@ use topcoat::{
 };
 
 use crate::server::utils::{
-    auth::short_cookie, config::config, http_util::redirect, logging::plain,
+    auth::short_cookie, config::config, http_util::{base_url_redirect, redirect}, logging::plain,
 };
 
 #[route(GET "/api/auth/github")]
 pub async fn github(cx: &Cx) -> Result<Response> {
+    if let Some(response) = base_url_redirect(cx) {
+        return Ok(response);
+    }
     let config = config();
     if config.disable_registering {
         return Err(plain(403, "Registration is currently disabled"));
