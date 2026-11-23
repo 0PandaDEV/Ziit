@@ -154,12 +154,12 @@ pub async fn index(cx: &Cx) -> Result<impl View> {
                     </div>
                 </div>
                 <div class="metrics-tables">
-                    section(id: "projects", title: "PROJECTS", items: &projects, total_seconds: total)
-                    section(id: "languages", title: "LANGUAGES", items: &languages, total_seconds: total)
-                    section(id: "editors", title: "EDITORS", items: &editors, total_seconds: total)
-                    section(id: "files", title: "FILES", items: &files, total_seconds: total)
-                    section(id: "os", title: "OPERATING SYSTEMS", items: &systems, total_seconds: total)
-                    section(id: "branches", title: "BRANCHES", items: &branches, total_seconds: total)
+                    section(id: "projects", title: "Projects", items: &projects, total_seconds: total)
+                    section(id: "languages", title: "Languages", items: &languages, total_seconds: total)
+                    section(id: "editors", title: "Editors", items: &editors, total_seconds: total)
+                    section(id: "files", title: "Files", items: &files, total_seconds: total)
+                    section(id: "os", title: "Operating Systems", items: &systems, total_seconds: total)
+                    section(id: "branches", title: "Branches", items: &branches, total_seconds: total)
                 </div>
             </div>
         )

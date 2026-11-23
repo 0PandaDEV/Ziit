@@ -322,12 +322,12 @@
 
 .data-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
   border-spacing: 0;
 
   td {
     color: var(--text-secondary);
-    padding: 0 16px;
+    padding-inline: 16px;
     white-space: nowrap;
 
     &.sorted {
@@ -340,12 +340,23 @@
   }
 
   .header {
-    border: 1px solid var(--border);
-    background-color: var(--background);
     user-select: none;
 
     td {
+      position: sticky;
+      top: 0;
+      z-index: 6;
+      background-color: var(--background);
+      border-block: 1px solid var(--border);
       cursor: pointer;
+
+      &:first-child {
+        border-left: 1px solid var(--border);
+      }
+
+      &:last-child {
+        border-right: 1px solid var(--border);
+      }
 
       &::after {
         width: 1ch;
@@ -381,6 +392,10 @@
 
     .hide-mobile {
       display: none;
+    }
+
+    .header td:not(.hide-mobile):not(:has(~ td:not(.hide-mobile))) {
+      border-right: 1px solid var(--border);
     }
   }
 }
@@ -455,7 +470,7 @@
 }
 
 .toast {
-  padding: 4px 9px;
+  padding: 6px;
   font-weight: 400;
   cursor: pointer;
   display: inline-block;

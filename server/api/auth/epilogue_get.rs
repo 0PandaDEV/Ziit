@@ -5,7 +5,10 @@ use topcoat::{
 };
 
 use crate::server::utils::{
-    auth::short_cookie, config::config, http_util::{base_url_redirect, redirect}, logging::plain,
+    auth::short_cookie,
+    config::config,
+    http_util::{base_url_redirect, redirect},
+    logging::plain,
 };
 
 pub fn frontend_url() -> String {
