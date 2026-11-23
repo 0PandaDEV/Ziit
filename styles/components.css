@@ -629,53 +629,108 @@
 }
 
 .layout {
+  --bar: 18px;
   width: 100dvw;
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
+  justify-content: space-between;
   padding: 24px;
+  position: relative;
 
-  &.navbar-layout {
-    padding-bottom: 0;
+  > .navbar,
+  > .bottombar {
+    position: relative;
+    z-index: 10;
+    height: var(--bar);
+  }
 
-    .fade-bottom {
-      bottom: 0;
-    }
+  .viewport {
+    position: absolute;
+    inset: 0;
+    --top: calc(24px + var(--bar));
+    --bottom: 0px;
+  }
+
+  &:has(> .bottombar) .viewport {
+    --bottom: calc(24px + var(--bar));
   }
 
   .content {
-    flex: 1;
-    overflow-y: auto;
-    height: 0;
-    margin: 0 -24px;
-    padding: 24px;
     position: relative;
+    z-index: 0;
+    height: 100%;
+    overflow-y: auto;
+    padding: calc(var(--top) + 24px) 24px calc(var(--bottom) + 24px);
   }
 
-  .fade-top {
-    position: absolute;
-    top: 42px;
-    height: 24px;
-    width: calc(100vw - 24px);
-    left: 0;
-    background: linear-gradient(to bottom, var(--background) 20%, transparent 100%);
-    z-index: 5;
-    pointer-events: none;
+  .content:has(.data-table) > .blur.top {
+    --edge: calc(var(--top) + 24px + 48px);
   }
 
-  .fade-bottom {
-    position: absolute;
-    bottom: 18px;
-    height: 24px;
+  .blur {
+    position: sticky;
     left: 0;
-    width: calc(100vw - 24px);
-    background: linear-gradient(to top, var(--background) 20%, transparent 100%);
+    height: 0;
     z-index: 5;
     pointer-events: none;
 
-    &.home-page {
-      bottom: 42px;
+    &.top {
+      top: 0;
+      --edge: var(--top);
+      --dir: to bottom;
+
+      > div {
+        top: calc(-1 * (var(--top) + 24px));
+        animation: blur-in linear both;
+        animation-timeline: scroll(nearest);
+        animation-range: 0 24px;
+      }
+    }
+
+    &.bottom {
+      bottom: 0;
+      --edge: var(--bottom);
+      --dir: to top;
+
+      > div {
+        top: 0;
+      }
+    }
+
+    > div {
+      position: absolute;
+      left: -24px;
+      right: -24px;
+      height: calc(var(--edge) + 24px);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
+      mask-image: linear-gradient(var(--dir), var(--mask));
+    }
+
+    > :nth-child(1) {
+      --blur: 8px;
+      --mask: #000 0, #000 calc(var(--edge) + 4.8px), transparent calc(var(--edge) + 9.6px);
+    }
+
+    > :nth-child(2) {
+      --blur: 4px;
+      --mask: #000 0, #000 calc(var(--edge) + 9.6px), transparent calc(var(--edge) + 14.4px);
+    }
+
+    > :nth-child(3) {
+      --blur: 2px;
+      --mask: transparent calc(var(--edge) + 0px), #000 calc(var(--edge) + 4.8px), #000 calc(var(--edge) + 14.4px), transparent calc(var(--edge) + 19.2px);
+    }
+
+    > :nth-child(4) {
+      --blur: 1px;
+      --mask: transparent calc(var(--edge) + 4.8px), #000 calc(var(--edge) + 9.6px), #000 calc(var(--edge) + 19.2px), transparent calc(var(--edge) + 24px);
+    }
+
+    > :nth-child(5) {
+      --blur: 0.5px;
+      --mask: transparent calc(var(--edge) + 9.6px), #000 calc(var(--edge) + 14.4px), #000 calc(var(--edge) + 24px);
     }
   }
 
@@ -683,9 +738,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    z-index: 10;
-    height: 18px;
     overflow: visible;
     color: var(--text-secondary);
+  }
+}
+
+@keyframes blur-in {
+  from {
+    opacity: 0;
   }
 }

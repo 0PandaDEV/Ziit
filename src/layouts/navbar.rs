@@ -11,9 +11,13 @@ pub async fn navbar_layout(cx: &Cx, #[default] child: Child<'_>) -> Result<impl 
     Ok(view! {
         <div class="layout navbar-layout">
             navbar()
-            <div class="fade-top"></div>
-            <div class="content">(child)</div>
-            <div class="fade-bottom"></div>
+            <div class="viewport">
+                <div class="content">
+                    <div class="blur top" aria-hidden="true"><div></div><div></div><div></div><div></div><div></div></div>
+                    (child)
+                    <div class="blur bottom" aria-hidden="true"><div></div><div></div><div></div><div></div><div></div></div>
+                </div>
+            </div>
         </div>
     })
 }

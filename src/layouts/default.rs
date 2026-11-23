@@ -1,7 +1,7 @@
 use topcoat::{
     Result,
     context::Cx,
-    view::{Child, View, class, component, view},
+    view::{Child, View, component, view},
 };
 
 use crate::{
@@ -20,9 +20,13 @@ pub async fn default_layout(
     Ok(view! {
         <div class="layout">
             navbar()
-            <div class="fade-top"></div>
-            <div class="content">(child)</div>
-            <div class=(class!("fade-bottom", "home-page" if home))></div>
+            <div class="viewport">
+                <div class="content">
+                    <div class="blur top" aria-hidden="true"><div></div><div></div><div></div><div></div><div></div></div>
+                    (child)
+                    <div class="blur bottom" aria-hidden="true"><div></div><div></div><div></div><div></div><div></div></div>
+                </div>
+            </div>
             if home {
                 <div class="bottombar">
                     <p class="coding-time">(format_time(total_seconds))</p>
