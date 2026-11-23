@@ -87,7 +87,7 @@ document.addEventListener("click", async (event) => {
   try {
     const body = el.dataset.body ? (JSON.parse(el.dataset.body) as Json) : undefined;
     const data = await call(el.dataset.api!, el.dataset.method || "POST", body);
-    if (el.dataset.openUrl && data?.url) location.href = data.url;
+    if (el.dataset.openUrl !== undefined && data?.url) location.href = data.url;
     else finish(el, data);
   } catch (error) {
     window.toast((error as Error).message);
