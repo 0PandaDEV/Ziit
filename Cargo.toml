@@ -1,6 +1,6 @@
 [package]
 name = "ziit"
-version = "1.3.2"
+version = "1.3.3"
 edition = "2024"
 license = "AGPL-3.0"
 build = "build.rs"
@@ -47,12 +47,12 @@ http-body = "1.1.0"
 http-body-util = "0.1.5"
 
 [build-dependencies]
-oxc_allocator = "0.159.0"
-oxc_parser = "0.159.0"
-oxc_span = "0.159.0"
-oxc_semantic = "0.159.0"
-oxc_transformer = "0.159.0"
-oxc_codegen = "0.159.0"
+oxc_allocator = "0.160.0"
+oxc_parser = "0.160.0"
+oxc_span = "0.160.0"
+oxc_semantic = "0.160.0"
+oxc_transformer = "0.160.0"
+oxc_codegen = "0.160.0"
 
 [profile.dev]
 debug = "line-tables-only"
