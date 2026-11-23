@@ -124,12 +124,17 @@ async fn login_or_create(ep: &EpilogueUser) -> sqlx::Result<User> {
 #[route(GET "/api/auth/epilogue/callback")]
 pub async fn callback(cx: &Cx) -> Result<Response> {
     let query = query_map(cx);
-    let Some(code) = query.get("code").filter(|c| !c.is_empty()) else {
+    let Some(code) = query.get("code").filter(|c| !c.is_empty()).cloned() else {
         return Ok(redirect("/login?error=cancelled"));
     };
     let state = query.get("state");
     let stored = read_cookie(cx, "epilogue_oauth_state");
-    if state.is_none() || stored.is_none() || state != stored.as_ref() {
+    if stored.is_none() || state.is_some_and(|s| Some(s) != stored.as_ref()) {
+        tracing::error!(
+            state_param = state.is_some(),
+            state_cookie = stored.is_some(),
+            "Epilogue callback error: Invalid state"
+        );
         return Ok(redirect("/login?error=invalid_state"));
     }
     let linking = read_cookie(cx, "epilogue_link_account").as_deref() == Some("true");
