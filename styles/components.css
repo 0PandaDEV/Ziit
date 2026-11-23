@@ -146,76 +146,124 @@
 }
 
 .modal {
-  max-width: 500px;
+  max-width: 480px;
 
   form {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    width: 100%;
-  }
 
-  .text {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-
-    .title {
-      font-size: 18px;
-      font-weight: 500;
+    .input {
       width: 100%;
     }
+  }
 
-    .description {
-      color: var(--text-secondary);
-      font-size: 14px;
-    }
+  .description {
+    color: var(--text-secondary);
+    margin-bottom: 8px;
   }
 
   .modal-buttons {
     display: flex;
     gap: 24px;
-    width: 100%;
-    margin-top: 8px;
+    margin-top: 16px;
+  }
+}
+
+.modal .modal-header,
+.list-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .heading {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .count {
+    font-family: ChivoMono;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .close-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--text);
+    }
   }
 }
 
 .list-modal {
-  max-width: 600px;
-  max-height: 80vh;
+  width: calc(100% - 32px);
+  max-width: 640px;
+  height: min(720px, calc(100dvh - 64px));
+  overflow: hidden;
 
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border);
+  &[open] {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+  }
 
-    .title {
-      font-size: 18px;
-      font-weight: 500;
-      text-transform: uppercase;
-      color: var(--text-secondary);
+  .search {
+    .input {
+      width: 100%;
     }
 
-    .close-button {
-      background: none;
-      border: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      &:hover {
-        color: var(--text);
-      }
+    input::-webkit-search-cancel-button {
+      display: none;
     }
   }
 
   .list-content {
+    min-height: 0;
     overflow-y: auto;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+
+    .item {
+      grid-template-columns: 2.5ch 1fr auto auto;
+      flex-shrink: 0;
+    }
+
+    .rank {
+      font-family: ChivoMono;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .name mark {
+      background: none;
+      color: var(--accent);
+    }
+
+    .percentage,
+    .time {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .empty {
+      padding: 24px;
+      color: var(--text-muted);
+      text-align: center;
+    }
   }
 }
 
@@ -229,9 +277,8 @@
     grid-template-columns: 1fr auto auto;
     gap: 1rem;
     align-items: center;
-    padding: 8px 10px;
+    padding: 8px;
     position: relative;
-    overflow: hidden;
     height: 34px;
 
     &::before {

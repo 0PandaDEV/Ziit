@@ -13,6 +13,7 @@ pub enum Icon {
     Check,
     Circle,
     ChevronsUpDown,
+    Search,
 }
 
 #[component]
@@ -38,6 +39,10 @@ pub async fn icon(cx: &Cx, name: Icon, #[default] size: u32) -> Result<impl View
                     <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
                     <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
                     <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+                },
+                Icon::Search => {
+                    <path d="m21 21-4.34-4.34"></path>
+                    <circle cx="11" cy="11" r="8"></circle>
                 },
                 Icon::X => {
                     <path d="M18 6 6 18"></path>

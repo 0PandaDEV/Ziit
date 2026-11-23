@@ -4,14 +4,17 @@ const editable = (el: EventTarget | null) =>
 
 function normalize(combo: string): { key: string; alt: boolean } {
   const parts = combo.toLowerCase().split("+");
-  return { key: parts[parts.length - 1] ?? "", alt: parts.includes("alt") };
+  const key = parts[parts.length - 1] ?? "";
+  return { key: key === "esc" ? "escape" : key, alt: parts.includes("alt") };
 }
 
 document.addEventListener("keydown", (event) => {
   if (event.ctrlKey || event.metaKey) return;
   const inEditable = editable(event.target);
   const pressed = event.key.toLowerCase();
-  for (const el of document.querySelectorAll<HTMLElement>("[data-key]")) {
+  const scope = document.querySelector("dialog[open]") ?? document;
+  for (const el of scope.querySelectorAll<HTMLElement>("[data-key]")) {
+    if (el.closest("dialog:not([open])")) continue;
     const { key, alt } = normalize(el.dataset.key!);
     if (key !== pressed || alt !== event.altKey) continue;
     if (inEditable && el.dataset.keyEditable === undefined) continue;
