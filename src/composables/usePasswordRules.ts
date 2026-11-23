@@ -16,9 +16,24 @@ function target(event: Event): HTMLInputElement | null {
   return el instanceof HTMLInputElement && el.dataset.rules ? el : null;
 }
 
+function match(form: HTMLFormElement) {
+  const confirm = form.querySelector<HTMLInputElement>("input[data-match]");
+  const status = form.querySelector<HTMLElement>(".password-match");
+  if (!confirm || !status) return;
+  const original = form.querySelector<HTMLInputElement>(`input[name="${confirm.dataset.match}"]`);
+  status.dataset.state = !confirm.value ? "empty" : confirm.value === original?.value ? "match" : "mismatch";
+}
+
 document.addEventListener("input", (event) => {
   const input = target(event);
   if (input) update(input);
+  const form = (event.target as HTMLElement).closest?.("form");
+  if (form) match(form);
+});
+
+document.addEventListener("reset", (event) => {
+  const form = event.target as HTMLFormElement;
+  setTimeout(() => match(form));
 });
 
 document.addEventListener("focusin", (event) => {
@@ -30,7 +45,8 @@ document.addEventListener("focusin", (event) => {
 
 document.addEventListener("focusout", (event) => {
   const input = target(event);
-  if (input) rules(input)?.setAttribute("hidden", "");
+  const list = input && rules(input);
+  if (list && !list.classList.contains("inline")) list.setAttribute("hidden", "");
 });
 
 export {};

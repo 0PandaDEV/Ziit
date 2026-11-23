@@ -429,6 +429,45 @@
   }
 }
 
+.password-match {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: color 0.15s;
+
+  > span {
+    display: none;
+  }
+
+  &[data-state="empty"] .when-empty,
+  &[data-state="match"] .when-match,
+  &[data-state="mismatch"] .when-mismatch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &[data-state="match"] {
+    color: var(--accent);
+  }
+
+  &[data-state="mismatch"] {
+    color: #ff5555;
+  }
+}
+
+.password-rules.inline {
+  position: static;
+  width: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
 .password-rules {
   position: absolute;
   left: calc(100% + 12px);

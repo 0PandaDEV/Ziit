@@ -9,7 +9,7 @@ use crate::{
     app::{PageMeta, meta},
     components::{
         flash::flash,
-        password_rules::password_rules,
+        password_rules::{password_match, password_rules},
         ui::{button::button, input::input, modal::modal, radio_button::radio_button},
     },
     layouts::default::default_layout,
@@ -148,13 +148,11 @@ pub async fn settings(cx: &Cx) -> Result<impl View> {
                     title: "Change Password",
                     api: "/api/user",
                     success: "Password updated successfully",
-                    description: "Password must be at least 12 characters and include uppercase, lowercase, numbers, and special characters",
                     input(name: "currentPassword", input_type: "password", placeholder: "Current Password")
-                    <div class="password-field">
-                        input(name: "password", input_type: "password", placeholder: "New Password", attrs: attributes! { required="" data-rules="#settings-rules" })
-                        password_rules(id: "settings-rules")
-                    </div>
-                    input(name: "confirm", input_type: "password", placeholder: "Confirm Password", attrs: attributes! { required="" })
+                    input(name: "password", input_type: "password", placeholder: "New Password", attrs: attributes! { required="" data-rules="#settings-rules" })
+                    password_rules(id: "settings-rules", inline: true)
+                    input(name: "confirm", input_type: "password", placeholder: "Confirm Password", attrs: attributes! { required="" data-match="password" })
+                    password_match()
                 )
 
                 <section class="api-key">
