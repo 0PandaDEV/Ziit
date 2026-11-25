@@ -1,6 +1,5 @@
 pub mod clean_chunks;
 pub mod clean_sessions;
-pub mod clean_users;
 pub mod public_stats;
 
 use std::{future::Future, time::Duration};
@@ -42,12 +41,10 @@ pub fn start() {
         backfill_seconds::run().await;
         normalize_data::run().await;
         public_stats::run().await;
-        clean_users::run().await;
         clean_chunks::run().await;
         clean_sessions::run().await;
     });
     daily(public_stats::run);
-    daily(clean_users::run);
     daily(clean_chunks::run);
     daily(clean_sessions::run);
 }
