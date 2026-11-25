@@ -26,11 +26,9 @@
 
 <details>
   <summary><kbd>Star History</kbd></summary>
-  <a href="https://starchart.cc/0PandaDEV/Ziit">
-    <picture>
-      <img width="100%" src="https://starchart.cc/0PandaDEV/ziit.svg?variant=adaptive">
-    </picture>
-  </a>
+  <picture>
+    <img width="100%" src="https://app.repohistory.com/api/svg?repo=0pandadev/ziit&type=Date&background=191919&color=ff6200">
+  </picture>
 </details>
 
 ## What is Ziit?
